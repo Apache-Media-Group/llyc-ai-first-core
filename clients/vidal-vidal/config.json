@@ -1,0 +1,155 @@
+{
+  "client": {
+    "id": "vidal-vidal",
+    "name": "Vidal & Vidal",
+    "sector": "Joyeria eCommerce",
+    "country": "ES",
+    "language": "es",
+    "timezone": "Europe/Madrid",
+    "currency": "EUR"
+  },
+
+  "agents": {
+    "performance_monitor": {
+      "agent_id": "perf-monitor-vidal-vidal",
+      "enabled": true,
+      "schedule_cron": "0 8 * * *",
+      "output_drive_folder": "04_OUTPUTS/vidal-vidal/"
+    },
+    "budget_pacer": {
+      "agent_id": "budget-pacer-vidal-vidal",
+      "enabled": true,
+      "schedule_cron": "0 12,18 * * *",
+      "output_drive_folder": "04_OUTPUTS/vidal-vidal/"
+    },
+    "naming_utm_auditor": {
+      "agent_id": "naming-auditor-vidal-vidal",
+      "enabled": true,
+      "schedule_cron": "0 9 * * 1",
+      "output_drive_folder": "04_OUTPUTS/vidal-vidal/"
+    },
+    "weekly_digest": {
+      "agent_id": "weekly-digest-vidal-vidal",
+      "enabled": true,
+      "schedule_cron": "0 17 * * 5",
+      "output_drive_folder": "04_OUTPUTS/vidal-vidal/",
+      "output_drive_doc_name": "weekly-digest-vidal-vidal"
+    },
+    "creative_fatigue_detector": {
+      "agent_id": "creative-fatigue-vidal-vidal",
+      "enabled": false,
+      "sprint_activation": "Sprint 2",
+      "schedule_cron": "0 9 * * 3",
+      "output_drive_folder": "04_OUTPUTS/vidal-vidal/"
+    }
+  },
+
+  "kpis": {
+    "roas_target": 6.3,
+    "monthly_budget_eur": 18000,
+    "revenue_target_eur": 130000,
+    "cpa_target_eur": 0.0,
+    "ctr_benchmark_pct": 0.0
+  },
+
+  "thresholds": {
+    "roas_deviation_pct": 15,
+    "cpa_deviation_pct": 20,
+    "budget_deviation_pct": 10,
+    "frequency_fatigue": 3.5,
+    "ctr_drop_pct": 25,
+    "cpa_increase_pct": 20
+  },
+
+  "platforms": {
+    "meta": {
+      "enabled": true,
+      "ad_account_id": "act_2466105110293178",
+      "business_manager_id": "542534059266449",
+      "utm_medium": "paid_social",
+      "monthly_budget_eur": 0,
+      "campaigns_in_scope": []
+    },
+    "google_ads": {
+      "enabled": true,
+      "customer_id": "2756616331",
+      "manager_customer_id": "2615553102",
+      "monthly_budget_eur": 0,
+      "campaigns": {
+        "search_brand": {
+          "campaign_id": "15777311741",
+          "campaign_name": "ES_X_ES_SEM_SEARCH_X_X_BRAND-ALWAYS ON",
+          "utm_medium": "paid_search"
+        },
+        "shopping_cold_frozen": {
+          "campaign_id": "23585696134",
+          "campaign_name": "ES_X_ES_SEM_SHOPPING_X_X_BRAND-ALWAYS ON_COLD+FROZEN",
+          "utm_medium": "paid_shopping"
+        },
+        "shopping_hot_warm": {
+          "campaign_id": "22641248808",
+          "campaign_name": "ES_X_ES_SEM_SHOPPING_X_X_BRAND-ALWAYS ON_HOT+WARM",
+          "utm_medium": "paid_shopping"
+        },
+        "pmax": {
+          "campaign_id": "20952856030",
+          "campaign_name": "ES_X_ES_SEM_PMAX_X_X_PROS-ALWAYS ON",
+          "utm_medium": "paid_pmax"
+        }
+      }
+    },
+    "ga4": {
+      "enabled": true,
+      "property_id": "267182121",
+      "data_stream_id": "PENDIENTE"
+    },
+    "dv360": {
+      "enabled": true,
+      "partner_id": "PENDIENTE",
+      "advertiser_id": "PENDIENTE",
+      "utm_medium": "paid_display"
+    },
+    "tiktok": {
+      "enabled": false,
+      "advertiser_id": "7499120493611024401",
+      "utm_medium": "paid_social",
+      "monthly_budget_eur": 0
+    }
+  },
+
+  "credentials": {
+    "_note": "SOLO nombres de variables de GCP Secret Manager. NUNCA valores reales.",
+    "meta_access_token": "META_ACCESS_TOKEN",
+    "meta_app_id": "META_APP_ID",
+    "meta_app_secret": "META_APP_SECRET",
+    "google_ads_developer_token": "GOOGLE_ADS_DEVELOPER_TOKEN",
+    "google_ads_client_id": "GOOGLE_ADS_CLIENT_ID",
+    "google_ads_client_secret": "GOOGLE_ADS_CLIENT_SECRET",
+    "google_ads_refresh_token": "GOOGLE_ADS_REFRESH_TOKEN",
+    "google_service_account_key": "GOOGLE_SERVICE_ACCOUNT_KEY",
+    "tiktok_access_token": "TIKTOK_ACCESS_TOKEN",
+    "anthropic_api_key": "anthropic-api-key-{agent_name}"
+  },
+
+  "naming_convention": {
+    "separator_blocks": "_",
+    "separator_words": "-",
+    "utm_required_params": ["utm_source", "utm_medium", "utm_campaign", "utm_content"],
+    "utm_optional_params": ["utm_term"],
+    "naming_patterns": {
+      "campaign": "VV_[PLATAFORMA]_[OBJETIVO]_[AUDIENCIA]",
+      "adset": "VV_[PLATAFORMA]_[SEGMENTO]_[FECHA-INICIO]",
+      "ad": "VV_[FORMATO]_[MENSAJE]_[VARIANTE]"
+    }
+  },
+
+  "notifications": {
+    "alert_channel": "email",
+    "alert_recipients": [
+      "jesus.lopez@llyc.global",
+      "sara.gil@llyc.global",
+      "massimiliano.turinetto@llyc.global"
+    ],
+    "alert_on_status": ["ALERTA", "ERROR"]
+  }
+}
