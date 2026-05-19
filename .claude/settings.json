@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path' | { read -r f; [[ \"$f\" == *.py ]] && ruff format \"$f\" && ruff check --fix \"$f\"; } 2>/dev/null || true"
+            "command": "PATH=/opt/homebrew/bin:/usr/local/bin:$PATH jq -r '.tool_input.file_path' | { read -r f; [[ \"$f\" == *.py ]] && ruff format \"$f\" && ruff check --fix \"$f\"; } 2>>~/.claude/hook-errors.log || true"
           }
         ]
       }
