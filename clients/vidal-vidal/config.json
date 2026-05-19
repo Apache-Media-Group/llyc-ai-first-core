@@ -101,12 +101,12 @@
     "ga4": {
       "enabled": true,
       "property_id": "267182121",
-      "data_stream_id": "PENDIENTE"
+      "data_stream_id": "2397578361"
     },
     "dv360": {
       "enabled": true,
-      "partner_id": "PENDIENTE",
-      "advertiser_id": "PENDIENTE",
+      "partner_id": "5748134",
+      "advertiser_id": "8251184879",
       "utm_medium": "paid_display"
     },
     "tiktok": {
