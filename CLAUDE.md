@@ -31,6 +31,16 @@ Shopify is the **single source of truth for ecomm revenue**, not GA4. Observed d
 
 For multi-channel clients (e.g., La Casa de las Carcasas, Sprint 2+), Shopify covers ecomm only; in-store retail revenue lives in a separate retail-tickets source — integration scope and SDK TBD, out of Sprint 1 unless added to `decision-log.md`.
 
+## Team ownership
+
+- **Max:** development del tool executor (Python), arquitectura y scope.
+- **Alberto:** configs cliente en `clients/<name>/`, reviewer de PRs de tool/agent code.
+- **Sergio:** infra GCP — Cloud Functions, Secret Manager, IAM, Cloud Scheduler.
+
+Operativa de PRs: tool/agent code → Max primary, Alberto reviewer; configs cliente → Alberto primary, Max reviewer; infra GCP → Sergio primary, Max reviewer.
+
+Detalle completo en `META_sintesis-proyecto.md` del knowledge base.
+
 ## Local development
 
 ```bash
