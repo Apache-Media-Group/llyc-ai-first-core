@@ -151,5 +151,20 @@
       "massimiliano.turinetto@llyc.global"
     ],
     "alert_on_status": ["ALERTA", "ERROR"]
+  },
+  
+"shopify": {
+    "enabled": true,
+    "shop_domain": "vidalvidal.myshopify.com",
+    "api_version": "2026-01",
+    "timezone": "Europe/Madrid",
+    "secret_name": "SHOPIFY_ADMIN_API_TOKEN"
+  },
+
+  "data_sources": {
+    "revenue": "shopify",
+    "transactions": "shopify",
+    "web_behavior": "ga4",
+    "sessions": "ga4"
   }
 }
