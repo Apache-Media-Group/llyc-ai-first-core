@@ -35,7 +35,7 @@ import google.cloud.logging
 import anthropic
 
 from tools.response import ok, error
-from tools import meta, google_ads, ga4, drive
+from tools import meta, google_ads, ga4, drive, notifications
 
 # ─── BOOTSTRAP ────────────────────────────────────────────────────────────────
 # CRÍTICO: no usar logging.basicConfig en Cloud Functions Gen 2.
@@ -480,6 +480,96 @@ def write_output_to_drive_for_agent(
         }
 
 
+def send_notification_for_agent(
+    config: dict,
+    agent_name: str,
+    output: dict,
+    drive_result: dict,
+    status: str,
+) -> dict:
+    """
+    Wrapper que construye subject/body del email de alerta y delega en
+    notifications.send_alert_email.
+
+    No propaga excepciones — siempre devuelve un dict con status.
+    Si el envío falla, se loggea como ERROR y se devuelve el error en el
+    dict para que el caller decida. La Cloud Function NO aborta — el
+    output sigue siendo válido en Drive y Cloud Logging aunque el email
+    falle.
+    """
+    notifications_config = config.get("notifications", {})
+    recipients = notifications_config.get("alert_recipients", [])
+
+    if not recipients:
+        log.warning(json.dumps({
+            "event": "notification_skipped_no_recipients",
+            "client_id": config.get("client", {}).get("id"),
+            "agent": agent_name,
+        }))
+        return {"status": "skipped", "reason": "no alert_recipients in config"}
+
+    client_name = config.get("client", {}).get("name", "Cliente")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    summary = output.get("summary", "(sin resumen)")
+    drive_url = (
+        drive_result.get("data", {}).get("url")
+        if drive_result.get("status") == "ok"
+        else None
+    )
+
+    subject = f"[{status}] {agent_name} {client_name} — {today}"
+
+    drive_link_text = f"Ver output completo: {drive_url}\n" if drive_url else ""
+    drive_link_html = (
+        f'<p><a href="{drive_url}">Ver output completo en Drive</a></p>'
+        if drive_url else ""
+    )
+
+    body_text = (
+        f"Alerta del agente {agent_name}\n"
+        f"Cliente: {client_name}\n"
+        f"Status: {status}\n"
+        f"Fecha: {today}\n\n"
+        f"Resumen: {summary}\n\n"
+        + drive_link_text
+    )
+
+    body_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, Segoe UI, Helvetica, sans-serif; color:#333;">
+  <h2 style="color:#c00;">[{status}] Alerta del agente {agent_name}</h2>
+  <p><b>Cliente:</b> {client_name}</p>
+  <p><b>Status:</b> <b>{status}</b></p>
+  <p><b>Fecha:</b> {today}</p>
+  <p style="margin-top:16px;"><b>Resumen:</b> {summary}</p>
+  {drive_link_html}
+  <hr>
+  <p style="color:#888; font-size:12px;">LLYC AI-First · agent_executor</p>
+</body>
+</html>"""
+
+    try:
+        return notifications.send_alert_email(
+            recipients=recipients,
+            subject=subject,
+            body_html=body_html,
+            body_text=body_text,
+            drive_url=drive_url,
+        )
+    except Exception as e:
+        log.error(json.dumps({
+            "event": "notification_caught_exception",
+            "client_id": config.get("client", {}).get("id"),
+            "agent": agent_name,
+            "error": str(e),
+        }))
+        return {
+            "status": "error",
+            "error": {"code": "UNEXPECTED", "message": str(e)},
+        }
+
+
 # ─── ENTRY POINT HTTP ─────────────────────────────────────────────────────────
 
 @functions_framework.http
@@ -560,6 +650,19 @@ def agent_executor(request):
         drive_result = write_output_to_drive_for_agent(
             config, agent_name, output, client_id
         )
+
+        # ── 9. Notificar si STATUS dispara alerta (arq §9 step 9) ─────────────
+        notifications_config = config.get("notifications", {})
+        if status in notifications_config.get("alert_on_status", []):
+            notification_result = send_notification_for_agent(
+                config, agent_name, output, drive_result, status
+            )
+        else:
+            notification_result = {
+                "status": "skipped",
+                "reason": f"status not in alert_on_status (was: {status})",
+            }
+
         return {
             "status": "ok",
             "client_id": client_id,
@@ -567,6 +670,7 @@ def agent_executor(request):
             "agent_status": status,
             "summary": output.get("summary", ""),
             "drive": drive_result,
+            "notifications": notification_result,
         }, 200
 
     except (FileNotFoundError, RuntimeError) as e:
