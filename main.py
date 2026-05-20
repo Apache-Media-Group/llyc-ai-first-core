@@ -177,19 +177,30 @@ def load_secrets(client_id: str, agent_name: str, config: dict) -> dict[str, str
         sm_client, client_project_id, anthropic_secret_name
     )
 
-    # Meta credenciales (scope: client)
+    # Meta credenciales (DEC_026 híbrido)
+    #   - APP_ID, APP_SECRET → shared en llyc-ai-first-core (credenciales de la app de agencia)
+    #   - ACCESS_TOKEN       → cliente en llyc-ai-{client_id} (token del Business Manager)
     if config.get("platforms", {}).get("meta", {}).get("enabled"):
-        for key in ["meta_access_token", "meta_app_id", "meta_app_secret"]:
+        # Shared (en core)
+        for key in ["meta_app_id", "meta_app_secret"]:
             secret_name = creds_map.get(key)
             if secret_name:
                 secrets[secret_name] = _access_secret(
-                    sm_client, client_project_id, secret_name
+                    sm_client, CORE_PROJECT_ID, secret_name
                 )
+        # Client
+        secret_name = creds_map.get("meta_access_token")
+        if secret_name:
+            secrets[secret_name] = _access_secret(
+                sm_client, client_project_id, secret_name
+            )
 
-    # Google Ads (scope: client)
+    # Google Ads credenciales (DEC_026 híbrido)
+    #   - DEVELOPER_TOKEN, CLIENT_ID, CLIENT_SECRET → shared en llyc-ai-first-core (OAuth app de agencia)
+    #   - REFRESH_TOKEN                             → cliente en llyc-ai-{client_id}
     if config.get("platforms", {}).get("google_ads", {}).get("enabled"):
+        # Shared (en core)
         for key in [
-            "google_ads_refresh_token",
             "google_ads_developer_token",
             "google_ads_client_id",
             "google_ads_client_secret",
@@ -197,8 +208,14 @@ def load_secrets(client_id: str, agent_name: str, config: dict) -> dict[str, str
             secret_name = creds_map.get(key)
             if secret_name:
                 secrets[secret_name] = _access_secret(
-                    sm_client, client_project_id, secret_name
+                    sm_client, CORE_PROJECT_ID, secret_name
                 )
+        # Client
+        secret_name = creds_map.get("google_ads_refresh_token")
+        if secret_name:
+            secrets[secret_name] = _access_secret(
+                sm_client, client_project_id, secret_name
+            )
 
     # GA4 service account (scope: client)
     if config.get("platforms", {}).get("ga4", {}).get("enabled"):
