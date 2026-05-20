@@ -35,7 +35,7 @@ import google.cloud.logging
 import anthropic
 
 from tools.response import ok, error
-from tools import meta
+from tools import meta, google_ads, ga4
 
 # ─── BOOTSTRAP ────────────────────────────────────────────────────────────────
 # CRÍTICO: no usar logging.basicConfig en Cloud Functions Gen 2.
@@ -57,16 +57,31 @@ SUPPORTED_AGENTS = {
     # "creative-fatigue-detector" → Sprint 2
 }
 
+
 # Mapa de despacho: nombre de tool que pide el agente → función ejecutora.
-# DV360 NO está aquí — vive en su propio MCP server en Cloud Run.
+# DV360 NO está aquí — vive en su propio MCP server en Cloud Run (DEC_037).
 TOOL_DISPATCHER = {
-    "get_meta_performance":        meta.get_meta_performance,
-    "get_meta_spend_today":        meta.get_meta_spend_today,
-    "get_meta_spend_month":        meta.get_meta_spend_month,
-    "get_meta_active_ad_urls":     meta.get_meta_active_ad_urls,
-    "get_meta_active_campaigns":   meta.get_meta_active_campaigns,
-    # google_ads, ga4 → Sprint 1 (tools/google_ads.py, tools/ga4.py)
-    # tiktok → cuando Jesús valide el access token
+    # Meta
+    "get_meta_performance":             meta.get_meta_performance,
+    "get_meta_spend_today":             meta.get_meta_spend_today,
+    "get_meta_spend_month":             meta.get_meta_spend_month,
+    "get_meta_active_ad_urls":          meta.get_meta_active_ad_urls,
+    "get_meta_active_campaigns":        meta.get_meta_active_campaigns,
+
+    # Google Ads
+    "get_google_ads_performance":       google_ads.get_google_ads_performance,
+    "get_google_ads_spend_today":       google_ads.get_google_ads_spend_today,
+    "get_google_ads_spend_month":       google_ads.get_google_ads_spend_month,
+    "get_google_ads_active_ad_urls":    google_ads.get_google_ads_active_ad_urls,
+    "get_google_ads_active_campaigns":  google_ads.get_google_ads_active_campaigns,
+
+    # GA4
+    "get_ga4_performance":              ga4.get_ga4_performance,
+    "get_ga4_paid_channel_performance": ga4.get_ga4_paid_channel_performance,
+    "get_ga4_funnel":                   ga4.get_ga4_funnel,
+    "get_ga4_weekly_comparison":        ga4.get_ga4_weekly_comparison,
+
+    # tiktok → Sprint 1.5 (Jesús pendiente de validar access token)
 }
 
 # ─── CARGA DE CONFIGURACIÓN ───────────────────────────────────────────────────
