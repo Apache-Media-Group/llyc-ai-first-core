@@ -45,6 +45,7 @@ TIMEOUTS = {
     "dv360": 45,
     "tiktok": 30,
     "drive": 20,
+    "gmail": 30,
 }
 
 
