@@ -16,7 +16,7 @@ Decisiones aplicadas:
   - DEC_030: Cloud Scheduler en proyecto cliente, payload con client_id
   - DEC_033: un agent Managed por (client_id, agent_name)
   - DEC_044: una API key de Anthropic por agente
-  - DEC_Sprint1_errors: 2 reintentos en tool execution antes de error 500
+  - DEC_056: 2 reintentos en tool execution antes de error 500
 """
 
 # ─── IMPORTS ──────────────────────────────────────────────────────────────────
@@ -46,7 +46,7 @@ log = logging.getLogger(__name__)
 ANTHROPIC_BETA = "managed-agents-2026-04-01"
 MODEL = "claude-sonnet-4-6"
 CORE_PROJECT_ID = "llyc-ai-first-core"
-MAX_TOOL_RETRIES = 2  # DEC_Sprint1_errors: reintentos antes de devolver 500
+MAX_TOOL_RETRIES = 2  # DEC_056: reintentos antes de devolver 500
 
 # ─── AGENTES Y TOOLS SOPORTADOS ───────────────────────────────────────────────
 SUPPORTED_AGENTS = {
@@ -242,7 +242,7 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
     Devuelve un handler que recibe (tool_name, tool_input) del callback
     del agente y lo despacha a la función real en TOOL_DISPATCHER.
 
-    Política de errores (DEC_Sprint1_errors):
+    Política de errores (DEC_056):
     - Hasta MAX_TOOL_RETRIES reintentos por tool call.
     - Si persiste el error, devuelve tool_result con error estructurado
       para que el agente pueda razonar sobre el fallo.
