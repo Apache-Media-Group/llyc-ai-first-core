@@ -35,7 +35,7 @@ import google.cloud.logging
 import anthropic
 
 from tools.response import ok, error
-from tools import meta, google_ads, ga4
+from tools import meta, google_ads, ga4, drive
 
 # ─── BOOTSTRAP ────────────────────────────────────────────────────────────────
 # CRÍTICO: no usar logging.basicConfig en Cloud Functions Gen 2.
@@ -428,6 +428,56 @@ def run_agent(
             "summary": "Output del agente no es JSON válido.",
             "raw_output": output_text,
         }
+# ─── OUTPUT WRITING ──────────────────────────────────────────────────────────
+
+def write_output_to_drive_for_agent(
+    config: dict, agent_name: str, output: dict, client_id: str
+) -> dict:
+    """
+    Wrapper que construye filename siguiendo la convención del proyecto
+    (YYYY-MM-DD_PAID_{agent_name}-{client_id}.json) y escribe el output
+    a Drive en config.drive.outputs_folder_id.
+
+    No propaga excepciones — siempre devuelve un dict con status.
+    Si Drive falla, se loggea como ERROR y se devuelve el error en el dict
+    para que el caller decida. La Cloud Function NO aborta — el output
+    sigue siendo válido en Cloud Logging aunque Drive falle.
+
+    El área 'PAID' es válida para los 4 agentes Sprint 1 (todos paid media).
+    Si en futuro hay agentes DATA o CREATIVIDAD, parametrizar por agente.
+    """
+    drive_config = config.get("drive", {})
+    folder_id = drive_config.get("outputs_folder_id")
+
+    if not folder_id:
+        log.error(json.dumps({
+            "event": "drive_write_skipped_no_folder_id",
+            "client_id": client_id,
+            "agent": agent_name,
+        }))
+        return {"status": "skipped", "reason": "no outputs_folder_id in config"}
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    filename = f"{today}_PAID_{agent_name}-{client_id}.json"
+
+    try:
+        return drive.write_output_to_drive(
+            folder_id=folder_id,
+            filename=filename,
+            payload=output,
+        )
+    except Exception as e:
+        log.error(json.dumps({
+            "event": "drive_write_caught_exception",
+            "client_id": client_id,
+            "agent": agent_name,
+            "filename": filename,
+            "error": str(e),
+        }))
+        return {
+            "status": "error",
+            "error": {"code": "UNEXPECTED", "message": str(e)},
+        }
 
 
 # ─── ENTRY POINT HTTP ─────────────────────────────────────────────────────────
@@ -506,12 +556,17 @@ def agent_executor(request):
             "status": status,
         }))
 
+        # ── 8. Escribir output a Drive (arq §9 step 8) ────────────────────────
+        drive_result = write_output_to_drive_for_agent(
+            config, agent_name, output, client_id
+        )
         return {
             "status": "ok",
             "client_id": client_id,
             "agent_name": agent_name,
             "agent_status": status,
             "summary": output.get("summary", ""),
+            "drive": drive_result,
         }, 200
 
     except (FileNotFoundError, RuntimeError) as e:
