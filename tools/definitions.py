@@ -172,17 +172,96 @@ GET_GA4_PERFORMANCE = {
 }
 
 
+# ─── DV360 TOOL DEFINITIONS — POC Sprint 1 (DEC_064) ────────────────────────
+
+DV360_LIST_CAMPAIGNS = {
+    "type": "custom",
+    "name": "dv360_list_campaigns",
+    "description": (
+        "Lista todas las campañas del advertiser DV360. "
+        "Devuelve id, nombre, estado, objetivo y presupuestos. "
+        "Úsala para obtener una visión global del portfolio de campañas "
+        "antes de analizar una campaña específica."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "filter_str": {
+                "type": "string",
+                "description": (
+                    "Filtro opcional en formato DV360 API. "
+                    "Ejemplo: 'entityStatus=\"ENTITY_STATUS_ACTIVE\"' "
+                    "para listar solo campañas activas."
+                ),
+            },
+        },
+        "required": [],
+    },
+}
+
+DV360_LIST_INSERTION_ORDERS = {
+    "type": "custom",
+    "name": "dv360_list_insertion_orders",
+    "description": (
+        "Lista los Insertion Orders del advertiser DV360. "
+        "Si se especifica campaign_id, filtra por campaña. "
+        "Devuelve id, nombre, estado, pacing y segmentos de presupuesto. "
+        "Úsala para analizar el ritmo de gasto a nivel de IO."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "campaign_id": {
+                "type": "string",
+                "description": (
+                    "ID de campaña DV360 para filtrar sus IOs. "
+                    "Si se omite, devuelve todos los IOs del advertiser."
+                ),
+            },
+        },
+        "required": [],
+    },
+}
+
+DV360_GET_CAMPAIGN_METRICS = {
+    "type": "custom",
+    "name": "dv360_get_campaign_metrics",
+    "description": (
+        "Obtiene el estado y datos de presupuesto de una campaña DV360. "
+        "Devuelve entityStatus, presupuestos, y recuento de line items "
+        "activos vs totales. "
+        "NOTA: métricas de rendimiento (impresiones, clicks, CPA, gasto) "
+        "no disponibles en esta versión — pendiente de fuente de datos "
+        "(Decisión 064). Útil para budget-pacer; limitado para "
+        "performance-monitor."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "campaign_id": {
+                "type": "string",
+                "description": "ID de la campaña DV360.",
+            },
+        },
+        "required": ["campaign_id"],
+    },
+}
+
+
 # ─── ASIGNACIÓN POR AGENTE ───────────────────────────────────────────────────
 #
 # Cada entrada del dict es la lista exacta de tools que se envía a Anthropic
 # al crear el Managed Agent correspondiente. Subset selection se hace aquí,
 # no en runtime.
 #
+# Claves en snake_case — main.py convierte agent_id kebab-case con
+# agent_name.replace("-", "_") antes de llamar a get_tool_definitions().
+#
 # Sprint 1 — agentes operativos:
-#   - performance_monitor   (este PR)
-#   - budget_pacer          (próximo PR — Alberto)
-#   - naming_utm_auditor    (próximo PR — Alberto)
-#   - weekly_digest         (próximo PR — Alberto, incluye Shopify tools DEC_050)
+#   - performance_monitor   (Meta + Google Ads + GA4)
+#   - budget_pacer          (DV360 get_campaign_metrics — métricas reales pendientes DEC_064)
+#   - naming_utm_auditor    (sin tools de plataforma en S1)
+#   - weekly_digest         (DV360 list_campaigns + list_insertion_orders)
 #
 # Sprint 2:
 #   - creative_fatigue_detector
@@ -192,6 +271,21 @@ TOOL_DEFINITIONS_BY_AGENT = {
         GET_META_PERFORMANCE,
         GET_GOOGLE_ADS_PERFORMANCE,
         GET_GA4_PERFORMANCE,
+        # DV360 excluido — ver Decisión 064 y META_dv360-rescue-inventory §4.
+    ],
+    "budget_pacer": [
+        # Meta, Google Ads, GA4 — pendiente formalización.
+        # DV360: solo get_campaign_metrics (estado + presupuesto, sin métricas reales)
+        DV360_GET_CAMPAIGN_METRICS,
+    ],
+    "naming_utm_auditor": [
+        # No necesita tools de plataforma en S1.
+    ],
+    "weekly_digest": [
+        # Meta, Google Ads, GA4 — pendiente formalización.
+        # DV360: campaigns + IOs para sección de estado semanal
+        DV360_LIST_CAMPAIGNS,
+        DV360_LIST_INSERTION_ORDERS,
     ],
     # Otros agentes — añadir entrada cuando se desarrollen siguiendo el patrón
     # de DEC_021. Las tools del catálogo se reutilizan; las nuevas se definen
