@@ -171,8 +171,9 @@ def load_secrets(client_id: str, agent_name: str, config: dict) -> dict[str, str
 
     creds_map = config.get("credentials", {})
 
-    # API key de Anthropic: nombre derivado del agent_name (DEC_044)
-    anthropic_secret_name = f"anthropic-api-key-{agent_name}"
+    # API key de Anthropic: nombre derivado de agent_name + client_id (DEC_058 Actualización 2026-05-22)
+    # agent_name viene en kebab-case del payload HTTP → normalizamos a snake_case para el secret name
+    anthropic_secret_name = f"anthropic-api-key-{agent_name.replace('-', '_')}-{client_id}"
     secrets["ANTHROPIC_API_KEY"] = _access_secret(
         sm_client, client_project_id, anthropic_secret_name
     )
@@ -653,7 +654,7 @@ def agent_executor(request):
 
         # ── 9. Notificar si STATUS dispara alerta (arq §9 step 9) ─────────────
         notifications_config = config.get("notifications", {})
-        if status in notifications_config.get("alert_on_status", []):
+        if status in notifications_config.get("alert_levels", []):
             notification_result = send_notification_for_agent(
                 config, agent_name, output, drive_result, status
             )
