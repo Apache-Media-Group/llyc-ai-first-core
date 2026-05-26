@@ -10,37 +10,30 @@ Opciones útiles:
     --prompt-dir system_prompts   Override del directorio de prompts estáticos
 
 Flujo:
-    1. Carga clients/<client>/config.json
+    1. Carga clients/<client>/config.json (schema v3.0)
     2. Valida campos críticos del config
     3. Lee system_prompts/<agent>.md (parte estática)
     4. Inyecta contexto dinámico desde config (cliente, KPIs, plataformas, etc.)
     5. Carga tool_definitions desde tools/definitions.py (DEC_021)
-    6. Lee ANTHROPIC_API_KEY desde Secret Manager (llyc-ai-first-core)
+    6. Lee ANTHROPIC_API_KEY desde Secret Manager del proyecto cliente (DEC_058 act.)
     7. Crea Managed Agent en Anthropic (beta managed-agents-2026-04-01)
-    8. Persiste agent_id real en clients/<client>/config.json (reemplaza placeholder)
+    8. Persiste agent_id real en clients/<client>/config.json (reemplaza null)
     9. Imprime resumen final
 
-Idempotencia: si el agent_id ya no es un placeholder, aborta salvo `--force`.
-Esto evita re-crear agents accidentalmente (cuesta tokens en Anthropic y
+Idempotencia: si el agent_id ya no es placeholder (None o prefijo conocido), aborta
+salvo `--force`. Evita re-crear agents accidentalmente (cuesta tokens en Anthropic y
 desincroniza config con la fuente de verdad server-side).
 
 Decisiones aplicadas:
     - DEC_021: tool_definitions en tools/definitions.py (catálogo + dict por agente)
-    - DEC_058: ANTHROPIC_API_KEY por agente+cliente en Secret Manager del proyecto cliente
-      (llyc-ai-{client_id}), no en core — Actualización 2026-05-22 de DEC_058.
+    - DEC_058 (act. 22/05): ANTHROPIC_API_KEY por agente+cliente en Secret Manager
+      del proyecto cliente (llyc-ai-{client_id}), no en core.
+    - DEC_059: filtrar plataformas inyectadas por enabled=true AND p in
+      platforms_with_tools[agent] (DV360 fuera del scope de performance_monitor).
+    - DEC_060-063: schema config v3.0 (revisión Sara 24/05) — kpis.roas_blended_base_target,
+      presupuesto_2026.mensual.*, umbrales.* (no thresholds.*), schedule (no schedule_cron),
+      output_folder (no output_drive_folder), notifications.alert_levels (no alert_on_status).
     - arquitectura-sistema §3: system prompt = static (file) + dynamic (config)
-
-⚠️ KNOWN ISSUES — refactor pendiente vs config schema v3.0 (post-revisión Sara 24/05,
-   DEC_060-063). Este script fue desarrollado el 22/05 contra el schema v2 anterior.
-   Los siguientes campos del schema viejo NO existen en v3.0:
-     - `kpis.roas_target` → ahora `kpis.roas_blended_base_target` (DEC_061)
-     - `kpis.monthly_budget_eur` → ahora `presupuesto_2026.mensual.{YYYY-MM}.total`
-     - `thresholds.*` → ahora `umbrales.*` con sub-estructura distinta
-     - `agents.X.output_drive_folder` → ahora `output_folder` con path relativo
-     - `agents.X.schedule_cron` → ahora `schedule` (sin sufijo _cron)
-     - `notifications.alert_on_status` → ahora `alert_levels`
-   Refactor de `validate_config()` y `build_dynamic_context()` necesario antes de
-   ejecutar el primer bootstrap real contra V&V. Issue separada — no scope de este PR.
 """
 
 from __future__ import annotations
@@ -49,6 +42,7 @@ import argparse
 import json
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 # Permite ejecutar el script desde la raíz del repo: `python scripts/bootstrap_agent.py ...`
@@ -71,16 +65,14 @@ CORE_PROJECT_ID = "llyc-ai-first-core"
 ANTHROPIC_BETA = "managed-agents-2026-04-01"
 
 # Modelo de referencia del proyecto (META_roles-herramientas-stack §3).
-# Aceptado como string directo por la API; alternativamente se puede pasar un
-# objeto model_config para control adicional.
 DEFAULT_MODEL = "claude-sonnet-4-6"
 
 # Agentes que este script sabe bootstrappear. Ampliar cuando se desarrollen
 # los siguientes (budget_pacer, naming_utm_auditor, weekly_digest, ...).
 SUPPORTED_AGENTS = {"performance_monitor"}
 
-# Prefijos que indican que el agent_id en config sigue siendo el placeholder
-# inicial. Si empieza por uno de estos, no se ha bootstrappeado todavía.
+# Prefijos de placeholder legacy (schema v2). En v3 el placeholder es null.
+# Se mantienen para compatibilidad si alguna rama vieja sigue con strings.
 PLACEHOLDER_PREFIXES = (
     "perf-monitor-",
     "budget-pacer-",
@@ -122,24 +114,32 @@ def load_config(client_id: str) -> tuple[Path, dict]:
 def validate_config(config: dict, agent_name: str) -> None:
     """
     Falla ruidosamente si campos críticos faltan o tienen valores no usables.
-    Mejor abortar aquí que enviar un prompt incompleto a Anthropic.
+    Schema v3.0 (DEC_060-063). Mejor abortar aquí que enviar un prompt
+    incompleto a Anthropic.
     """
     INVALID_SCALARS = {"PENDIENTE", "", None}
 
     # Campos escalares (string/número) — check contra valores inválidos conocidos
     scalar_required = [
-        ("client.id",                      config.get("client", {}).get("id")),
-        ("client.name",                    config.get("client", {}).get("name")),
-        ("kpis.roas_target",               config.get("kpis", {}).get("roas_target")),
-        ("kpis.monthly_budget_eur",        config.get("kpis", {}).get("monthly_budget_eur")),
-        ("thresholds.roas_deviation_pct", config.get("thresholds", {}).get("roas_deviation_pct")),
+        ("client.id",
+            config.get("client", {}).get("id")),
+        ("client.name",
+            config.get("client", {}).get("name")),
+        ("kpis.roas_blended_base_target",
+            config.get("kpis", {}).get("roas_blended_base_target")),
+        ("umbrales.roas.alerta_desviacion_pct",
+            config.get("umbrales", {}).get("roas", {}).get("alerta_desviacion_pct")),
+        ("gcp.secret_manager_project",
+            config.get("gcp", {}).get("secret_manager_project")),
     ]
     errors = [field for field, val in scalar_required if val in INVALID_SCALARS]
 
-    # Bloque del agente — es un dict, requiere check separado (los dicts no son hashables)
+    # Bloque del agente — debe existir y estar habilitado
     agent_block = config.get("agents", {}).get(agent_name)
     if not agent_block:
-        errors.append(f"agents.{agent_name} (bloque ausente o vacío)")
+        errors.append(f"agents.{agent_name} (bloque ausente)")
+    elif not agent_block.get("enabled", False):
+        errors.append(f"agents.{agent_name}.enabled (debe ser true para bootstrappear)")
 
     if errors:
         raise ValueError(
@@ -170,17 +170,20 @@ def load_static_prompt(agent_name: str, prompt_dir: Path) -> str:
 def build_dynamic_context(config: dict, agent_name: str) -> str:
     """
     Construye la sección 'CONTEXTO DEL CLIENTE' que se inyecta al final del
-    static prompt. Es lo que cambia entre clientes — el static prompt queda
-    fijo, el dinámico se reconstruye en cada bootstrap.
+    static prompt. Schema v3.0.
+
+    Es lo que cambia entre clientes — el static prompt queda fijo, el
+    dinámico se reconstruye en cada bootstrap.
     """
     client = config["client"]
     kpis = config["kpis"]
-    thresholds = config["thresholds"]
+    umbrales = config["umbrales"]
     platforms = config["platforms"]
     agent_cfg = config["agents"][agent_name]
     notifications = config.get("notifications", {})
+    presupuesto = config.get("presupuesto_2026", {})
 
-    # Plataformas que entran al contexto deben cumplir DOS condiciones:
+    # Plataformas que entran al contexto deben cumplir DOS condiciones (DEC_059):
     #   1. enabled=true en el config del cliente
     #   2. Tener al menos una tool disponible en el catálogo del agente
     # Esto evita inyectar plataformas que el agente no puede consultar (ej. DV360 en
@@ -198,6 +201,21 @@ def build_dynamic_context(config: dict, agent_name: str) -> str:
     }
     platforms_json = json.dumps(active_platforms, indent=2, ensure_ascii=False)
 
+    # Presupuesto del mes en curso (v3 lo estructura por mes en presupuesto_2026)
+    current_month = datetime.utcnow().strftime("%Y-%m")
+    month_budget = presupuesto.get("mensual", {}).get(current_month, {})
+    budget_total = month_budget.get("total", "N/A")
+    budget_meta = month_budget.get("meta", "N/A")
+    budget_google = month_budget.get("google", "N/A")
+
+    # Opción A: el umbral de desviación de CPA usa el mismo valor que ROAS.
+    # Decidido el 26/05 — el config v3 solo declara umbrales.roas.alerta_desviacion_pct.
+    # Si en el futuro se diferencia, añadir umbrales.cpa.alerta_desviacion_pct al config
+    # y leerlo aquí explícitamente.
+    roas_dev_pct = umbrales["roas"]["alerta_desviacion_pct"]
+    cpa_dev_pct = roas_dev_pct
+    budget_dev_pct = umbrales.get("budget", {}).get("alerta_desviacion_pct", "N/A")
+
     return f"""
 
 # CONTEXTO DEL CLIENTE
@@ -208,16 +226,24 @@ País/Idioma/Moneda: {client.get('country', 'ES')}/{client.get('language', 'es')
 Zona horaria: {client.get('timezone', 'Europe/Madrid')}
 
 ## KPIs
-- ROAS objetivo: {kpis['roas_target']}
-- Presupuesto mensual (EUR): {kpis['monthly_budget_eur']}
-- Revenue objetivo (EUR): {kpis.get('revenue_target_eur', 'N/A')}
-- CPA objetivo (EUR): {kpis.get('cpa_target_eur', 'N/A')}
-- CTR benchmark (%): {kpis.get('ctr_benchmark_pct', 'N/A')}
+- ROAS blended objetivo (base): {kpis['roas_blended_base_target']}
+- ROAS blended mínimo dinámico: {kpis.get('roas_blended_dinamico_minimo', 'N/A')}
+- Revenue anual objetivo (EUR): {kpis.get('revenue_anual_objetivo_eur', 'N/A')}
+- AOV (EUR): {kpis.get('aov_eur', 'N/A')}
+- CPA combinado provisional (EUR): {kpis.get('cpa_combinado_provisional_eur', 'N/A')}
+- CPA Google provisional (EUR): {kpis.get('cpa_google_provisional_eur', 'N/A')}
+- CPA Meta provisional (EUR): {kpis.get('cpa_meta_provisional_eur', 'N/A')}
+- CTR combinado provisional (%): {kpis.get('ctr_combinado_provisional_pct', 'N/A')}
+
+## Presupuesto del mes en curso ({current_month})
+- Total (EUR): {budget_total}
+- Meta (EUR): {budget_meta}
+- Google Ads (EUR): {budget_google}
 
 ## Umbrales de desviación
-- ROAS (%): {thresholds['roas_deviation_pct']}
-- CPA (%): {thresholds.get('cpa_deviation_pct', 'N/A')}
-- Budget (%): {thresholds['budget_deviation_pct']}
+- ROAS (%): {roas_dev_pct}
+- CPA (%): {cpa_dev_pct}
+- Budget (%): {budget_dev_pct}
 
 ## Plataformas activas e identificadores
 ```json
@@ -225,18 +251,27 @@ Zona horaria: {client.get('timezone', 'Europe/Madrid')}
 ```
 
 ## Output
-- Carpeta destino en Drive: {agent_cfg['output_drive_folder']}
-- Schedule: {agent_cfg['schedule_cron']}
+- Carpeta destino en Drive: {agent_cfg['output_folder']}
+- Schedule: {agent_cfg['schedule']}
 
 ## Notificaciones
-- Canal: {notifications.get('alert_channel', 'email')}
+- Canal: {notifications.get('canal', 'email')}
 - Destinatarios: {notifications.get('alert_recipients', [])}
-- Dispara en STATUS: {notifications.get('alert_on_status', ['ALERTA', 'ERROR'])}
+- Dispara en STATUS: {notifications.get('alert_levels', ['ALERTA', 'ERROR'])}
 """.rstrip()
 
 
-def is_placeholder(agent_id: str) -> bool:
-    """True si el agent_id sigue siendo el placeholder inicial del config."""
+def is_placeholder(agent_id) -> bool:
+    """
+    True si el agent_id es un placeholder y todavía no se ha bootstrappeado.
+
+    En schema v3 (DEC_060-063), el placeholder es `null`. En v2 era un string
+    con prefijo conocido. Aceptamos ambos para compatibilidad.
+    """
+    if agent_id is None or agent_id == "":
+        return True
+    if not isinstance(agent_id, str):
+        return False
     return any(agent_id.startswith(p) for p in PLACEHOLDER_PREFIXES)
 
 
@@ -297,7 +332,7 @@ def bootstrap(
     log.info(f"Config validado: {config_path}")
 
     # Idempotencia
-    current_id = config["agents"][agent_name].get("agent_id", "")
+    current_id = config["agents"][agent_name].get("agent_id")
     if not is_placeholder(current_id) and not force:
         log.error(
             f"Agent '{agent_name}' ya bootstrappeado con agent_id='{current_id}'. "
@@ -327,8 +362,10 @@ def bootstrap(
         print("=" * 70)
         return "DRY_RUN_NO_AGENT_ID"
 
-    # 6. API key — DEC_058 Actualización 2026-05-22: vive en proyecto del cliente
-    client_project_id = f"llyc-ai-{client_id}"
+    # 6. API key — DEC_058 act. 22/05: vive en proyecto del cliente.
+    # Fuente de verdad: config["gcp"]["secret_manager_project"] (en lugar de
+    # derivar con f"llyc-ai-{client_id}", para robustez si el patrón cambia).
+    client_project_id = config["gcp"]["secret_manager_project"]
     secret_name = f"anthropic-api-key-{agent_name}-{client_id}"
     log.info(f"Leyendo API key: {secret_name} (proyecto {client_project_id})")
     api_key = get_secret(secret_name, client_project_id)
