@@ -1,5 +1,5 @@
 {
-"client": {
+  "client": {
     "id": "vidal-vidal",
     "name": "Vidal & Vidal",
     "sector": "joyeria_ecommerce",
@@ -8,9 +8,9 @@
     "timezone": "Europe/Madrid",
     "currency": "EUR"
   },
-"agents": {
+  "agents": {
     "performance_monitor": {
-      "agent_id": null,
+      "agent_id": "agent_012GwhFrbyVLGo3EamQqRzhD",
       "enabled": true,
       "schedule": "0 8 * * *",
       "output_folder": "04_OUTPUTS/vidal-vidal/performance-monitor"
@@ -391,33 +391,52 @@
     "report_top_n_patterns": 5,
     "revenue_source_of_truth": "shopify",
     "_revenue_source_nota": "Decisiones 048 y 060 — Shopify primary para revenue/transacciones DTC. GA4 sigue siendo primary para comportamiento web, sesiones y atribución cross-channel.",
-
     "platform_to_ga4_source_medium": {
       "google_ads": "google / cpc",
       "meta": "meta / paid_social",
       "_nota": "Decisión 045 — Google Ads auto-tagging GCLID agrega todo a 'google / cpc' en GA4. Sub-granularidad search/shopping/pmax se reconstruye en tools desde Google Ads API (advertising_channel_type) cuando se necesite."
     },
-
     "seasonality_calendar_ref": "estacionalidad.calendario",
     "_seasonality_nota": "Calendario vive en bloque raíz `estacionalidad` (Decisión 046). El agente lo lee desde ahí, no se duplica aquí.",
-
     "patterns": {
-      "paid_organic_cannibalization": { "enabled": true },
-      "funnel_step_drop": { "enabled": true },
+      "paid_organic_cannibalization": {
+        "enabled": true
+      },
+      "funnel_step_drop": {
+        "enabled": true
+      },
       "creative_fatigue_aggregate": {
         "enabled": true,
         "auto_disable_if_creative_fatigue_detector_active": true,
         "_nota": "Se autodesactiva cuando creative-fatigue-detector entre en Sprint 2 para no pisar dominio del agente especializado."
       },
-      "device_performance_divergence": { "enabled": true },
-      "geographic_concentration_drop": { "enabled": true },
-      "product_mix_shift": { "enabled": true },
-      "platform_ga4_delta_widening": { "enabled": true },
-      "daypart_efficiency_drop": { "enabled": true },
-      "platform_ga4_trend_break": { "enabled": true },
-      "auction_saturation": { "enabled": true },
-      "tofu_bofu_divergence": { "enabled": true },
-      "revenue_concentration_break": { "enabled": true },
+      "device_performance_divergence": {
+        "enabled": true
+      },
+      "geographic_concentration_drop": {
+        "enabled": true
+      },
+      "product_mix_shift": {
+        "enabled": true
+      },
+      "platform_ga4_delta_widening": {
+        "enabled": true
+      },
+      "daypart_efficiency_drop": {
+        "enabled": true
+      },
+      "platform_ga4_trend_break": {
+        "enabled": true
+      },
+      "auction_saturation": {
+        "enabled": true
+      },
+      "tofu_bofu_divergence": {
+        "enabled": true
+      },
+      "revenue_concentration_break": {
+        "enabled": true
+      },
       "yoy_seasonality_miss": {
         "enabled": false,
         "yoy_baseline_validated": false,
@@ -459,7 +478,7 @@
     "secret_manager_core_project": "llyc-ai-first-core",
     "_anthropic_api_key_nota": "main.py deriva dinámicamente el nombre del secret con el patrón anthropic-api-key-{agent_name}-{client_id} y lo lee de secret_manager_project (Decisión 058). No se declara como credencial en este config — la fuente de verdad del patrón es scripts/bootstrap_agent.py y main.py."
   },
- "pendientes": [
+  "pendientes": [
     {
       "campo": "shopify token scope read_all_orders",
       "owner": "Sara Gil",
