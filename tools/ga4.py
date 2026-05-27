@@ -7,10 +7,13 @@ Sprint: 1
 Alimenta: performance-monitor · weekly-digest
 Decisiones aplicadas: 022 (contrato ok/error + timeout), 026 (Secret Manager híbrido),
                       035 (GA4 fuente de verdad de web behavior y funnel),
-                      048 (Shopify fuente de verdad de revenue — GA4 secundaria para revenue)
+                      048 (Shopify fuente de verdad de revenue — GA4 secundaria para revenue),
+                      066 (auth OAuth admin-tech, unifica con Meta/Google Ads — 2026-05-27)
 
-Credenciales leídas desde Secret Manager:
-  - GOOGLE_SERVICE_ACCOUNT_KEY  → llyc-ai-[cliente]  (scope: client)
+Credenciales leídas desde Secret Manager (DEC_066, OAuth admin-tech):
+  - GA4_CLIENT_ID         → llyc-ai-first-core   (scope: shared, OAuth app LLYC)
+  - GA4_CLIENT_SECRET     → llyc-ai-first-core   (scope: shared, OAuth app LLYC)
+  - GA4_REFRESH_TOKEN     → llyc-ai-[cliente]    (scope: client, admin-tech@llyc.global)
 
 Nota sobre revenue (DEC_048):
   GA4 tiene >2x discrepancia documentada vs Shopify en V&V.
@@ -34,7 +37,7 @@ from google.analytics.data_v1beta.types import (
     MetricAggregation,
     RunReportRequest,
 )
-from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
 
 from tools.response import ok, error, with_timeout
 
@@ -43,17 +46,28 @@ from tools.response import ok, error, with_timeout
 # INICIALIZACIÓN
 # ─────────────────────────────────────────────
 
-def init_ga4_client(service_account_key_json: str) -> BetaAnalyticsDataClient:
+def init_ga4_client(
+    client_id: str,
+    client_secret: str,
+    refresh_token: str,
+) -> BetaAnalyticsDataClient:
     """
-    Inicializa el cliente de GA4 Data API desde el JSON de Service Account.
-    El JSON se lee desde Secret Manager — nunca desde fichero en disco en producción.
+    Inicializa el cliente GA4 Data API mediante OAuth de usuario
+    (admin-tech@llyc.global, Viewer en la property GA4 del cliente).
+
+    Patrón unificado con Meta y Google Ads — documentado en PAID_ga4-setup.md §5.
+    Las 3 credenciales se leen desde Secret Manager: client_id y client_secret
+    de llyc-ai-first-core (compartidos a nivel agencia), refresh_token del
+    proyecto del cliente.
 
     Llamar una vez por ejecución de Cloud Function antes de usar el resto de funciones.
     """
-    sa_info = json.loads(service_account_key_json)
-    credentials = service_account.Credentials.from_service_account_info(
-        sa_info,
-        scopes=["https://www.googleapis.com/auth/analytics.readonly"],
+    credentials = Credentials(
+        token=None,
+        refresh_token=refresh_token,
+        client_id=client_id,
+        client_secret=client_secret,
+        token_uri="https://oauth2.googleapis.com/token",
     )
     return BetaAnalyticsDataClient(credentials=credentials)
 

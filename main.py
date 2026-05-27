@@ -235,12 +235,21 @@ def load_secrets(client_id: str, agent_name: str, config: dict) -> dict[str, str
                 sm_client, client_project_id, secret_name
             )
 
-    # GA4 service account (scope: client)
-    # Nota 27/05/2026: el config v3 usa la key 'ga4_credentials'. La versión
-    # anterior leía 'google_service_account_key' por error → secret nunca
-    # cargaba y tool_handler_factory devolvía CLIENT_INIT_FAILED para GA4.
+    # GA4 credenciales OAuth admin-tech (DEC_066, 2026-05-27)
+    #   - CLIENT_ID, CLIENT_SECRET → shared en llyc-ai-first-core (OAuth app de agencia)
+    #   - REFRESH_TOKEN            → cliente en llyc-ai-{client_id} (admin-tech@llyc.global)
+    # Migrado de SA → OAuth para unificar con Meta/Google Ads (la SA del JSON antiguo
+    # no tenía Viewer en property GA4 del cliente; admin-tech sí lo tiene de forma estable).
     if config.get("platforms", {}).get("ga4", {}).get("enabled"):
-        secret_name = creds_map.get("ga4_credentials")
+        # Shared (en core)
+        for key in ["ga4_client_id", "ga4_client_secret"]:
+            secret_name = creds_map.get(key)
+            if secret_name:
+                secrets[secret_name] = _access_secret(
+                    sm_client, CORE_PROJECT_ID, secret_name
+                )
+        # Client
+        secret_name = creds_map.get("ga4_refresh_token")
         if secret_name:
             secrets[secret_name] = _access_secret(
                 sm_client, client_project_id, secret_name
@@ -369,10 +378,23 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
     # ── GA4 ──────────────────────────────────────────────────────────────────
     if platforms_cfg.get("ga4", {}).get("enabled"):
         try:
-            sa_json = _get_secret("ga4_credentials")
-            if not sa_json:
-                raise RuntimeError("Falta credencial ga4_credentials en creds_map o en secrets")
-            clients["ga4"] = ga4.init_ga4_client(service_account_key_json=sa_json)
+            cid = _get_secret("ga4_client_id")
+            csec = _get_secret("ga4_client_secret")
+            rtok = _get_secret("ga4_refresh_token")
+            missing = [
+                k for k, v in [
+                    ("ga4_client_id", cid),
+                    ("ga4_client_secret", csec),
+                    ("ga4_refresh_token", rtok),
+                ] if not v
+            ]
+            if missing:
+                raise RuntimeError(f"Faltan credenciales OAuth de GA4: {', '.join(missing)}")
+            clients["ga4"] = ga4.init_ga4_client(
+                client_id=cid,
+                client_secret=csec,
+                refresh_token=rtok,
+            )
             log.info(json.dumps({
                 "event": "platform_client_initialized",
                 "platform": "ga4",
