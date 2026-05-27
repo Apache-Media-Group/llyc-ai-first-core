@@ -30,7 +30,7 @@ import json
 import logging
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -599,35 +599,37 @@ Zona horaria: {client.get('timezone', 'Europe/Madrid')}
 
 # ─── INVOCACIÓN DEL AGENT ─────────────────────────────────────────────────────
 
-def build_user_message(agent_name: str, config: dict) -> str:
+def build_user_message(agent_name: str, config: dict, analysis_date: str) -> str:
     """
     Construye el mensaje inicial que se envía al modelo en cada invocación.
     DEC_065: el system prompt y las tools se inyectan en cada llamada via
-    messages.create(). El user_message activa la ejecución con la fecha actual.
+    messages.create(). El user_message activa la ejecución con la fecha de análisis.
+
+    analysis_date: YYYY-MM-DD, fecha del día a analizar (ayer respecto al
+    momento de ejecución). Calculada en el entrypoint y propagada.
     """
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     client_name = config["client"]["name"]
 
     messages = {
         "performance-monitor": (
-            f"Ejecuta el análisis de rendimiento de paid media para {client_name} "
-            f"correspondiente al día {today}. "
-            f"Compara el día anterior con la media de los últimos 7 días en todas "
-            f"las plataformas activas. Genera el output en el formato estructurado definido."
+            f"Ejecuta el análisis de rendimiento de paid media para {client_name}. "
+            f"Fecha de análisis: {analysis_date}. "
+            f"Esa es la fecha del día a analizar — compara sus KPIs con la media "
+            f"de los 7 días naturales previos. Genera el output en el formato estructurado definido."
         ),
         "budget-pacer": (
-            f"Ejecuta el análisis de presupuesto para {client_name} a fecha {today}. "
+            f"Ejecuta el análisis de presupuesto para {client_name} a fecha {analysis_date}. "
             f"Compara el gasto actual del mes con el objetivo mensual y detecta "
             f"desviaciones. Genera el output en el formato estructurado definido."
         ),
         "naming-utm-auditor": (
-            f"Ejecuta la auditoría de naming y UTMs para {client_name} a fecha {today}. "
+            f"Ejecuta la auditoría de naming y UTMs para {client_name} a fecha {analysis_date}. "
             f"Revisa todos los ads activos y detecta incumplimientos de naming convention "
             f"o parámetros UTM incompletos. Genera el output en el formato estructurado definido."
         ),
         "weekly-digest": (
             f"Genera el weekly digest para {client_name} correspondiente a la semana "
-            f"que termina el {today}. Analiza el rendimiento cross-platform, detecta "
+            f"que termina el {analysis_date}. Analiza el rendimiento cross-platform, detecta "
             f"patrones y propone 2-3 opciones de acción con datos. "
             f"Genera el output en el formato estructurado definido."
         ),
@@ -635,7 +637,7 @@ def build_user_message(agent_name: str, config: dict) -> str:
 
     return messages.get(
         agent_name,
-        f"Ejecuta el análisis para {client_name} a fecha {today}."
+        f"Ejecuta el análisis para {client_name} a fecha {analysis_date}."
     )
 
 
@@ -817,7 +819,7 @@ def run_agent(
 # ─── OUTPUT WRITING ──────────────────────────────────────────────────────────
 
 def write_output_to_drive_for_agent(
-    config: dict, agent_name: str, output: dict, client_id: str
+    config: dict, agent_name: str, output: dict, client_id: str, analysis_date: str
 ) -> dict:
     """
     Wrapper que construye filename siguiendo la convención del proyecto
@@ -843,8 +845,7 @@ def write_output_to_drive_for_agent(
         }))
         return {"status": "skipped", "reason": "no outputs_folder_id in config"}
 
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    filename = f"{today}_PAID_{agent_name}-{client_id}.json"
+    filename = f"{analysis_date}_PAID_{agent_name}-{client_id}.json"
 
     try:
         return drive.write_output_to_drive(
@@ -872,6 +873,7 @@ def send_notification_for_agent(
     output: dict,
     drive_result: dict,
     status: str,
+    analysis_date: str,
 ) -> dict:
     """
     Wrapper que construye subject/body del email de alerta y delega en
@@ -895,7 +897,6 @@ def send_notification_for_agent(
         return {"status": "skipped", "reason": "no alert_recipients in config"}
 
     client_name = config.get("client", {}).get("name", "Cliente")
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     summary = output.get("summary", "(sin resumen)")
     drive_url = (
         drive_result.get("data", {}).get("url")
@@ -903,7 +904,7 @@ def send_notification_for_agent(
         else None
     )
 
-    subject = f"[{status}] {agent_name} {client_name} — {today}"
+    subject = f"[{status}] {agent_name} {client_name} — {analysis_date}"
 
     drive_link_text = f"Ver output completo: {drive_url}\n" if drive_url else ""
     drive_link_html = (
@@ -915,7 +916,7 @@ def send_notification_for_agent(
         f"Alerta del agente {agent_name}\n"
         f"Cliente: {client_name}\n"
         f"Status: {status}\n"
-        f"Fecha: {today}\n\n"
+        f"Fecha: {analysis_date}\n\n"
         f"Resumen: {summary}\n\n"
         + drive_link_text
     )
@@ -927,7 +928,7 @@ def send_notification_for_agent(
   <h2 style="color:#c00;">[{status}] Alerta del agente {agent_name}</h2>
   <p><b>Cliente:</b> {client_name}</p>
   <p><b>Status:</b> <b>{status}</b></p>
-  <p><b>Fecha:</b> {today}</p>
+  <p><b>Fecha:</b> {analysis_date}</p>
   <p style="margin-top:16px;"><b>Resumen:</b> {summary}</p>
   {drive_link_html}
   <hr>
@@ -992,10 +993,18 @@ def agent_executor(request):
             "supported": list(SUPPORTED_AGENTS),
         }, 400
 
+    # Fecha del día a analizar: ayer respecto al momento de ejecución.
+    # Calculada una vez aquí y propagada a build_user_message, Drive (filename)
+    # y email (subject) para que las tres referencias muestren exactamente la
+    # misma fecha (la del dato analizado, no la de generación).
+    # TODO: usar timezone del cliente cuando config.client.timezone esté disponible.
+    analysis_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+
     log.info(json.dumps({
         "event": "execution_started",
         "client_id": client_id,
         "agent": agent_name,
+        "analysis_date": analysis_date,
     }))
 
     try:
@@ -1033,7 +1042,7 @@ def agent_executor(request):
         tools = get_tool_definitions(agent_name.replace("-", "_"))
 
         # ── 7. Construir user_message e invocar el agent ──────────────────────
-        user_message = build_user_message(agent_name, config)
+        user_message = build_user_message(agent_name, config, analysis_date)
         output = run_agent(
             anthropic_client,
             system_prompt,
@@ -1055,14 +1064,14 @@ def agent_executor(request):
 
         # ── 9. Escribir output a Drive (arq §9 step 8) ────────────────────────
         drive_result = write_output_to_drive_for_agent(
-            config, agent_name, output, client_id
+            config, agent_name, output, client_id, analysis_date
         )
 
         # ── 10. Notificar si STATUS dispara alerta (arq §9 step 9) ────────────
         notifications_config = config.get("notifications", {})
         if status in notifications_config.get("alert_levels", []):
             notification_result = send_notification_for_agent(
-                config, agent_name, output, drive_result, status
+                config, agent_name, output, drive_result, status, analysis_date
             )
         else:
             notification_result = {
