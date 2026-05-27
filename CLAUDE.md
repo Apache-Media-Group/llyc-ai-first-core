@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Tool executor y agentes para el sistema LLYC AI-First. GCP Cloud Function (HTTP trigger) que recibe solicitudes de cliente + tool, llama la plataforma correspondiente (Meta Ads, Google Ads, GA4, DV360, TikTok, Shopify) usando Anthropic Managed Agents, y devuelve resultados estructurados.
+Tool executor y agentes para el sistema LLYC AI-First. GCP Cloud Function (HTTP trigger) que recibe solicitudes de cliente + tool, llama la plataforma correspondiente (Meta Ads, Google Ads, GA4, DV360, TikTok, Shopify) usando Anthropic Messages API + tool_use, y devuelve resultados estructurados.
 
 **Frontera del sistema:** el sistema **detecta y analiza, no decide**. Acceso read-only a todas las plataformas. Cualquier acción operativa (cambiar puja, pausar campaña, modificar presupuesto, lanzar creatividad) la toma el equipo humano fuera del sistema. No añadir tools de escritura sin decisión explícita en `decision-log.md`.
 
@@ -12,17 +12,26 @@ Tool executor y agentes para el sistema LLYC AI-First. GCP Cloud Function (HTTP 
 
 | Path | Purpose |
 |---|---|
-| `main.py` | Cloud Function entrypoint (HTTP trigger). Routes incoming tool calls from Claude Managed Agents to the right `tools/<source>.py`. |
+| `main.py` | Cloud Function entrypoint (HTTP trigger). Routes incoming tool calls del agente al `tools/<source>.py` correspondiente. |
 | `tools/` | One module per data source. **Paid media (read-only):** `meta.py`, `google_ads.py`, `ga4.py`, `dv360.py`, `tiktok.py`. **Revenue ground truth (read-only):** `shopify.py`. Each exposes `run(client_config: dict, params: dict) -> dict`. |
 | `clients/{name}/` | Per-client config and overrides. Each contains `config.json` with platform IDs, account IDs, Shopify store handle, naming patterns, KPIs. |
 | `clients/_template/` | Canonical scaffold — copy via `/new-client` skill when onboarding. Contains `PENDIENTE` sentinels for required fields. |
+| `system_prompts/<agent_key>.md` | Static system prompt por agente. Snake_case en el fichero, kebab-case en `agent_id` externo — mapping en `main.py:506`. |
+| `scripts/` | Utilidades de operación: `bootstrap_agent.py` para inicialización del agente desde prompt estático + config cliente. Post-DEC_065 queda como no-op runtime (solo trazabilidad histórica). |
 
-### Claude Managed Agents integration
+### Repo de código vs knowledge base
 
-- **Beta header:** `managed-agents-2026-04-01` (mandatory in all API calls).
-- **Dreams beta header:** `dreaming-2026-04-21` (when memory store consolidation is enabled — pending Research Preview access).
+Este repo contiene **código** del agent-executor. La documentación arquitectónica del proyecto (`00_META/`, `02_ARQUITECTURA/`, decision-log, etc.) vive en el knowledge base de Drive — **no aquí**. Cualquier referencia tipo `02_ARQUITECTURA/...` en conversaciones se resuelve en Drive, no en este repo.
+
+Mapping de naming: `agent_id` (kebab-case, ej. `performance-monitor`) → fichero del prompt (snake_case, ej. `performance_monitor.md`). El mapping se aplica en `main.py:506`.
+
+### Anthropic API integration (post-DEC_065)
+
+- **API pattern:** Messages API (`client.messages.create()`) con loop manual `tool_use` → tool handler → `tool_result` hasta `stop_reason == "end_turn"`. Implementación en `run_agent()` (`main.py`).
+- **SDK constraint:** `anthropic>=0.103.0,<0.105.0` en `requirements.txt`. Versiones anteriores rompen tool_use estable; 0.105+ no validado E2E. NO quitar el upper bound sin re-validación.
+- **Managed Agents — NOT used (DEC_065):** la beta `managed-agents-2026-04-01` fue descartada el 27/05/2026. Está diseñada para agentes con toolset Claude Code (sandbox + filesystem/shell), no para agentes que consultan APIs externas custom (Meta, Google Ads, GA4). El `agent_id` en `clients/<name>/config.json` queda por trazabilidad histórica, sin uso en runtime. Sprint 2+ puede reincorporar Managed Agents por agente concreto como excepción, no como patrón general.
 - **Models:** `claude-sonnet-4-6` for routine agent runs. Reserve `claude-opus-4-7` for weekly consolidation or high-stakes analysis.
-- **System prompt structure:** static part (frontera, role, output schema) hardcoded in agent source; dynamic part loaded from `clients/<name>/config.json` at runtime.
+- **System prompt structure:** static part loaded from `system_prompts/<agent_key>.md`; dynamic part (cliente, fecha, plataformas activas, umbrales) injected from `clients/<name>/config.json` at runtime. Mapping `agent_id` (kebab) → fichero (snake) en `main.py:506`.
 - **GCP projects:** one per client (`llyc-ai-vidal-vidal`, `llyc-ai-lcdc`). Core project: `llyc-ai-first-core` (shared infrastructure only).
 
 ### Revenue ground truth: Shopify
@@ -71,9 +80,11 @@ Use `google.cloud.logging.Client().setup_logging()` at process start. Do NOT use
 Read structured logs with field extraction (avoid column-based formats — they silently truncate JSON fields):
 
 ```bash
-gcloud logging read "resource.type=cloud_function" \
+gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="agent-executor"' \
   --format="value(jsonPayload.event,jsonPayload.client_id,jsonPayload.agent,timestamp)"
 ```
+
+> **Gen 2 gotcha**: las Cloud Functions Gen 2 corren como Cloud Run services por debajo. Los runtime logs viven bajo `resource.type=cloud_run_revision`, NO bajo `resource.type=cloud_function` (este último solo devuelve audit logs de deploys/updates, no la actividad del código).
 
 ## Cloud Scheduler
 
