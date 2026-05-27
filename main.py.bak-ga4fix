@@ -236,11 +236,8 @@ def load_secrets(client_id: str, agent_name: str, config: dict) -> dict[str, str
             )
 
     # GA4 service account (scope: client)
-    # Nota 27/05/2026: el config v3 usa la key 'ga4_credentials'. La versión
-    # anterior leía 'google_service_account_key' por error → secret nunca
-    # cargaba y tool_handler_factory devolvía CLIENT_INIT_FAILED para GA4.
     if config.get("platforms", {}).get("ga4", {}).get("enabled"):
-        secret_name = creds_map.get("ga4_credentials")
+        secret_name = creds_map.get("google_service_account_key")
         if secret_name:
             secrets[secret_name] = _access_secret(
                 sm_client, client_project_id, secret_name

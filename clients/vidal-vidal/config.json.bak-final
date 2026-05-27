@@ -466,11 +466,9 @@
     "google_ads_client_id": "GOOGLE_ADS_CLIENT_ID",
     "google_ads_client_secret": "GOOGLE_ADS_CLIENT_SECRET",
     "google_ads_refresh_token": "GOOGLE_ADS_REFRESH_TOKEN",
-    "ga4_credentials": "GOOGLE_SERVICE_ACCOUNT_KEY",
+    "ga4_credentials": "GA4_SERVICE_ACCOUNT_JSON",
     "shopify_admin_api_token": "SHOPIFY_ADMIN_API_TOKEN",
-    "_gmail_nota": "Gmail secrets (GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN) viven en llyc-ai-first-core Secret Manager y están hardcoded en tools/notifications.py por ser capacidad de agencia compartida (DEC_026 refinada 2026-05-25). No se referencian aquí porque no son credenciales específicas del cliente.",
-    "meta_app_id": "META_APP_ID",
-    "meta_app_secret": "META_APP_SECRET"
+    "_gmail_nota": "Gmail secrets (GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN) viven en llyc-ai-first-core Secret Manager y están hardcoded en tools/notifications.py por ser capacidad de agencia compartida (DEC_026 refinada 2026-05-25). No se referencian aquí porque no son credenciales específicas del cliente."
   },
   "gcp": {
     "project_id": "llyc-ai-vidal-vidal",
@@ -506,8 +504,5 @@
       "Decisión 048 — shopify DTC source"
     ],
     "proxima_revision": "Tras 6 semanas en producción — calibrar CPA, CTR e inventory_paid_mismatch"
-  },
-  "drive": {
-    "outputs_folder_id": "1LQEXp9ZTLjLSGKOKjeVWlcTRpVN0pY6I"
   }
 }

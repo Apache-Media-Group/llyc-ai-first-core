@@ -1,19 +1,11 @@
 """
-tools/response.py — Contratos OK/ERROR + decorator with_timeout para tools.
-
-Cualquier tool del sistema debe:
-  1. Devolver ok(platform, data) en caso de éxito
-  2. Devolver error(platform, code, message) en caso de fallo
-  3. Estar decorada con @with_timeout(platform) para acotar latencia
-
-DEC_065 fix (27/05/2026): with_timeout reimplementado con
-concurrent.futures.ThreadPoolExecutor en lugar de signal.alarm para
-compatibilidad con Cloud Functions Gen 2 — los workers de gunicorn no son
-el thread principal del intérprete y signal.alarm solo funciona ahí.
+tools/response.py — Contrato de respuesta estándar
+Proyecto: llyc-ai-first-core
+Decisión 022: todos los tools devuelven ok() o error(), nunca excepciones raw.
 """
 
-import concurrent.futures
 import functools
+import signal
 from datetime import datetime, timezone
 
 
@@ -59,26 +51,25 @@ TIMEOUTS = {
 
 def with_timeout(platform: str):
     """
-    Decorator que aplica timeout por plataforma usando ThreadPoolExecutor.
-
-    Funciona en cualquier thread (a diferencia de signal.alarm que solo
-    funciona en el thread principal del intérprete Python). Necesario para
-    Cloud Functions Gen 2, que ejecuta requests en worker threads de gunicorn.
-
-    Si la llamada supera el límite devuelve error() estructurado en lugar
-    de colgar o lanzar excepción. La firma pública del decorator no cambia
-    respecto a la versión con signal.alarm — todos los callers funcionan
-    sin modificación.
+    Decorator que aplica timeout por plataforma.
+    Si la llamada supera el límite devuelve error() en lugar de colgar.
     """
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             timeout_seconds = TIMEOUTS.get(platform, 30)
+
+            def _handler(signum, frame):
+                raise TimeoutError(f"Timeout tras {timeout_seconds}s")
+
+            signal.signal(signal.SIGALRM, _handler)
+            signal.alarm(timeout_seconds)
             try:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(func, *args, **kwargs)
-                    return future.result(timeout=timeout_seconds)
-            except concurrent.futures.TimeoutError:
-                return error(platform, "TIMEOUT", f"Timeout tras {timeout_seconds}s")
+                result = func(*args, **kwargs)
+            except TimeoutError as e:
+                result = error(platform, "TIMEOUT", str(e))
+            finally:
+                signal.alarm(0)
+            return result
         return wrapper
     return decorator

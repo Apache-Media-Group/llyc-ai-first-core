@@ -236,11 +236,8 @@ def load_secrets(client_id: str, agent_name: str, config: dict) -> dict[str, str
             )
 
     # GA4 service account (scope: client)
-    # Nota 27/05/2026: el config v3 usa la key 'ga4_credentials'. La versión
-    # anterior leía 'google_service_account_key' por error → secret nunca
-    # cargaba y tool_handler_factory devolvía CLIENT_INIT_FAILED para GA4.
     if config.get("platforms", {}).get("ga4", {}).get("enabled"):
-        secret_name = creds_map.get("ga4_credentials")
+        secret_name = creds_map.get("google_service_account_key")
         if secret_name:
             secrets[secret_name] = _access_secret(
                 sm_client, client_project_id, secret_name
@@ -268,141 +265,7 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
     - Si persiste el error, devuelve tool_result con error estructurado
       para que el agente pueda razonar sobre el fallo.
     - NUNCA propaga excepción raw — el agente debe recibir siempre un resultado.
-
-    Pre-inicialización de clients (fix 27/05/2026):
-    Antes de definir el handler interno se inicializan los clients de cada
-    plataforma activa (cached en cierre). Diferencia de firmas:
-      - Meta:        FacebookAdsApi.init() configura una API global;
-                     las funciones get_meta_* NO reciben client object.
-      - Google Ads:  init_google_ads_client() -> GoogleAdsClient;
-                     get_google_ads_* recibe client como primer arg posicional.
-      - GA4:         init_ga4_client() -> BetaAnalyticsDataClient;
-                     get_ga4_* recibe client como primer arg posicional.
-    Si una plataforma falla al inicializar (credencial mal, secret faltante),
-    se registra el error y todas las tools de esa plataforma devuelven un
-    error estructurado claro al agente sin reintentar inútilmente.
     """
-    # ─── INICIALIZACIÓN DE CLIENTS POR PLATAFORMA ────────────────────────────
-    clients: dict[str, Any] = {}
-    init_errors: dict[str, str] = {}
-    platforms_cfg = config.get("platforms", {})
-    creds_map = config.get("credentials", {})
-
-    def _get_secret(key: str):
-        """Devuelve el valor del secret asociado a la entrada `key` del creds_map."""
-        secret_name = creds_map.get(key)
-        if not secret_name:
-            return None
-        return secrets.get(secret_name)
-
-    # ── Meta ─────────────────────────────────────────────────────────────────
-    if platforms_cfg.get("meta", {}).get("enabled"):
-        try:
-            access_token = _get_secret("meta_access_token")
-            app_id = _get_secret("meta_app_id")
-            app_secret = _get_secret("meta_app_secret")
-            missing = [k for k, v in {
-                "meta_access_token": access_token,
-                "meta_app_id": app_id,
-                "meta_app_secret": app_secret,
-            }.items() if not v]
-            if missing:
-                raise RuntimeError(f"Faltan secrets para Meta: {missing}")
-            meta.init_meta_api(
-                access_token=access_token,
-                app_id=app_id,
-                app_secret=app_secret,
-            )
-            clients["meta"] = True  # marker — la API es global, no hay objeto
-            log.info(json.dumps({
-                "event": "platform_client_initialized",
-                "platform": "meta",
-                "client_id": client_id,
-            }))
-        except Exception as e:
-            init_errors["meta"] = str(e)
-            log.error(json.dumps({
-                "event": "platform_client_init_failed",
-                "platform": "meta",
-                "client_id": client_id,
-                "error": str(e),
-            }))
-
-    # ── Google Ads ──────────────────────────────────────────────────────────
-    if platforms_cfg.get("google_ads", {}).get("enabled"):
-        try:
-            developer_token = _get_secret("google_ads_developer_token")
-            ga_client_id = _get_secret("google_ads_client_id")
-            ga_client_secret = _get_secret("google_ads_client_secret")
-            refresh_token = _get_secret("google_ads_refresh_token")
-            login_customer_id = platforms_cfg["google_ads"].get("manager_id")
-            missing = [k for k, v in {
-                "google_ads_developer_token": developer_token,
-                "google_ads_client_id": ga_client_id,
-                "google_ads_client_secret": ga_client_secret,
-                "google_ads_refresh_token": refresh_token,
-                "platforms.google_ads.manager_id": login_customer_id,
-            }.items() if not v]
-            if missing:
-                raise RuntimeError(f"Faltan credenciales para Google Ads: {missing}")
-            clients["google_ads"] = google_ads.init_google_ads_client(
-                developer_token=developer_token,
-                client_id=ga_client_id,
-                client_secret=ga_client_secret,
-                refresh_token=refresh_token,
-                login_customer_id=str(login_customer_id),
-            )
-            log.info(json.dumps({
-                "event": "platform_client_initialized",
-                "platform": "google_ads",
-                "client_id": client_id,
-            }))
-        except Exception as e:
-            init_errors["google_ads"] = str(e)
-            log.error(json.dumps({
-                "event": "platform_client_init_failed",
-                "platform": "google_ads",
-                "client_id": client_id,
-                "error": str(e),
-            }))
-
-    # ── GA4 ──────────────────────────────────────────────────────────────────
-    if platforms_cfg.get("ga4", {}).get("enabled"):
-        try:
-            sa_json = _get_secret("ga4_credentials")
-            if not sa_json:
-                raise RuntimeError("Falta credencial ga4_credentials en creds_map o en secrets")
-            clients["ga4"] = ga4.init_ga4_client(service_account_key_json=sa_json)
-            log.info(json.dumps({
-                "event": "platform_client_initialized",
-                "platform": "ga4",
-                "client_id": client_id,
-            }))
-        except Exception as e:
-            init_errors["ga4"] = str(e)
-            log.error(json.dumps({
-                "event": "platform_client_init_failed",
-                "platform": "ga4",
-                "client_id": client_id,
-                "error": str(e),
-            }))
-
-    # ─── MAPEO DE TOOL NAME → PLATAFORMA ─────────────────────────────────────
-    # Cada prefijo determina qué client se inyecta. get_meta_* es especial:
-    # la plataforma está inicializada (API global) pero NO se prepena client.
-    PLATFORM_PREFIX_TO_KEY = (
-        ("get_meta_", "meta"),
-        ("get_google_ads_", "google_ads"),
-        ("get_ga4_", "ga4"),
-    )
-
-    def _resolve_platform(tool_name: str):
-        for prefix, plat in PLATFORM_PREFIX_TO_KEY:
-            if tool_name.startswith(prefix):
-                return plat
-        return None
-
-    # ─── HANDLER INTERNO ──────────────────────────────────────────────────────
     def handler(tool_name: str, tool_input: dict) -> Any:
         executor = TOOL_DISPATCHER.get(tool_name)
 
@@ -415,37 +278,11 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
             }))
             return error("unknown", "TOOL_NOT_FOUND", f"Tool '{tool_name}' no registrada en TOOL_DISPATCHER.")
 
-        # Resolver plataforma e inicialización
-        platform = _resolve_platform(tool_name)
-
-        # Si la plataforma falló al inicializar, devolver error claro sin reintentar
-        if platform and platform in init_errors:
-            log.warning(json.dumps({
-                "event": "tool_skipped_platform_uninit",
-                "client_id": client_id,
-                "agent": agent_name,
-                "tool_name": tool_name,
-                "platform": platform,
-            }))
-            return error(
-                platform,
-                "CLIENT_INIT_FAILED",
-                f"Cliente {platform} no se inicializó: {init_errors[platform]}",
-            )
-
-        # Determinar si la tool requiere client object como primer positional
-        # Meta no lo requiere (API global vía init_meta_api). Google Ads y GA4 sí.
-        client_obj = clients.get(platform) if platform else None
-        prepend_client = platform in ("google_ads", "ga4") and client_obj is not None
-
         last_result = None
         for attempt in range(1, MAX_TOOL_RETRIES + 1):
             t0 = time.monotonic()
             try:
-                if prepend_client:
-                    result = executor(client_obj, **tool_input)
-                else:
-                    result = executor(**tool_input)
+                result = executor(**tool_input)
                 duration_ms = int((time.monotonic() - t0) * 1000)
 
                 log.info(json.dumps({
@@ -466,7 +303,7 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
             except Exception as e:
                 duration_ms = int((time.monotonic() - t0) * 1000)
                 last_result = error(
-                    platform or "unknown",
+                    tool_name.split("_")[1] if "_" in tool_name else "unknown",
                     "EXCEPTION",
                     str(e),
                 )
