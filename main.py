@@ -169,7 +169,7 @@ def _access_secret(sm_client, project_id: str, secret_name: str) -> str:
     """Lee la última versión de un secret de Secret Manager."""
     name = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
     response = sm_client.access_secret_version(request={"name": name})
-    return response.payload.data.decode("utf-8")
+    return response.payload.data.decode("utf-8").strip()
 
 
 def load_secrets(client_id: str, agent_name: str, config: dict) -> dict[str, str]:
