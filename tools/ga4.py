@@ -8,9 +8,9 @@ Alimenta: performance-monitor · weekly-digest
 Decisiones aplicadas: 022 (contrato ok/error + timeout), 026 (Secret Manager híbrido),
                       035 (GA4 fuente de verdad de web behavior y funnel),
                       048 (Shopify fuente de verdad de revenue — GA4 secundaria para revenue),
-                      066 (auth OAuth admin-tech, unifica con Meta/Google Ads — 2026-05-27)
+                      067 (auth OAuth admin-tech, unifica con Meta/Google Ads — 2026-05-27)
 
-Credenciales leídas desde Secret Manager (DEC_066, OAuth admin-tech):
+Credenciales leídas desde Secret Manager (DEC_067, OAuth admin-tech):
   - GA4_CLIENT_ID         → llyc-ai-first-core   (scope: shared, OAuth app LLYC)
   - GA4_CLIENT_SECRET     → llyc-ai-first-core   (scope: shared, OAuth app LLYC)
   - GA4_REFRESH_TOKEN     → llyc-ai-[cliente]    (scope: client, admin-tech@llyc.global)
