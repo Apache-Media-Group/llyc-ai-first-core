@@ -470,7 +470,7 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
                     result = executor(**tool_input)
                 duration_ms = int((time.monotonic() - t0) * 1000)
 
-                log.info(json.dumps({
+                event_payload = {
                     "event": "tool_executed",
                     "client_id": client_id,
                     "agent": agent_name,
@@ -478,7 +478,12 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
                     "attempt": attempt,
                     "status": result.get("status"),
                     "duration_ms": duration_ms,
-                }))
+                }
+                if result.get("status") == "error":
+                    err = result.get("error") or {}
+                    event_payload["error_code"] = err.get("code")
+                    event_payload["error_message"] = err.get("message")
+                log.info(json.dumps(event_payload))
 
                 if result.get("status") == "ok":
                     return result
@@ -498,19 +503,25 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
                     "agent": agent_name,
                     "tool_name": tool_name,
                     "attempt": attempt,
-                    "error": str(e),
+                    "error_message": str(e),
+                    "exception_type": type(e).__name__,
+                    "exception_module": type(e).__module__,
+                    "status_code": getattr(e, "status_code", None) or getattr(e, "code", None),
                     "duration_ms": duration_ms,
                 }))
 
             if attempt < MAX_TOOL_RETRIES:
                 time.sleep(2 ** attempt)  # backoff exponencial
 
+        last_err = (last_result or {}).get("error") or {}
         log.error(json.dumps({
             "event": "tool_exhausted",
             "client_id": client_id,
             "agent": agent_name,
             "tool_name": tool_name,
             "max_retries": MAX_TOOL_RETRIES,
+            "last_error_code": last_err.get("code"),
+            "last_error_message": last_err.get("message"),
         }))
 
         return last_result
