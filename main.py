@@ -235,7 +235,7 @@ def load_secrets(client_id: str, agent_name: str, config: dict) -> dict[str, str
                 sm_client, client_project_id, secret_name
             )
 
-    # GA4 credenciales OAuth admin-tech (DEC_066, 2026-05-27)
+    # GA4 credenciales OAuth admin-tech (DEC_067, 2026-05-27)
     #   - CLIENT_ID, CLIENT_SECRET → shared en llyc-ai-first-core (OAuth app de agencia)
     #   - REFRESH_TOKEN            → cliente en llyc-ai-{client_id} (admin-tech@llyc.global)
     # Migrado de SA → OAuth para unificar con Meta/Google Ads (la SA del JSON antiguo
