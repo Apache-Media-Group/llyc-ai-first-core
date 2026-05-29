@@ -57,7 +57,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from google.cloud import secretmanager  # noqa: E402
 
-from main import load_static_prompt, build_dynamic_context  # noqa: E402
+from prompt_builder import load_static_prompt, build_dynamic_context  # noqa: E402
 from tools.definitions import get_tool_definitions  # noqa: E402
 
 
