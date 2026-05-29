@@ -130,9 +130,10 @@ GET_GA4_PERFORMANCE = {
     "description": (
         "Obtiene métricas de GA4 desagregadas por canal "
         "(sessionDefaultChannelGroup) para una property y rango de fechas. "
-        "Devuelve sessions, transactions y revenue por canal. GA4 es la "
-        "fuente de verdad de revenue en V&V (DEC_042) — los revenues "
-        "reportados por Meta y Google Ads deben contrastarse contra esto."
+        "Devuelve sessions, transactions y revenue por canal. NOTA: desde "
+        "DEC_048, Shopify es la fuente de verdad de revenue (no GA4) para "
+        "clientes ecommerce. GA4 entra en la triangulación 3-way como "
+        "atribución proxy por source-medium — NO como ground truth."
     ),
     "input_schema": {
         "type": "object",
@@ -248,6 +249,136 @@ DV360_GET_CAMPAIGN_METRICS = {
 }
 
 
+# ─── SHOPIFY TOOL DEFINITIONS (DEC_048 + DEC_050) ───────────────────────────
+
+GET_SHOPIFY_ORDERS_PERIOD = {
+    "type": "custom",
+    "name": "get_shopify_orders_period",
+    "description": (
+        "Obtiene revenue, orders count, units y AOV desde Shopify para un "
+        "rango de fechas. Filtra por processed_at (DEC_049, campo canónico) "
+        "y aplica dtc_filter del config del cliente. Shopify es la fuente "
+        "de verdad de revenue en clientes ecommerce (DEC_048) — usar este "
+        "valor como ground truth para la triangulación con plataformas paid "
+        "y GA4. TZ Madrid."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "date_start": {
+                "type": "string",
+                "description": "Fecha inicio (inclusiva) en formato YYYY-MM-DD.",
+            },
+            "date_end": {
+                "type": "string",
+                "description": "Fecha fin (inclusiva) en formato YYYY-MM-DD.",
+            },
+            "dtc_filter": {
+                "type": "object",
+                "description": (
+                    "Filtro DTC del config del cliente. Estructura: "
+                    "{source_name: str, excluded_source_names: list[str]}. "
+                    "Opcional; si se omite no se filtra."
+                ),
+                "properties": {
+                    "source_name": {"type": "string"},
+                    "excluded_source_names": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+            },
+        },
+        "required": ["date_start", "date_end"],
+    },
+}
+
+
+GET_SHOPIFY_CUSTOMER_SEGMENT = {
+    "type": "custom",
+    "name": "get_shopify_customer_segment",
+    "description": (
+        "Distribución new vs returning customers + repeat purchase rate "
+        "para el periodo solicitado. Usado por weekly-digest. Aplica "
+        "dtc_filter igual que get_shopify_orders_period."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "date_start": {"type": "string", "description": "YYYY-MM-DD."},
+            "date_end": {"type": "string", "description": "YYYY-MM-DD."},
+            "dtc_filter": {
+                "type": "object",
+                "properties": {
+                    "source_name": {"type": "string"},
+                    "excluded_source_names": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+            },
+        },
+        "required": ["date_start", "date_end"],
+    },
+}
+
+
+GET_SHOPIFY_INVENTORY_STATUS = {
+    "type": "custom",
+    "name": "get_shopify_inventory_status",
+    "description": (
+        "Estado de inventario: SKUs en stock-out (<=0) y stock crítico "
+        "(<= threshold). Si sku_list es None evalúa todo el catálogo "
+        "activo. Usado por weekly-digest para el patrón "
+        "inventory_paid_mismatch (DEC_050) — detección de paid activo "
+        "sobre productos sin stock."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "sku_list": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": (
+                    "Lista de SKUs a evaluar. Si se omite, se evalúa todo "
+                    "el catálogo activo."
+                ),
+            },
+            "threshold_critical": {
+                "type": "integer",
+                "description": "Umbral de stock crítico. Default 10.",
+            },
+        },
+        "required": [],
+    },
+}
+
+
+GET_SHOPIFY_ACTIVE_DISCOUNTS = {
+    "type": "custom",
+    "name": "get_shopify_active_discounts",
+    "description": (
+        "Lista price rules activos en un periodo (overlap con la ventana) "
+        "o activos 'ahora' (Europe/Madrid) si no se pasan fechas. Usado "
+        "por weekly-digest para análisis de % pedidos con descuento."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "date_start": {
+                "type": "string",
+                "description": (
+                    "YYYY-MM-DD. Opcional. Si se omite, devuelve los rules "
+                    "activos en este momento."
+                ),
+            },
+            "date_end": {"type": "string", "description": "YYYY-MM-DD. Opcional."},
+        },
+        "required": [],
+    },
+}
+
+
 # ─── ASIGNACIÓN POR AGENTE ───────────────────────────────────────────────────
 #
 # Cada entrada del dict es la lista exacta de tools que se envía a Anthropic
@@ -271,7 +402,9 @@ TOOL_DEFINITIONS_BY_AGENT = {
         GET_META_PERFORMANCE,
         GET_GOOGLE_ADS_PERFORMANCE,
         GET_GA4_PERFORMANCE,
+        GET_SHOPIFY_ORDERS_PERIOD,  # DEC_048 — ground truth revenue + triangulación 3-way
         # DV360 excluido — ver Decisión 064 y META_dv360-rescue-inventory §4.
+        # Shopify customer_segment/inventory/discounts en catálogo, asignados a weekly-digest.
     ],
     "budget_pacer": [
         # Meta, Google Ads, GA4 — pendiente formalización.

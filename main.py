@@ -41,7 +41,8 @@ import google.cloud.logging
 import anthropic
 
 from tools.response import ok, error
-from tools import meta, google_ads, ga4, drive, notifications
+from tools import meta, google_ads, ga4, drive, notifications, shopify
+from tools.email import render_email_html
 from tools.definitions import get_tool_definitions  # DEC_065
 from prompt_builder import load_static_prompt, build_dynamic_context  # F-CloudLog (29/05)
 
@@ -95,6 +96,12 @@ TOOL_DISPATCHER = {
     "get_ga4_paid_channel_performance": ga4.get_ga4_paid_channel_performance,
     "get_ga4_funnel":                   ga4.get_ga4_funnel,
     "get_ga4_weekly_comparison":        ga4.get_ga4_weekly_comparison,
+
+    # Shopify (DEC_048 + DEC_050)
+    "get_shopify_orders_period":        shopify.get_shopify_orders_period,
+    "get_shopify_customer_segment":     shopify.get_shopify_customer_segment,
+    "get_shopify_inventory_status":     shopify.get_shopify_inventory_status,
+    "get_shopify_active_discounts":     shopify.get_shopify_active_discounts,
 
     # tiktok → Sprint 1.5 (Jesús pendiente de validar access token)
 }
@@ -256,6 +263,15 @@ def load_secrets(client_id: str, agent_name: str, config: dict) -> dict[str, str
                 sm_client, client_project_id, secret_name
             )
 
+    # Shopify credenciales (DEC_048 — 100% en proyecto cliente; excepción al patrón híbrido)
+    #   - SHOPIFY_ADMIN_API_TOKEN → cliente en llyc-ai-{client_id}
+    if config.get("platforms", {}).get("shopify", {}).get("enabled"):
+        secret_name = creds_map.get("shopify_admin_token")
+        if secret_name:
+            secrets[secret_name] = _access_secret(
+                sm_client, client_project_id, secret_name
+            )
+
     log.info(json.dumps({
         "event": "secrets_loaded",
         "client_id": client_id,
@@ -410,6 +426,39 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
                 "error": str(e),
             }))
 
+    # ── Shopify ──────────────────────────────────────────────────────────────
+    if platforms_cfg.get("shopify", {}).get("enabled"):
+        try:
+            access_token = _get_secret("shopify_admin_token")
+            shop_domain = platforms_cfg["shopify"].get("shop_domain")
+            api_version = platforms_cfg["shopify"].get("api_version")
+            missing = [k for k, v in {
+                "shopify_admin_token": access_token,
+                "platforms.shopify.shop_domain": shop_domain,
+                "platforms.shopify.api_version": api_version,
+            }.items() if not v]
+            if missing:
+                raise RuntimeError(f"Faltan credenciales/config para Shopify: {missing}")
+            shopify.init_shopify_api(
+                shop_domain=shop_domain,
+                access_token=access_token,
+                api_version=api_version,
+            )
+            clients["shopify"] = True  # marker — API global vía state module, no client object
+            log.info(json.dumps({
+                "event": "platform_client_initialized",
+                "platform": "shopify",
+                "client_id": client_id,
+            }))
+        except Exception as e:
+            init_errors["shopify"] = str(e)
+            log.error(json.dumps({
+                "event": "platform_client_init_failed",
+                "platform": "shopify",
+                "client_id": client_id,
+                "error": str(e),
+            }))
+
     # ─── MAPEO DE TOOL NAME → PLATAFORMA ─────────────────────────────────────
     # Cada prefijo determina qué client se inyecta. get_meta_* es especial:
     # la plataforma está inicializada (API global) pero NO se prepena client.
@@ -417,6 +466,7 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
         ("get_meta_", "meta"),
         ("get_google_ads_", "google_ads"),
         ("get_ga4_", "ga4"),
+        ("get_shopify_", "shopify"),
     )
 
     def _resolve_platform(tool_name: str):
@@ -816,22 +866,31 @@ def send_notification_for_agent(
     analysis_date: str,
 ) -> dict:
     """
-    Wrapper que construye subject/body del email de alerta y delega en
-    notifications.send_alert_email.
+    Renderiza email HTML estructurado vía Jinja2 + email_templates/<agent_key>.html
+    y delega el envío en notifications.send_alert_email.
 
-    No propaga excepciones — siempre devuelve un dict con status.
-    Si el envío falla, se loggea como ERROR y se devuelve el error en el
-    dict para que el caller decida. La Cloud Function NO aborta — el
-    output sigue siendo válido en Drive y Cloud Logging aunque el email
-    falle.
+    Refactor 2026-05-29 (DEC_050): plantilla externa con template inheritance
+    (_base.html + macros) en lugar de HTML inline. Cross-agent: cada agente
+    declara su propio template hijo bajo email_templates/.
+
+    No propaga excepciones — siempre devuelve un dict con status. Si el envío
+    falla, se loggea como ERROR; la Cloud Function NO aborta (el output sigue
+    válido en Drive y Cloud Logging). Si el template falla (TemplateNotFound,
+    UndefinedError por StrictUndefined), se loggea y se devuelve error con
+    detalle — esto fuerza visibilidad del contrato roto.
+
+    Construcción del subject:
+      [{execution_status} · {analysis_status}] {agent_name} · {client_name} · {date}
+      Si analysis_status es N/A se omite (caso ERROR sin análisis).
     """
     notifications_config = config.get("notifications", {})
     recipients = notifications_config.get("alert_recipients", [])
+    client_id = config.get("client", {}).get("id")
 
     if not recipients:
         log.warning(json.dumps({
             "event": "notification_skipped_no_recipients",
-            "client_id": config.get("client", {}).get("id"),
+            "client_id": client_id,
             "agent": agent_name,
         }))
         return {"status": "skipped", "reason": "no alert_recipients in config"}
@@ -844,37 +903,60 @@ def send_notification_for_agent(
         else None
     )
 
-    subject = f"[{status}] {agent_name} {client_name} — {analysis_date}"
+    # Modelo dual de status (DEC_050): execution + analysis separados.
+    # Backward compat: si el agente todavía devuelve status_global legacy,
+    # lo mapeamos a execution=OK/PARTIAL/ERROR y analysis=ALERTA/NORMAL.
+    execution_status = output.get("execution_status") or _derive_execution_status(status)
+    analysis_status = output.get("analysis_status") or _derive_analysis_status(status)
+    execution_status_detail = output.get("execution_status_detail", "")
 
-    drive_link_text = f"Ver output completo: {drive_url}\n" if drive_url else ""
-    drive_link_html = (
-        f'<p><a href="{drive_url}">Ver output completo en Drive</a></p>'
-        if drive_url else ""
-    )
+    # Subject: prefijo dual cuando aplica
+    subject_label = execution_status
+    if analysis_status and analysis_status != "N/A" and execution_status == "OK":
+        subject_label = analysis_status
+    elif analysis_status and analysis_status != "N/A":
+        subject_label = f"{execution_status} · {analysis_status}"
+    subject = f"[{subject_label}] {agent_name} · {client_name} · {analysis_date}"
 
+    # Contexto del template — debe contener TODO lo que performance_monitor.html
+    # referencia. Si falta alguna key con StrictUndefined la render falla.
+    context = {
+        "client_name": client_name,
+        "analysis_date": analysis_date,
+        "execution_status": execution_status,
+        "execution_status_detail": execution_status_detail,
+        "analysis_status": analysis_status,
+        "summary": summary,
+        "revenue_triangulation": output.get("revenue_triangulation"),
+        "platforms": output.get("platforms", {}),
+        "alerts": output.get("alerts", []),
+        "drive_url": drive_url,
+    }
+
+    template_name = f"{agent_name.replace('-', '_')}.html"
+
+    try:
+        body_html = render_email_html(template_name, context)
+    except Exception as e:
+        log.error(json.dumps({
+            "event": "notification_template_render_failed",
+            "client_id": client_id,
+            "agent": agent_name,
+            "template": template_name,
+            "error_type": type(e).__name__,
+            "error": str(e),
+        }))
+        return {
+            "status": "error",
+            "error": {"code": "TEMPLATE_RENDER", "message": f"{type(e).__name__}: {e}"},
+        }
+
+    # Fallback plain text — versión simple para clientes sin HTML
     body_text = (
-        f"Alerta del agente {agent_name}\n"
-        f"Cliente: {client_name}\n"
-        f"Status: {status}\n"
-        f"Fecha: {analysis_date}\n\n"
-        f"Resumen: {summary}\n\n"
-        + drive_link_text
+        f"{subject}\n\n"
+        f"{summary}\n\n"
+        + (f"Ver output completo: {drive_url}\n" if drive_url else "")
     )
-
-    body_html = f"""<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body style="font-family: -apple-system, Segoe UI, Helvetica, sans-serif; color:#333;">
-  <h2 style="color:#c00;">[{status}] Alerta del agente {agent_name}</h2>
-  <p><b>Cliente:</b> {client_name}</p>
-  <p><b>Status:</b> <b>{status}</b></p>
-  <p><b>Fecha:</b> {analysis_date}</p>
-  <p style="margin-top:16px;"><b>Resumen:</b> {summary}</p>
-  {drive_link_html}
-  <hr>
-  <p style="color:#888; font-size:12px;">LLYC AI-First · agent_executor</p>
-</body>
-</html>"""
 
     try:
         return notifications.send_alert_email(
@@ -887,7 +969,7 @@ def send_notification_for_agent(
     except Exception as e:
         log.error(json.dumps({
             "event": "notification_caught_exception",
-            "client_id": config.get("client", {}).get("id"),
+            "client_id": client_id,
             "agent": agent_name,
             "error": str(e),
         }))
@@ -895,6 +977,22 @@ def send_notification_for_agent(
             "status": "error",
             "error": {"code": "UNEXPECTED", "message": str(e)},
         }
+
+
+def _derive_execution_status(legacy_status: str) -> str:
+    """Mapea status_global legacy → execution_status del modelo dual."""
+    if legacy_status == "ERROR":
+        return "ERROR"
+    if legacy_status == "PARTIAL":
+        return "PARTIAL"
+    return "OK"
+
+
+def _derive_analysis_status(legacy_status: str) -> str:
+    """Mapea status_global legacy → analysis_status del modelo dual."""
+    if legacy_status in ("ALERTA", "NORMAL"):
+        return legacy_status
+    return "N/A"
 
 
 # ─── ENTRY POINT HTTP ─────────────────────────────────────────────────────────

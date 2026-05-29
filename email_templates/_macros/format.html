@@ -1,0 +1,21 @@
+{% macro money(value) -%}
+{%- if value is none -%}<span style="color:#888;">—</span>
+{%- else -%}{{ '%.2f'|format(value|float) }} €
+{%- endif -%}
+{%- endmacro %}
+
+{% macro deviation(pct, inverse=false) -%}
+{%- if pct is none -%}<span style="color:#888;">—</span>
+{%- else -%}
+{%- set is_bad = (pct < 0) if not inverse else (pct > 0) -%}
+{%- if is_bad -%}<span style="color:#a30000; font-weight:600;">{{ '%+.1f'|format(pct) }}%</span>
+{%- else -%}<span style="color:#1b6a3a; font-weight:600;">{{ '%+.1f'|format(pct) }}%</span>
+{%- endif -%}
+{%- endif -%}
+{%- endmacro %}
+
+{% macro number(value, decimals=2) -%}
+{%- if value is none -%}<span style="color:#888;">—</span>
+{%- else -%}{{ ('%%.%df' % decimals)|format(value|float) }}
+{%- endif -%}
+{%- endmacro %}
