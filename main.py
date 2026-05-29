@@ -1091,38 +1091,51 @@ def agent_executor(request):
             agent_name,
         )
 
-        # ── 8. Log del output final ───────────────────────────────────────────
-        status = output.get("status_global", "UNKNOWN")
+        # ── 8. Log del output final (DEC_050 — modelo dual) ──────────────────
+        execution_status = output.get("execution_status") or output.get("status_global") or "UNKNOWN"
+        analysis_status = output.get("analysis_status") or "N/A"
         log.info(json.dumps({
             "event": "execution_completed",
             "client_id": client_id,
             "agent": agent_name,
-            "status": status,
+            "execution_status": execution_status,
+            "analysis_status": analysis_status,
         }))
+
+        # Determinar notify_level a comparar con alert_levels.
+        # Regla: si execution falló (PARTIAL/ERROR), notificar ese estado técnico.
+        # Si execution OK, notificar según analysis (ALERTA/NORMAL).
+        if execution_status in ("ERROR", "PARTIAL"):
+            notify_level = execution_status
+        else:
+            notify_level = analysis_status if analysis_status not in ("N/A", None) else execution_status
 
         # ── 9. Escribir output a Drive (arq §9 step 8) ────────────────────────
         drive_result = write_output_to_drive_for_agent(
             config, agent_name, output, client_id, analysis_date
         )
 
-        # ── 10. Notificar si STATUS dispara alerta (arq §9 step 9) ────────────
+        # ── 10. Notificar si notify_level dispara alerta (arq §9 step 9) ──────
         notifications_config = config.get("notifications", {})
-        if status in notifications_config.get("alert_levels", []):
+        if notify_level in notifications_config.get("alert_levels", []):
             notification_result = send_notification_for_agent(
-                config, agent_name, output, drive_result, status, analysis_date
+                config, agent_name, output, drive_result, notify_level, analysis_date
             )
         else:
             notification_result = {
                 "status": "skipped",
-                "reason": f"status not in alert_levels (was: {status})",
+                "reason": f"notify_level not in alert_levels (was: {notify_level})",
             }
 
         return {
             "status": "ok",
             "client_id": client_id,
             "agent_name": agent_name,
-            "agent_status": status,
+            "execution_status": execution_status,
+            "analysis_status": analysis_status,
+            "notify_level": notify_level,
             "summary": output.get("summary", ""),
+            "output": output,
             "drive": drive_result,
             "notifications": notification_result,
         }, 200
