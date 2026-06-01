@@ -67,11 +67,11 @@ ruff check .                                                       # lint
 ruff format .                                                      # format
 gcloud functions deploy <name> \
   --runtime python311 --trigger-http --source . \
-  --memory=1024MB --timeout=300s \
+  --memory=1024MB --timeout=540s \
   --service-account=llyc-agents-sa@llyc-ai-first-core.iam.gserviceaccount.com
 ```
 
-The `--memory=1024MB --timeout=300s --service-account=...` flags are mandatory, not optional. Defaults (256MB / 60s / App Engine default SA) break the agent and were the technical debt resolved in Sprint 0.
+The `--memory=1024MB --timeout=540s --service-account=...` flags are mandatory, not optional. Defaults (256MB / 60s / App Engine default SA) break the agent and were the technical debt resolved in Sprint 0.
 
 ## Logging
 

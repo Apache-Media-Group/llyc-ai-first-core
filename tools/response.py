@@ -47,14 +47,14 @@ def error(platform: str, code: str, message: str) -> dict:
 # ─────────────────────────────────────────────
 
 TIMEOUTS = {
-    "meta": 30,
-    "google_ads": 30,
-    "ga4": 30,
-    "dv360": 45,
-    "tiktok": 30,
-    "drive": 20,
-    "gmail": 30,
-    "shopify": 30,
+    "meta": 60,
+    "google_ads": 60,
+    "ga4": 60,
+    "dv360": 60,
+    "tiktok": 60,
+    "drive": 30,
+    "gmail": 45,
+    "shopify": 120,
 }
 
 
