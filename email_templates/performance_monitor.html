@@ -1,0 +1,135 @@
+{% extends "_base.html" %}
+{% import "_macros/status_badge.html" as badges %}
+{% import "_macros/format.html" as fmt %}
+
+{% block header %}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+  <tr>
+    <td>
+      <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:6px;">performance-monitor · {{ analysis_date }}</div>
+      <div style="font-size:20px; font-weight:600; color:#1a1a1a;">{{ client_name }}</div>
+    </td>
+    <td align="right" style="vertical-align:top;">
+      {{ badges.render_badge(execution_status) }}
+      {% if analysis_status and analysis_status != "N/A" %}
+      &nbsp;{{ badges.render_badge(analysis_status) }}
+      {% endif %}
+    </td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block body %}
+
+{% if execution_status == "PARTIAL" %}
+<div style="padding:12px 14px; background-color:#fff4d6; border-left:3px solid #d4a000; border-radius:4px; margin-bottom:18px; font-size:13px; color:#5a3d00;">
+  <strong>Ejecución parcial.</strong> {{ execution_status_detail }}
+</div>
+{% elif execution_status == "ERROR" %}
+<div style="padding:12px 14px; background-color:#fde7e7; border-left:3px solid #a30000; border-radius:4px; margin-bottom:18px; font-size:13px; color:#5a0000;">
+  <strong>Ejecución fallida.</strong> {{ execution_status_detail }}
+</div>
+{% endif %}
+
+<div style="font-size:14px; line-height:1.55; color:#333; margin-bottom:22px;">
+  {{ summary }}
+</div>
+
+{% if revenue_triangulation and revenue_triangulation.status != "N/A" %}
+<div style="margin-bottom:22px;">
+  <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">Triangulación de revenue</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse; font-size:13px;">
+    <tr style="background-color:#f7f7f9;">
+      <th align="left" style="padding:8px 10px; font-weight:600; color:#444; border-bottom:1px solid #ececef;">Fuente</th>
+      <th align="right" style="padding:8px 10px; font-weight:600; color:#444; border-bottom:1px solid #ececef;">Revenue</th>
+      <th align="right" style="padding:8px 10px; font-weight:600; color:#444; border-bottom:1px solid #ececef;">Δ vs Shopify</th>
+    </tr>
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5;">Shopify <span style="color:#888; font-size:11px;">(ground truth)</span></td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5; font-weight:600;">{{ fmt.money(revenue_triangulation.shopify_eur) }}</td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5; color:#888;">—</td>
+    </tr>
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5;">Σ Plataformas paid <span style="color:#888; font-size:11px;">(self-reported)</span></td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5;">{{ fmt.money(revenue_triangulation.paid_sum_eur) }}</td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5;">{{ fmt.deviation(revenue_triangulation.delta_paid_vs_shopify_pct) }}</td>
+    </tr>
+    <tr>
+      <td style="padding:10px;">GA4 <span style="color:#888; font-size:11px;">(atribución proxy)</span></td>
+      <td align="right" style="padding:10px;">{{ fmt.money(revenue_triangulation.ga4_eur) }}</td>
+      <td align="right" style="padding:10px;">{{ fmt.deviation(revenue_triangulation.delta_ga4_vs_shopify_pct) }}</td>
+    </tr>
+  </table>
+</div>
+{% endif %}
+
+{% if platforms %}
+<div style="margin-bottom:22px;">
+  <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">Plataformas</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse; font-size:13px;">
+    <tr style="background-color:#f7f7f9;">
+      <th align="left" style="padding:8px 10px; font-weight:600; color:#444; border-bottom:1px solid #ececef;">Plataforma</th>
+      <th align="left" style="padding:8px 10px; font-weight:600; color:#444; border-bottom:1px solid #ececef;">Status</th>
+      <th align="right" style="padding:8px 10px; font-weight:600; color:#444; border-bottom:1px solid #ececef;">Spend</th>
+      <th align="right" style="padding:8px 10px; font-weight:600; color:#444; border-bottom:1px solid #ececef;">Revenue</th>
+      <th align="right" style="padding:8px 10px; font-weight:600; color:#444; border-bottom:1px solid #ececef;">ROAS</th>
+      <th align="right" style="padding:8px 10px; font-weight:600; color:#444; border-bottom:1px solid #ececef;">Δ ROAS</th>
+    </tr>
+    {% for key in ["meta", "google_ads", "ga4", "shopify"] %}
+    {% if key in platforms %}
+    {% set p = platforms[key] %}
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5;">{{ {'meta':'Meta','google_ads':'Google Ads','ga4':'GA4','shopify':'Shopify'}[key] }}</td>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5;">{{ badges.render_badge(p.status) }}</td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5;">{% if p.spend_eur is defined %}{{ fmt.money(p.spend_eur) }}{% else %}<span style="color:#888;">—</span>{% endif %}</td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5;">{% if p.revenue_eur is defined %}{{ fmt.money(p.revenue_eur) }}{% else %}<span style="color:#888;">—</span>{% endif %}</td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5;">{% if p.roas_yesterday is defined %}{{ fmt.number(p.roas_yesterday) }}{% else %}<span style="color:#888;">—</span>{% endif %}</td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5;">{% if p.roas_deviation_pct is defined %}{{ fmt.deviation(p.roas_deviation_pct) }}{% else %}<span style="color:#888;">—</span>{% endif %}</td>
+    </tr>
+    {% if p.alert_detail %}
+    <tr>
+      <td colspan="6" style="padding:6px 10px 12px 10px; border-bottom:1px solid #f3f3f5; font-size:12px; color:#a30000; background-color:#fffafa;">
+        <strong>Detalle alerta:</strong> {{ p.alert_detail }}
+      </td>
+    </tr>
+    {% endif %}
+    {% if p.error_detail %}
+    <tr>
+      <td colspan="6" style="padding:6px 10px 12px 10px; border-bottom:1px solid #f3f3f5; font-size:12px; color:#5a3d00; background-color:#fff8e6;">
+        <strong>Error técnico:</strong> {{ p.error_detail }}
+      </td>
+    </tr>
+    {% endif %}
+    {% endif %}
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if alerts and alerts|length > 0 %}
+<div style="margin-bottom:22px;">
+  <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">Alertas ({{ alerts|length }})</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse; font-size:13px;">
+    {% for a in alerts %}
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5; vertical-align:top;">
+        <div style="font-weight:600; color:#1a1a1a; margin-bottom:2px;">{{ a.platform }} · {{ a.metric }}</div>
+        <div style="color:#666; font-size:12px;">{{ a.description }}</div>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if drive_url %}
+<div style="margin-top:24px;">
+  <a href="{{ drive_url }}" style="display:inline-block; padding:10px 18px; background-color:#1a1a1a; color:#ffffff; text-decoration:none; font-size:13px; border-radius:4px; font-weight:500;">Ver output completo</a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block footer %}
+Generado automáticamente por LLYC AI-First · performance-monitor · {{ analysis_date }}
+{% endblock %}

@@ -54,6 +54,7 @@ TIMEOUTS = {
     "tiktok": 30,
     "drive": 20,
     "gmail": 30,
+    "shopify": 30,
 }
 
 

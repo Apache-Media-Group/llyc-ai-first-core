@@ -1,0 +1,15 @@
+{% macro render_badge(status) -%}
+{%- if status == "ALERTA" -%}
+<span style="display:inline-block; padding:4px 10px; background-color:#fde7e7; color:#a30000; border-radius:4px; font-size:11px; font-weight:600; letter-spacing:0.4px;">ALERTA</span>
+{%- elif status == "NORMAL" -%}
+<span style="display:inline-block; padding:4px 10px; background-color:#e7f6ec; color:#1b6a3a; border-radius:4px; font-size:11px; font-weight:600; letter-spacing:0.4px;">NORMAL</span>
+{%- elif status == "PARTIAL" -%}
+<span style="display:inline-block; padding:4px 10px; background-color:#fff4d6; color:#8a5b00; border-radius:4px; font-size:11px; font-weight:600; letter-spacing:0.4px;">PARCIAL</span>
+{%- elif status == "ERROR" -%}
+<span style="display:inline-block; padding:4px 10px; background-color:#ececef; color:#3a3a3f; border-radius:4px; font-size:11px; font-weight:600; letter-spacing:0.4px;">ERROR</span>
+{%- elif status == "OK" -%}
+<span style="display:inline-block; padding:4px 10px; background-color:#e7f6ec; color:#1b6a3a; border-radius:4px; font-size:11px; font-weight:600; letter-spacing:0.4px;">OK</span>
+{%- else -%}
+<span style="display:inline-block; padding:4px 10px; background-color:#ececef; color:#666; border-radius:4px; font-size:11px; font-weight:600; letter-spacing:0.4px;">{{ status }}</span>
+{%- endif -%}
+{%- endmacro %}
