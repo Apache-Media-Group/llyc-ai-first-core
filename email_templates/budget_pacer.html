@@ -1,0 +1,137 @@
+{% extends "_base.html" %}
+{% import "_macros/status_badge.html" as badges %}
+{% import "_macros/format.html" as fmt %}
+
+{% block header %}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+  <tr>
+    <td>
+      <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:6px;">budget-pacer · {{ analysis_date }}</div>
+      <div style="font-size:20px; font-weight:600; color:#1a1a1a;">{{ client_name }}</div>
+    </td>
+    <td align="right" style="vertical-align:top;">
+      {{ badges.render_badge(execution_status) }}
+      {% if analysis_status and analysis_status != "N/A" %}
+      &nbsp;{{ badges.render_badge(analysis_status) }}
+      {% endif %}
+    </td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block body %}
+
+{% if execution_status == "PARTIAL" %}
+<div style="padding:12px 14px; background-color:#fff4d6; border-left:3px solid #d4a000; border-radius:4px; margin-bottom:18px; font-size:13px; color:#5a3d00;">
+  <strong>Ejecución parcial.</strong> {{ execution_status_detail }}
+</div>
+{% elif execution_status == "ERROR" %}
+<div style="padding:12px 14px; background-color:#fde7e7; border-left:3px solid #a30000; border-radius:4px; margin-bottom:18px; font-size:13px; color:#5a0000;">
+  <strong>Ejecución fallida.</strong> {{ execution_status_detail }}
+</div>
+{% endif %}
+
+<div style="font-size:14px; line-height:1.55; color:#333; margin-bottom:22px;">
+  {{ summary }}
+</div>
+
+<div style="margin-bottom:22px;">
+  <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">Plan del mes · {{ period.month }} <span style="text-transform:none; letter-spacing:0; color:#aaa;">(fuente: {{ budget_plan.source }})</span></div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse; font-size:13px;">
+    <tr style="background-color:#f7f7f9;">
+      <th align="left" style="padding:8px 10px; font-weight:600; color:#444; border-bottom:1px solid #ececef;">Concepto</th>
+      <th align="right" style="padding:8px 10px; font-weight:600; color:#444; border-bottom:1px solid #ececef;">Importe</th>
+      <th align="right" style="padding:8px 10px; font-weight:600; color:#444; border-bottom:1px solid #ececef;">Floor ROAS</th>
+    </tr>
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5;">Base comprometido</td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5;">{{ fmt.money(budget_plan.base_eur) }}</td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5;">{{ fmt.number(budget_plan.roas_floor_base, 1) }}x</td>
+    </tr>
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5;">Incremental máx.</td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5;">{{ fmt.money(budget_plan.incremental_max_eur) }}</td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5;">{{ fmt.number(budget_plan.roas_floor_incremental, 1) }}x</td>
+    </tr>
+    <tr>
+      <td style="padding:10px; font-weight:600;">Total máx. autorizado</td>
+      <td align="right" style="padding:10px; font-weight:600;">{{ fmt.money(budget_plan.total_max_eur) }}</td>
+      <td align="right" style="padding:10px; font-weight:600;">{% if budget_plan.roas_blended_floor is not none %}{{ fmt.number(budget_plan.roas_blended_floor, 2) }}x <span style="color:#888; font-weight:400; font-size:11px;">blended</span>{% else %}<span style="color:#888;">—</span>{% endif %}</td>
+    </tr>
+  </table>
+</div>
+
+<div style="margin-bottom:22px;">
+  <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">Acumulado del mes (día {{ period.days_elapsed }} de {{ period.days_in_month }})</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse; font-size:13px;">
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5;">Gasto MTD</td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5; font-weight:600;">{{ fmt.money(actuals_mtd.spend_eur) }}</td>
+    </tr>
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5;">Revenue MTD <span style="color:#888; font-size:11px;">(Shopify ground truth)</span></td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5;">{{ fmt.money(actuals_mtd.revenue_eur) }}</td>
+    </tr>
+    <tr>
+      <td style="padding:10px;">ROAS blended MTD</td>
+      <td align="right" style="padding:10px; font-weight:600;">{% if actuals_mtd.roas_blended is not none %}{{ fmt.number(actuals_mtd.roas_blended, 2) }}x{% else %}<span style="color:#888;">—</span>{% endif %}</td>
+    </tr>
+    {% if actuals_mtd.spend_by_platform %}
+    {% for plat, val in actuals_mtd.spend_by_platform.items() %}
+    <tr>
+      <td style="padding:6px 10px 6px 24px; color:#666; font-size:12px;">· {{ plat }}</td>
+      <td align="right" style="padding:6px 10px; color:#666; font-size:12px;">{{ fmt.money(val) }}</td>
+    </tr>
+    {% endfor %}
+    {% endif %}
+  </table>
+</div>
+
+<div style="margin-bottom:22px;">
+  <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">Pacing</div>
+  <div style="font-size:13px; color:#333; line-height:1.55;">
+    <strong>Estado:</strong> {{ pacing.status }}<br>
+    <strong>Proyección de gasto del mes:</strong> {{ fmt.money(pacing.projected_month_spend_eur) }}{% if pacing.deviation_pct is not none %} ({{ fmt.deviation(pacing.deviation_pct, inverse=true) }} vs banda){% endif %}
+    {% if pacing.detail %}<br><span style="color:#666; font-size:12px;">{{ pacing.detail }}</span>{% endif %}
+  </div>
+</div>
+
+<div style="margin-bottom:22px;">
+  <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">Rentabilidad</div>
+  <div style="font-size:13px; color:#333; line-height:1.55;">
+    {% if rentability.status == "N/A" %}
+    <span style="color:#888;">No evaluable.</span>
+    {% else %}
+    <strong>ROAS blended MTD:</strong> {% if rentability.roas_blended_mtd is not none %}{{ fmt.number(rentability.roas_blended_mtd, 2) }}x{% else %}—{% endif %} · <strong>Floor:</strong> {% if rentability.roas_blended_floor is not none %}{{ fmt.number(rentability.roas_blended_floor, 2) }}x{% else %}—{% endif %}{% if rentability.meets_blended_floor is not none %} · {% if rentability.meets_blended_floor %}<span style="color:#1b6a3a; font-weight:600;">cumple el floor</span>{% else %}<span style="color:#a30000; font-weight:600;">por debajo del floor</span>{% endif %}{% endif %}
+    {% endif %}
+    {% if rentability.detail %}<br><span style="color:#666; font-size:12px;">{{ rentability.detail }}</span>{% endif %}
+  </div>
+</div>
+
+{% if alerts and alerts|length > 0 %}
+<div style="margin-bottom:22px;">
+  <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">Alertas ({{ alerts|length }})</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse; font-size:13px;">
+    {% for a in alerts %}
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5; vertical-align:top;">
+        <div style="font-weight:600; color:#1a1a1a; margin-bottom:2px;">{{ a.type }} · {{ a.metric }}</div>
+        <div style="color:#666; font-size:12px;">{{ a.description }}</div>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if drive_url %}
+<div style="margin-top:24px;">
+  <a href="{{ drive_url }}" style="display:inline-block; padding:10px 18px; background-color:#1a1a1a; color:#ffffff; text-decoration:none; font-size:13px; border-radius:4px; font-weight:500;">Ver output completo</a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block footer %}
+Generado automáticamente por LLYC AI-First · budget-pacer · {{ analysis_date }}
+{% endblock %}
