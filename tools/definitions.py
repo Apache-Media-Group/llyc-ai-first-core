@@ -407,9 +407,11 @@ TOOL_DEFINITIONS_BY_AGENT = {
         # Shopify customer_segment/inventory/discounts en catálogo, asignados a weekly-digest.
     ],
     "budget_pacer": [
-        # Meta, Google Ads, GA4 — pendiente formalización.
-        # DV360: solo get_campaign_metrics (estado + presupuesto, sin métricas reales)
-        DV360_GET_CAMPAIGN_METRICS,
+        GET_META_PERFORMANCE,        # gasto MTD (modelo dinámico DEC_062)
+        GET_GOOGLE_ADS_PERFORMANCE,  # gasto MTD
+        GET_SHOPIFY_ORDERS_PERIOD,   # revenue ground truth (DEC_048) para ROAS blended
+        # DV360 excluido (DEC_064: sin métricas reales). GA4 no aplica: el ROAS
+        # blended usa revenue Shopify / gasto paid, no atribución GA4.
     ],
     "naming_utm_auditor": [
         # No necesita tools de plataforma en S1.
