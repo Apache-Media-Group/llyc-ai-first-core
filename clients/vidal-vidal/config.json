@@ -38,6 +38,29 @@
       "note": "Desactivado — Sprint 2"
     }
   },
+  "operational_inputs": {
+    "_nota": "DEC_075 — el workbook (Drive Operativo) es la fuente de verdad de budget dinámico y tolerancias KPI, editable por Jesús/Sara sin PR. main.py lo lee por Sheets API (operational_inputs.py). Este bloque declara solo el puntero y el fallback degradado.",
+    "workbook": {
+      "file_id": "1hDhUD8AOg-mvTUC0WEPft4xjkFwVrocT0yKf7M_uHTs",
+      "_nota": "PAID_parametros-operativos-vidal-vidal. Compartido como Viewer con llyc-agents-sa@llyc-ai-first-core.iam.gserviceaccount.com."
+    },
+    "timezone": "Europe/Madrid",
+    "fallback": {
+      "_nota": "Modo degradado: solo si el workbook no está disponible o falta la fila del mes. Floors 5x/3x son arquitectura estable (DEC_061/062). Importes a 0 a propósito — no se hardcodean importes que derivan en el workbook (motivación de DEC_075); con importes 0 budget-pacer reporta N/A y avisa del fallback en vez de pacear contra números obsoletos. Las tolerancias KPI sí se conservan para que performance-monitor siga alertando.",
+      "currency": "EUR",
+      "budget": {
+        "base_eur": 0,
+        "incremental_max_eur": 0,
+        "roas_floor_base": 5.0,
+        "roas_floor_incremental": 3.0
+      },
+      "kpis": [
+        { "nivel": "cuenta", "metrica": "roas", "parametro": "tolerancia_desviacion_pct", "valor": 15, "ventana": "7d", "enabled": true },
+        { "nivel": "cuenta", "metrica": "cpa", "parametro": "tolerancia_desviacion_pct", "valor": 20, "ventana": "7d", "enabled": true },
+        { "nivel": "cuenta", "metrica": "pacing", "parametro": "tolerancia_desviacion_pct", "valor": 10, "ventana": "mensual", "enabled": true }
+      ]
+    }
+  },
   "kpis": {
     "revenue_anual_objetivo_eur": 1730000,
     "roas_blended_base_target": 5.0,
