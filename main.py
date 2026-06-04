@@ -135,14 +135,14 @@ def load_client_config(client_id: str) -> dict:
     return config
 
 
-def resolve_agent_id(config: dict, agent_name: str) -> str:
+def resolve_agent_id(config: dict, agent_name: str) -> str | None:
     """
-    Devuelve config.agents[agent_name].agent_id.
-    Falla con error explícito si el agente no está bootstrapped o está disabled.
+    Valida que el agente es invocable y devuelve su agent_id (solo para traza).
 
-    DEC_065: el agent_id ya no se usa en runtime (Messages API no lo requiere),
-    pero se sigue resolviendo aquí como check de coherencia con el bootstrap
-    y para trazabilidad histórica en los logs.
+    DEC_076: el gate de activación es enabled + existencia en config.agents +
+    system prompt presente. El agent_id ya no se usa en runtime (DEC_066) y puede
+    ser None en agentes no bootstrapped; por eso ya NO se exige aquí. Se mantienen
+    los checks de existencia y enabled.
     """
     client_id = config["client"]["id"]
     agents = config.get("agents", {})
@@ -164,14 +164,8 @@ def resolve_agent_id(config: dict, agent_name: str) -> str:
             f"Agent '{agent_name}' deshabilitado en config de '{client_id}'."
         )
 
-    agent_id = agent_config.get("agent_id")
-    if not agent_id or agent_id in INVALID_VALUES:
-        raise RuntimeError(
-            f"agent_id vacío o PENDIENTE para '{agent_name}' en '{client_id}'. "
-            f"Ejecutar bootstrap primero."
-        )
-
-    return agent_id
+    # DEC_076: agent_id solo para traza; puede ser None en agentes no bootstrapped.
+    return agent_config.get("agent_id")
 
 
 # ─── CARGA DE SECRETS ─────────────────────────────────────────────────────────
