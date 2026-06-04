@@ -172,6 +172,187 @@ GET_GA4_PERFORMANCE = {
 }
 
 
+# ─── BUDGET PACER TOOL DEFINITIONS ──────────────────────────────────────────
+
+GET_META_SPEND_MONTH = {
+    "type": "custom",
+    "name": "get_meta_spend_month",
+    "description": (
+        "Obtiene el gasto acumulado del mes en curso en Meta Ads para una cuenta. "
+        "Devuelve spend_month_eur y date_preset='this_month'. "
+        "Usado por budget-pacer para comparar el gasto mensual acumulado "
+        "contra el objetivo mensual del cliente y detectar desviaciones."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "ad_account_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta publicitaria Meta SIN prefijo 'act_'. "
+                    "Ejemplo: '2466105110293178' (no 'act_2466105110293178')."
+                ),
+            },
+        },
+        "required": ["ad_account_id"],
+    },
+}
+
+
+GET_GOOGLE_ADS_SPEND_MONTH = {
+    "type": "custom",
+    "name": "get_google_ads_spend_month",
+    "description": (
+        "Obtiene el gasto acumulado del mes en curso en Google Ads para una cuenta. "
+        "Devuelve spend_month_eur y date_preset='this_month'. "
+        "Usado por budget-pacer para comparar el gasto mensual acumulado "
+        "contra el objetivo mensual del cliente y detectar desviaciones."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "customer_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta Google Ads sin guiones. Ejemplo: "
+                    "'2756616331' (no '275-661-6331')."
+                ),
+            },
+        },
+        "required": ["customer_id"],
+    },
+}
+
+
+# ─── NAMING & UTM AUDITOR TOOL DEFINITIONS ───────────────────────────────────
+
+GET_META_ACTIVE_AD_URLS = {
+    "type": "custom",
+    "name": "get_meta_active_ad_urls",
+    "description": (
+        "Extrae las URLs de destino de todos los ads activos de Meta para auditar "
+        "parámetros UTM y naming convention. "
+        "Devuelve lista de ads con ad_id, ad_name, adset_name, campaign_name y "
+        "destination_url. Usado por naming-utm-auditor para detectar UTMs "
+        "incompletos o incumplimientos de naming."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "ad_account_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta publicitaria Meta SIN prefijo 'act_'. "
+                    "Ejemplo: '2466105110293178' (no 'act_2466105110293178')."
+                ),
+            },
+        },
+        "required": ["ad_account_id"],
+    },
+}
+
+
+GET_META_ACTIVE_CAMPAIGNS = {
+    "type": "custom",
+    "name": "get_meta_active_campaigns",
+    "description": (
+        "Obtiene la lista de campañas activas en Meta Ads con nombre, objetivo "
+        "y presupuesto. Usado por naming-utm-auditor para verificar el scope "
+        "de campañas activas y cruzar con los naming patterns del cliente."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "ad_account_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta publicitaria Meta SIN prefijo 'act_'. "
+                    "Ejemplo: '2466105110293178' (no 'act_2466105110293178')."
+                ),
+            },
+        },
+        "required": ["ad_account_id"],
+    },
+}
+
+
+GET_GOOGLE_ADS_ACTIVE_AD_URLS = {
+    "type": "custom",
+    "name": "get_google_ads_active_ad_urls",
+    "description": (
+        "Extrae las URLs finales de todos los ads activos de Google Ads (Search, "
+        "Shopping, PMAX) para auditar parámetros UTM y naming convention. "
+        "Devuelve lista de ads con ad_id, ad_name, ad_type, adgroup_name, "
+        "campaign_name, channel_type y destination_url. "
+        "Usado por naming-utm-auditor."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "customer_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta Google Ads sin guiones. Ejemplo: "
+                    "'2756616331' (no '275-661-6331')."
+                ),
+            },
+        },
+        "required": ["customer_id"],
+    },
+}
+
+
+GET_GOOGLE_ADS_ACTIVE_CAMPAIGNS = {
+    "type": "custom",
+    "name": "get_google_ads_active_campaigns",
+    "description": (
+        "Lista las campañas activas de Google Ads con nombre, tipo de canal "
+        "y presupuesto diario. Usado por naming-utm-auditor para verificar el "
+        "scope de campañas activas y cruzar con los naming patterns del cliente."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "customer_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta Google Ads sin guiones. Ejemplo: "
+                    "'2756616331' (no '275-661-6331')."
+                ),
+            },
+        },
+        "required": ["customer_id"],
+    },
+}
+
+
+# ─── WEEKLY DIGEST TOOL DEFINITIONS ──────────────────────────────────────────
+
+GET_GA4_WEEKLY_COMPARISON = {
+    "type": "custom",
+    "name": "get_ga4_weekly_comparison",
+    "description": (
+        "Compara métricas de GA4 de la semana actual vs semana anterior vs mismo "
+        "periodo del año anterior. Devuelve sessions, transactions, revenue_eur y "
+        "new_users para los tres periodos, más los cambios WoW y YoY en porcentaje. "
+        "Usado por weekly-digest para la sección de KPIs semanales."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "property_id": {
+                "type": "string",
+                "description": (
+                    "ID de la property GA4. Solo el número, sin prefijo "
+                    "'properties/'. Ejemplo: '267182121'."
+                ),
+            },
+        },
+        "required": ["property_id"],
+    },
+}
+
+
 # ─── DV360 TOOL DEFINITIONS — POC Sprint 1 (DEC_064) ────────────────────────
 
 DV360_LIST_CAMPAIGNS = {
@@ -274,18 +455,24 @@ TOOL_DEFINITIONS_BY_AGENT = {
         # DV360 excluido — ver Decisión 064 y META_dv360-rescue-inventory §4.
     ],
     "budget_pacer": [
-        # Meta, Google Ads, GA4 — pendiente formalización.
-        # DV360: solo get_campaign_metrics (estado + presupuesto, sin métricas reales)
-        DV360_GET_CAMPAIGN_METRICS,
+        GET_META_SPEND_MONTH,
+        GET_GOOGLE_ADS_SPEND_MONTH,
+        # DV360 excluido — dv360_get_campaign_metrics no está en TOOL_DISPATCHER
+        # (vive en MCP server en Cloud Run, DEC_037).
     ],
     "naming_utm_auditor": [
-        # No necesita tools de plataforma en S1.
+        GET_META_ACTIVE_AD_URLS,
+        GET_META_ACTIVE_CAMPAIGNS,
+        GET_GOOGLE_ADS_ACTIVE_AD_URLS,
+        GET_GOOGLE_ADS_ACTIVE_CAMPAIGNS,
     ],
     "weekly_digest": [
-        # Meta, Google Ads, GA4 — pendiente formalización.
-        # DV360: campaigns + IOs para sección de estado semanal
-        DV360_LIST_CAMPAIGNS,
-        DV360_LIST_INSERTION_ORDERS,
+        GET_META_PERFORMANCE,
+        GET_GOOGLE_ADS_PERFORMANCE,
+        GET_GA4_PERFORMANCE,
+        GET_GA4_WEEKLY_COMPARISON,
+        # DV360 excluido — dv360_list_campaigns y dv360_list_insertion_orders
+        # no están en TOOL_DISPATCHER (MCP server en Cloud Run, DEC_037).
     ],
     # Otros agentes — añadir entrada cuando se desarrollen siguiendo el patrón
     # de DEC_021. Las tools del catálogo se reutilizan; las nuevas se definen
