@@ -45,6 +45,9 @@ from tools import meta, google_ads, ga4, drive, notifications, shopify
 from tools.email import render_email_html
 from tools.definitions import get_tool_definitions  # DEC_065
 from prompt_builder import load_static_prompt, build_dynamic_context  # F-CloudLog (29/05)
+from operational_inputs import (  # DEC_075
+    load_operational_inputs, to_prompt_block, reference_used,
+)
 
 # ─── BOOTSTRAP ────────────────────────────────────────────────────────────────
 # CRÍTICO: no usar logging.basicConfig en Cloud Functions Gen 2.
@@ -1076,7 +1079,25 @@ def agent_executor(request):
         # cada invocación: static prompt del repo + contexto dinámico del config.
         static_prompt = load_static_prompt(agent_name)
         dynamic_context = build_dynamic_context(config, agent_name)
-        system_prompt = f"{static_prompt}\n\n{dynamic_context}"
+
+        # DEC_075: capa de parámetros operativos. Lee el workbook operativo del
+        # cliente (budget dinámico + tolerancias KPI) por Sheets API y lo inyecta
+        # en el prompt. load_operational_inputs NUNCA lanza: degrada a fallback de
+        # config y señala la fuente, de modo que un workbook caído no tumba la
+        # ejecución (a lo sumo el agente reporta el fallback en su output).
+        enabled_platforms = [
+            k for k, v in config.get("platforms", {}).items()
+            if isinstance(v, dict) and v.get("enabled")
+        ]
+        oi = load_operational_inputs(config, agent_name, platforms=enabled_platforms)
+        log.info(json.dumps({
+            "event": "operational_inputs_loaded",
+            "client_id": client_id,
+            "agent": agent_name,
+            **reference_used(oi),
+        }))
+
+        system_prompt = f"{static_prompt}\n\n{dynamic_context}\n\n{to_prompt_block(oi)}"
         tools = get_tool_definitions(agent_name.replace("-", "_"))
 
         # ── 7. Construir user_message e invocar el agent ──────────────────────
