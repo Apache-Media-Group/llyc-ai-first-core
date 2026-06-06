@@ -173,6 +173,354 @@ GET_GA4_PERFORMANCE = {
 }
 
 
+# ─── BUDGET PACER TOOL DEFINITIONS ──────────────────────────────────────────
+
+GET_META_SPEND_MONTH = {
+    "type": "custom",
+    "name": "get_meta_spend_month",
+    "description": (
+        "Obtiene el gasto acumulado del mes en curso en Meta Ads para una cuenta. "
+        "Devuelve spend_month_eur y date_preset='this_month'. "
+        "Usado por budget-pacer para comparar el gasto mensual acumulado "
+        "contra el objetivo mensual del cliente y detectar desviaciones."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "ad_account_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta publicitaria Meta SIN prefijo 'act_'. "
+                    "Ejemplo: '2466105110293178' (no 'act_2466105110293178')."
+                ),
+            },
+        },
+        "required": ["ad_account_id"],
+    },
+}
+
+
+GET_GOOGLE_ADS_SPEND_MONTH = {
+    "type": "custom",
+    "name": "get_google_ads_spend_month",
+    "description": (
+        "Obtiene el gasto acumulado del mes en curso en Google Ads para una cuenta. "
+        "Devuelve spend_month_eur y date_preset='this_month'. "
+        "Usado por budget-pacer para comparar el gasto mensual acumulado "
+        "contra el objetivo mensual del cliente y detectar desviaciones."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "customer_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta Google Ads sin guiones. Ejemplo: "
+                    "'2756616331' (no '275-661-6331')."
+                ),
+            },
+        },
+        "required": ["customer_id"],
+    },
+}
+
+
+# ─── NAMING & UTM AUDITOR TOOL DEFINITIONS ───────────────────────────────────
+
+GET_META_ACTIVE_AD_URLS = {
+    "type": "custom",
+    "name": "get_meta_active_ad_urls",
+    "description": (
+        "Extrae las URLs de destino de todos los ads activos de Meta para auditar "
+        "parámetros UTM y naming convention. "
+        "Devuelve lista de ads con ad_id, ad_name, adset_name, campaign_name y "
+        "destination_url. Usado por naming-utm-auditor para detectar UTMs "
+        "incompletos o incumplimientos de naming."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "ad_account_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta publicitaria Meta SIN prefijo 'act_'. "
+                    "Ejemplo: '2466105110293178' (no 'act_2466105110293178')."
+                ),
+            },
+        },
+        "required": ["ad_account_id"],
+    },
+}
+
+
+GET_META_ACTIVE_CAMPAIGNS = {
+    "type": "custom",
+    "name": "get_meta_active_campaigns",
+    "description": (
+        "Obtiene la lista de campañas activas en Meta Ads con nombre, objetivo "
+        "y presupuesto. Usado por naming-utm-auditor para verificar el scope "
+        "de campañas activas y cruzar con los naming patterns del cliente."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "ad_account_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta publicitaria Meta SIN prefijo 'act_'. "
+                    "Ejemplo: '2466105110293178' (no 'act_2466105110293178')."
+                ),
+            },
+        },
+        "required": ["ad_account_id"],
+    },
+}
+
+
+GET_GOOGLE_ADS_ACTIVE_AD_URLS = {
+    "type": "custom",
+    "name": "get_google_ads_active_ad_urls",
+    "description": (
+        "Extrae las URLs finales de todos los ads activos de Google Ads (Search, "
+        "Shopping, PMAX) para auditar parámetros UTM y naming convention. "
+        "Devuelve lista de ads con ad_id, ad_name, ad_type, adgroup_name, "
+        "campaign_name, channel_type y destination_url. "
+        "Usado por naming-utm-auditor."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "customer_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta Google Ads sin guiones. Ejemplo: "
+                    "'2756616331' (no '275-661-6331')."
+                ),
+            },
+        },
+        "required": ["customer_id"],
+    },
+}
+
+
+GET_GOOGLE_ADS_ACTIVE_CAMPAIGNS = {
+    "type": "custom",
+    "name": "get_google_ads_active_campaigns",
+    "description": (
+        "Lista las campañas activas de Google Ads con nombre, tipo de canal "
+        "y presupuesto diario. Usado por naming-utm-auditor para verificar el "
+        "scope de campañas activas y cruzar con los naming patterns del cliente."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "customer_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta Google Ads sin guiones. Ejemplo: "
+                    "'2756616331' (no '275-661-6331')."
+                ),
+            },
+        },
+        "required": ["customer_id"],
+    },
+}
+
+
+# ─── WEEKLY DIGEST TOOL DEFINITIONS ──────────────────────────────────────────
+
+GET_GA4_WEEKLY_COMPARISON = {
+    "type": "custom",
+    "name": "get_ga4_weekly_comparison",
+    "description": (
+        "Compara métricas de GA4 de la semana actual vs semana anterior vs mismo "
+        "periodo del año anterior. Devuelve sessions, transactions, revenue_eur y "
+        "new_users para los tres periodos, más los cambios WoW y YoY en porcentaje. "
+        "Usado por weekly-digest para la sección de KPIs semanales."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "property_id": {
+                "type": "string",
+                "description": (
+                    "ID de la property GA4. Solo el número, sin prefijo "
+                    "'properties/'. Ejemplo: '267182121'."
+                ),
+            },
+        },
+        "required": ["property_id"],
+    },
+}
+
+
+# ─── SHOPIFY TOOL DEFINITIONS ────────────────────────────────────────────────
+#
+# Shopify es fuente de verdad de revenue (DEC_048). Las 4 tools alimentan
+# weekly-digest; get_shopify_orders_period también alimenta performance-monitor.
+# Patrón de inicialización: API global vía init_shopify_api() (igual que Meta).
+# Las funciones NO reciben client object — el dispatcher NO prepend client.
+
+GET_SHOPIFY_ORDERS_PERIOD = {
+    "type": "custom",
+    "name": "get_shopify_orders_period",
+    "description": (
+        "Obtiene revenue ground truth (DEC_048), orders, AOV y unidades de Shopify "
+        "para un período. Filtra por processed_at en TZ Madrid (DEC_049). "
+        "Aplica dtc_filter (source_name + exclusiones) para aislar pedidos DTC. "
+        "Usado por weekly-digest (KPIs semanales) y performance-monitor "
+        "(triangulación 3-way revenue)."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "date_start": {
+                "type": "string",
+                "description": "Fecha inicio del período en formato YYYY-MM-DD (inclusivo).",
+            },
+            "date_end": {
+                "type": "string",
+                "description": "Fecha fin del período en formato YYYY-MM-DD (inclusivo).",
+            },
+            "dtc_filter": {
+                "type": "object",
+                "description": (
+                    "Filtro DTC para aislar pedidos del canal directo. "
+                    "Leer de platforms.shopify.dtc_filter del CONTEXTO DEL CLIENTE. "
+                    "Campos: source_name (filtro server-side) y excluded_source_names "
+                    "(exclusiones client-side). Pasar null si no aplica."
+                ),
+                "properties": {
+                    "source_name": {
+                        "type": "string",
+                        "description": "Source name a incluir (ej. 'web').",
+                    },
+                    "excluded_source_names": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Lista de source_names a excluir (ej. ['pos', 'shopify_draft_order']).",
+                    },
+                },
+            },
+        },
+        "required": ["date_start", "date_end"],
+    },
+}
+
+
+GET_SHOPIFY_CUSTOMER_SEGMENT = {
+    "type": "custom",
+    "name": "get_shopify_customer_segment",
+    "description": (
+        "Obtiene la distribución de clientes nuevos vs recurrentes y la tasa de "
+        "recompra dentro del período. Devuelve new_customers, returning_customers, "
+        "new_customer_rate_pct y repeat_purchase_rate_pct. "
+        "Usado por weekly-digest para analizar la calidad de la adquisición."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "date_start": {
+                "type": "string",
+                "description": "Fecha inicio del período en formato YYYY-MM-DD (inclusivo).",
+            },
+            "date_end": {
+                "type": "string",
+                "description": "Fecha fin del período en formato YYYY-MM-DD (inclusivo).",
+            },
+            "dtc_filter": {
+                "type": "object",
+                "description": (
+                    "Mismo filtro DTC que en get_shopify_orders_period. "
+                    "Leer de platforms.shopify.dtc_filter del CONTEXTO DEL CLIENTE."
+                ),
+                "properties": {
+                    "source_name": {
+                        "type": "string",
+                        "description": "Source name a incluir (ej. 'web').",
+                    },
+                    "excluded_source_names": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Lista de source_names a excluir.",
+                    },
+                },
+            },
+        },
+        "required": ["date_start", "date_end"],
+    },
+}
+
+
+GET_SHOPIFY_INVENTORY_STATUS = {
+    "type": "custom",
+    "name": "get_shopify_inventory_status",
+    "description": (
+        "Obtiene el estado de inventario del catálogo activo de Shopify: SKUs en "
+        "stock-out (≤0) y en stock crítico (≤ threshold_critical). "
+        "Si sku_list es null, evalúa todo el catálogo activo. "
+        "Usado por weekly-digest para detectar limitaciones de inventario que "
+        "pueden estar afectando al rendimiento de campañas."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "sku_list": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": (
+                    "Lista de SKUs a evaluar. Si se omite o es null, "
+                    "se evalúa todo el catálogo activo."
+                ),
+            },
+            "threshold_critical": {
+                "type": "integer",
+                "description": (
+                    "Umbral de unidades para considerar stock crítico. "
+                    "Por defecto 10. SKUs con stock ≤ este valor se incluyen "
+                    "en critical_stock."
+                ),
+            },
+        },
+        "required": [],
+    },
+}
+
+
+GET_SHOPIFY_ACTIVE_DISCOUNTS = {
+    "type": "custom",
+    "name": "get_shopify_active_discounts",
+    "description": (
+        "Obtiene los price rules de Shopify activos durante el período indicado. "
+        "Si no se pasan fechas, devuelve los activos en el momento de ejecución. "
+        "Devuelve id, title, value_type, value, starts_at, ends_at y customer_selection "
+        "de cada regla activa. Usado por weekly-digest para contextualizar variaciones "
+        "de revenue o AOV causadas por descuentos."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "date_start": {
+                "type": "string",
+                "description": (
+                    "Inicio de la ventana temporal en formato YYYY-MM-DD. "
+                    "Se incluyen price rules que se solapan con este período. "
+                    "Opcional — si se omite, filtra por activos 'ahora'."
+                ),
+            },
+            "date_end": {
+                "type": "string",
+                "description": (
+                    "Fin de la ventana temporal en formato YYYY-MM-DD (inclusivo). "
+                    "Opcional — usar junto con date_start."
+                ),
+            },
+        },
+        "required": [],
+    },
+}
+
+
 # ─── DV360 TOOL DEFINITIONS — POC Sprint 1 (DEC_064) ────────────────────────
 
 DV360_LIST_CAMPAIGNS = {
@@ -407,20 +755,30 @@ TOOL_DEFINITIONS_BY_AGENT = {
         # Shopify customer_segment/inventory/discounts en catálogo, asignados a weekly-digest.
     ],
     "budget_pacer": [
-        GET_META_PERFORMANCE,        # gasto MTD (modelo dinámico DEC_062)
-        GET_GOOGLE_ADS_PERFORMANCE,  # gasto MTD
-        GET_SHOPIFY_ORDERS_PERIOD,   # revenue ground truth (DEC_048) para ROAS blended
-        # DV360 excluido (DEC_064: sin métricas reales). GA4 no aplica: el ROAS
-        # blended usa revenue Shopify / gasto paid, no atribución GA4.
+        GET_META_SPEND_MONTH,
+        GET_GOOGLE_ADS_SPEND_MONTH,
+        GET_SHOPIFY_ORDERS_PERIOD,   # DEC_048 — revenue ground truth para el ROAS blended
+                                     # del modelo dinámico (DEC_060/061/062 + DEC_075).
+        # DV360 excluido — dv360_get_campaign_metrics no está en TOOL_DISPATCHER
+        # (vive en MCP server en Cloud Run, DEC_037).
     ],
     "naming_utm_auditor": [
-        # No necesita tools de plataforma en S1.
+        GET_META_ACTIVE_AD_URLS,
+        GET_META_ACTIVE_CAMPAIGNS,
+        GET_GOOGLE_ADS_ACTIVE_AD_URLS,
+        GET_GOOGLE_ADS_ACTIVE_CAMPAIGNS,
     ],
     "weekly_digest": [
-        # Meta, Google Ads, GA4 — pendiente formalización.
-        # DV360: campaigns + IOs para sección de estado semanal
-        DV360_LIST_CAMPAIGNS,
-        DV360_LIST_INSERTION_ORDERS,
+        GET_META_PERFORMANCE,
+        GET_GOOGLE_ADS_PERFORMANCE,
+        GET_GA4_PERFORMANCE,
+        GET_GA4_WEEKLY_COMPARISON,
+        GET_SHOPIFY_ORDERS_PERIOD,
+        GET_SHOPIFY_CUSTOMER_SEGMENT,
+        GET_SHOPIFY_INVENTORY_STATUS,
+        GET_SHOPIFY_ACTIVE_DISCOUNTS,
+        # DV360 excluido — dv360_list_campaigns y dv360_list_insertion_orders
+        # no están en TOOL_DISPATCHER (MCP server en Cloud Run, DEC_037).
     ],
     # Otros agentes — añadir entrada cuando se desarrollen siguiendo el patrón
     # de DEC_021. Las tools del catálogo se reutilizan; las nuevas se definen
