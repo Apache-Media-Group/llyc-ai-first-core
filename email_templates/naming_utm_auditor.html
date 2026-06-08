@@ -1,0 +1,116 @@
+{% extends "_base.html" %}
+{% import "_macros/status_badge.html" as badges %}
+{% import "_macros/format.html" as fmt %}
+
+{% block header %}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+  <tr>
+    <td>
+      <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:6px;">naming-utm-auditor · {{ analysis_date }}</div>
+      <div style="font-size:20px; font-weight:600; color:#1a1a1a;">{{ client_name }}</div>
+    </td>
+    <td align="right" style="vertical-align:top;">
+      {{ badges.render_badge(execution_status) }}
+      {% if analysis_status and analysis_status != "N/A" %}
+      &nbsp;{{ badges.render_badge(analysis_status) }}
+      {% endif %}
+    </td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block body %}
+
+{% if execution_status == "PARTIAL" %}
+<div style="padding:12px 14px; background-color:#fff4d6; border-left:3px solid #d4a000; border-radius:4px; margin-bottom:18px; font-size:13px; color:#5a3d00;">
+  <strong>Ejecución parcial.</strong> {{ execution_status_detail }}
+</div>
+{% elif execution_status == "ERROR" %}
+<div style="padding:12px 14px; background-color:#fde7e7; border-left:3px solid #a30000; border-radius:4px; margin-bottom:18px; font-size:13px; color:#5a0000;">
+  <strong>Ejecución fallida.</strong> {{ execution_status_detail }}
+</div>
+{% endif %}
+
+<div style="font-size:14px; line-height:1.55; color:#333; margin-bottom:22px;">
+  {{ summary }}
+</div>
+
+{% if totals is defined and totals %}
+<div style="margin-bottom:22px;">
+  <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">Resumen de auditoría</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse; font-size:13px;">
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5;">Ads activos auditados</td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5; font-weight:600;">{{ fmt.number(totals.total_active_ads, 0) }}</td>
+    </tr>
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5;">Ads con errores</td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5; font-weight:600;">{{ fmt.number(totals.total_ads_with_errors, 0) }}</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 10px 6px 24px; color:#666; font-size:12px;">· UTM ausente</td>
+      <td align="right" style="padding:6px 10px; color:#666; font-size:12px;">{{ fmt.number(totals.utm_missing, 0) }}</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 10px 6px 24px; color:#666; font-size:12px;">· UTM incorrecta</td>
+      <td align="right" style="padding:6px 10px; color:#666; font-size:12px;">{{ fmt.number(totals.utm_incorrect, 0) }}</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 10px 6px 24px; color:#666; font-size:12px;">· Naming incorrecto</td>
+      <td align="right" style="padding:6px 10px; color:#666; font-size:12px;">{{ fmt.number(totals.naming_incorrect, 0) }}</td>
+    </tr>
+  </table>
+</div>
+{% endif %}
+
+{% for plat_key, plat in platforms.items() %}
+<div style="margin-bottom:22px;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:8px;">
+    <tr>
+      <td><div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase;">{{ plat_key }}</div></td>
+      <td align="right">{{ badges.render_badge(plat.status) }}</td>
+    </tr>
+  </table>
+
+  {% if plat.status == "ERROR" %}
+  <div style="padding:10px 12px; background-color:#fde7e7; border-radius:4px; font-size:12px; color:#5a0000;">
+    {{ plat.error_detail }}
+  </div>
+  {% else %}
+  <div style="font-size:13px; color:#333; margin-bottom:8px;">
+    {{ fmt.number(plat.total_active_ads, 0) }} ads activos · <strong>{{ fmt.number(plat.ads_with_errors, 0) }}</strong> con errores{% if plat.errors_truncated %} <span style="color:#888; font-size:11px;">(mostrando los primeros 10)</span>{% endif %}
+  </div>
+  {% if plat.errors and plat.errors|length > 0 %}
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse; font-size:12px;">
+    {% for e in plat.errors %}
+    {% set group = e.get('adset_name') or e.get('adgroup_name') or '' %}
+    <tr>
+      <td style="padding:8px 10px; border-bottom:1px solid #f3f3f5; vertical-align:top;">
+        <div style="color:#1a1a1a; font-weight:600; margin-bottom:2px;">{{ e.ad_name }}</div>
+        <div style="color:#888; font-size:11px;">{{ e.campaign_name }}{% if group %} › {{ group }}{% endif %}</div>
+        {% if e.error_detail %}<div style="color:#666; margin-top:3px;">{{ e.error_detail }}</div>{% endif %}
+      </td>
+      <td align="right" style="padding:8px 10px; border-bottom:1px solid #f3f3f5; vertical-align:top; white-space:nowrap;">
+        <span style="display:inline-block; padding:3px 8px; background-color:#fff4d6; color:#8a5b00; border-radius:4px; font-size:10px; font-weight:600;">{{ e.error_type }}</span>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div style="font-size:12px; color:#1b6a3a;">Sin errores de naming/UTM.</div>
+  {% endif %}
+  {% endif %}
+</div>
+{% endfor %}
+
+{% if drive_url %}
+<div style="margin-top:24px;">
+  <a href="{{ drive_url }}" style="display:inline-block; padding:10px 18px; background-color:#1a1a1a; color:#ffffff; text-decoration:none; font-size:13px; border-radius:4px; font-weight:500;">Ver output completo</a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block footer %}
+Generado automáticamente por LLYC AI-First · naming-utm-auditor · {{ analysis_date }}
+{% endblock %}

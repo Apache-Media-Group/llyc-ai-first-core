@@ -915,19 +915,22 @@ def send_notification_for_agent(
         subject_label = f"{execution_status} · {analysis_status}"
     subject = f"[{subject_label}] {agent_name} · {client_name} · {analysis_date}"
 
-    # Contexto del template — debe contener TODO lo que performance_monitor.html
-    # referencia. Si falta alguna key con StrictUndefined la render falla.
+    # Contexto del template — agnostico de agente (DEC_079). Spread del output
+    # completo para que cada plantilla acceda a SUS campos (period/budget_plan/
+    # pacing/rentability budget-pacer; patterns/week/analysis_window weekly-digest;
+    # totals naming-utm-auditor; platforms/revenue_triangulation/alerts perf-monitor).
+    # Mas las claves inyectadas por el handler (no vienen del output) y las resueltas
+    # (override de legacy/missing). Con StrictUndefined cada plantilla referencia
+    # solo lo que su propio agente emite.
     context = {
+        **output,
         "client_name": client_name,
         "analysis_date": analysis_date,
-        "execution_status": execution_status,
-        "execution_status_detail": execution_status_detail,
-        "analysis_status": analysis_status,
-        "summary": summary,
-        "revenue_triangulation": output.get("revenue_triangulation"),
-        "platforms": output.get("platforms", {}),
-        "alerts": output.get("alerts", []),
         "drive_url": drive_url,
+        "execution_status": execution_status,
+        "analysis_status": analysis_status,
+        "execution_status_detail": execution_status_detail,
+        "summary": summary,
     }
 
     template_name = f"{agent_name.replace('-', '_')}.html"
