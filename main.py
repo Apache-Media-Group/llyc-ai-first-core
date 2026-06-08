@@ -1,36 +1,30 @@
 """
 main.py — Cloud Function agent-executor
 Entry point genérico para todos los agentes del sistema LLYC AI-First.
-Despacha por (client_id, agent_name) — cada par tiene su propio agent.
+Despacha por (client_id, agent_name) — cada par tiene su propio agent Managed.
 
 Trigger: HTTP (invocado por Cloud Scheduler de cada proyecto cliente).
 Proyecto GCP: llyc-ai-first-core
 Service Account: llyc-agents-sa@llyc-ai-first-core.iam.gserviceaccount.com
 Memoria: 1024MB · Timeout: 300s
 
-DEC_065 (26/05/2026): el sistema usa Anthropic Messages API + tool_use clásico,
-no Managed Agents. El system prompt se construye client-side en cada invocación
-desde system_prompts/{agent}.md + clients/{client_id}/config.json. El agent_id
-persistido en config se mantiene por trazabilidad histórica pero no se usa en runtime.
+El agent_id vive en clients/{client_id}/config.json bajo agents[agent_name].
+main.py NO crea agents — eso lo hace scripts/bootstrap_agent.py.
 
 Decisiones aplicadas:
   - DEC_026: secrets híbridos (core + proyecto cliente)
   - DEC_030: Cloud Scheduler en proyecto cliente, payload con client_id
-  - DEC_033: un agent por (client_id, agent_name)
+  - DEC_033: un agent Managed por (client_id, agent_name)
   - DEC_044: una API key de Anthropic por agente
   - DEC_056: 2 reintentos en tool execution antes de error 500
-  - DEC_058 (act. 22/05): API key de Anthropic vive en proyecto cliente
-  - DEC_059: filtrado de plataformas inyectadas por enabled + tools del agente
-  - DEC_065 (26/05): Messages API + tool_use (no Managed Agents)
 """
 
 # ─── IMPORTS ──────────────────────────────────────────────────────────────────
 import os
 import json
 import logging
-import re
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -41,13 +35,7 @@ import google.cloud.logging
 import anthropic
 
 from tools.response import ok, error
-from tools import meta, google_ads, ga4, drive, notifications, shopify
-from tools.email import render_email_html
-from tools.definitions import get_tool_definitions  # DEC_065
-from prompt_builder import load_static_prompt, build_dynamic_context  # F-CloudLog (29/05)
-from operational_inputs import (  # DEC_075
-    load_operational_inputs, to_prompt_block, reference_used,
-)
+from tools import meta, google_ads, ga4, drive
 
 # ─── BOOTSTRAP ────────────────────────────────────────────────────────────────
 # CRÍTICO: no usar logging.basicConfig en Cloud Functions Gen 2.
@@ -55,17 +43,10 @@ from operational_inputs import (  # DEC_075
 google.cloud.logging.Client().setup_logging()
 log = logging.getLogger(__name__)
 
-# DEC_065: ANTHROPIC_BETA se mantiene declarada como referencia histórica,
-# pero NO se usa en runtime (messages.create no requiere beta header).
 ANTHROPIC_BETA = "managed-agents-2026-04-01"
-
 MODEL = "claude-sonnet-4-6"
 CORE_PROJECT_ID = "llyc-ai-first-core"
 MAX_TOOL_RETRIES = 2  # DEC_056: reintentos antes de devolver 500
-
-# DEC_065: parámetros del loop Messages API + tool_use
-MAX_TOKENS = 4096
-MAX_AGENT_ITERATIONS = 20  # tope de seguridad para evitar bucles
 
 # ─── AGENTES Y TOOLS SOPORTADOS ───────────────────────────────────────────────
 SUPPORTED_AGENTS = {
@@ -100,12 +81,6 @@ TOOL_DISPATCHER = {
     "get_ga4_funnel":                   ga4.get_ga4_funnel,
     "get_ga4_weekly_comparison":        ga4.get_ga4_weekly_comparison,
 
-    # Shopify (DEC_048 + DEC_050)
-    "get_shopify_orders_period":        shopify.get_shopify_orders_period,
-    "get_shopify_customer_segment":     shopify.get_shopify_customer_segment,
-    "get_shopify_inventory_status":     shopify.get_shopify_inventory_status,
-    "get_shopify_active_discounts":     shopify.get_shopify_active_discounts,
-
     # tiktok → Sprint 1.5 (Jesús pendiente de validar access token)
 }
 
@@ -137,12 +112,10 @@ def load_client_config(client_id: str) -> dict:
 
 def resolve_agent_id(config: dict, agent_name: str) -> str | None:
     """
-    Valida que el agente es invocable y devuelve su agent_id (solo para traza).
-
-    DEC_076: el gate de activación es enabled + existencia en config.agents +
-    system prompt presente. El agent_id ya no se usa en runtime (DEC_066) y puede
-    ser None en agentes no bootstrapped; por eso ya NO se exige aquí. Se mantienen
-    los checks de existencia y enabled.
+    Devuelve config.agents[agent_key].agent_id (str | None).
+    Falla solo si el agente no existe en config.agents o está disabled.
+    DEC_076: agent_id es vestigial (DEC_066) — null es valido y se devuelve
+    solo para traza. main.py nunca crea agents.
     """
     client_id = config["client"]["id"]
     agents = config.get("agents", {})
@@ -164,7 +137,10 @@ def resolve_agent_id(config: dict, agent_name: str) -> str | None:
             f"Agent '{agent_name}' deshabilitado en config de '{client_id}'."
         )
 
-    # DEC_076: agent_id solo para traza; puede ser None en agentes no bootstrapped.
+    # DEC_076: agent_id vestigial desde DEC_066 (runtime Messages API, bootstrap
+    # no-op). NO se exige no-null — budget-pacer/naming/weekly corren con
+    # agent_id=null. Gate de activacion = existencia en config.agents + enabled
+    # (comprobados arriba). Se devuelve solo para traza.
     return agent_config.get("agent_id")
 
 
@@ -174,7 +150,7 @@ def _access_secret(sm_client, project_id: str, secret_name: str) -> str:
     """Lee la última versión de un secret de Secret Manager."""
     name = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
     response = sm_client.access_secret_version(request={"name": name})
-    return response.payload.data.decode("utf-8").strip()
+    return response.payload.data.decode("utf-8")
 
 
 def load_secrets(client_id: str, agent_name: str, config: dict) -> dict[str, str]:
@@ -193,9 +169,8 @@ def load_secrets(client_id: str, agent_name: str, config: dict) -> dict[str, str
 
     creds_map = config.get("credentials", {})
 
-    # API key de Anthropic: nombre derivado de agent_name + client_id (DEC_058 Actualización 2026-05-22)
-    # agent_name viene en kebab-case del payload HTTP → normalizamos a snake_case para el secret name
-    anthropic_secret_name = f"anthropic-api-key-{agent_name.replace('-', '_')}-{client_id}"
+    # API key de Anthropic: nombre derivado del agent_name (DEC_044)
+    anthropic_secret_name = f"anthropic-api-key-{agent_name}"
     secrets["ANTHROPIC_API_KEY"] = _access_secret(
         sm_client, client_project_id, anthropic_secret_name
     )
@@ -240,30 +215,9 @@ def load_secrets(client_id: str, agent_name: str, config: dict) -> dict[str, str
                 sm_client, client_project_id, secret_name
             )
 
-    # GA4 credenciales OAuth admin-tech (DEC_067, 2026-05-27)
-    #   - CLIENT_ID, CLIENT_SECRET → shared en llyc-ai-first-core (OAuth app de agencia)
-    #   - REFRESH_TOKEN            → cliente en llyc-ai-{client_id} (admin-tech@llyc.global)
-    # Migrado de SA → OAuth para unificar con Meta/Google Ads (la SA del JSON antiguo
-    # no tenía Viewer en property GA4 del cliente; admin-tech sí lo tiene de forma estable).
+    # GA4 service account (scope: client)
     if config.get("platforms", {}).get("ga4", {}).get("enabled"):
-        # Shared (en core)
-        for key in ["ga4_client_id", "ga4_client_secret"]:
-            secret_name = creds_map.get(key)
-            if secret_name:
-                secrets[secret_name] = _access_secret(
-                    sm_client, CORE_PROJECT_ID, secret_name
-                )
-        # Client
-        secret_name = creds_map.get("ga4_refresh_token")
-        if secret_name:
-            secrets[secret_name] = _access_secret(
-                sm_client, client_project_id, secret_name
-            )
-
-    # Shopify credenciales (DEC_048 — 100% en proyecto cliente; excepción al patrón híbrido)
-    #   - SHOPIFY_ADMIN_API_TOKEN → cliente en llyc-ai-{client_id}
-    if config.get("platforms", {}).get("shopify", {}).get("enabled"):
-        secret_name = creds_map.get("shopify_admin_token")
+        secret_name = creds_map.get("google_service_account_key")
         if secret_name:
             secrets[secret_name] = _access_secret(
                 sm_client, client_project_id, secret_name
@@ -291,188 +245,7 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
     - Si persiste el error, devuelve tool_result con error estructurado
       para que el agente pueda razonar sobre el fallo.
     - NUNCA propaga excepción raw — el agente debe recibir siempre un resultado.
-
-    Pre-inicialización de clients (fix 27/05/2026):
-    Antes de definir el handler interno se inicializan los clients de cada
-    plataforma activa (cached en cierre). Diferencia de firmas:
-      - Meta:        FacebookAdsApi.init() configura una API global;
-                     las funciones get_meta_* NO reciben client object.
-      - Google Ads:  init_google_ads_client() -> GoogleAdsClient;
-                     get_google_ads_* recibe client como primer arg posicional.
-      - GA4:         init_ga4_client() -> BetaAnalyticsDataClient;
-                     get_ga4_* recibe client como primer arg posicional.
-    Si una plataforma falla al inicializar (credencial mal, secret faltante),
-    se registra el error y todas las tools de esa plataforma devuelven un
-    error estructurado claro al agente sin reintentar inútilmente.
     """
-    # ─── INICIALIZACIÓN DE CLIENTS POR PLATAFORMA ────────────────────────────
-    clients: dict[str, Any] = {}
-    init_errors: dict[str, str] = {}
-    platforms_cfg = config.get("platforms", {})
-    creds_map = config.get("credentials", {})
-
-    def _get_secret(key: str):
-        """Devuelve el valor del secret asociado a la entrada `key` del creds_map."""
-        secret_name = creds_map.get(key)
-        if not secret_name:
-            return None
-        return secrets.get(secret_name)
-
-    # ── Meta ─────────────────────────────────────────────────────────────────
-    if platforms_cfg.get("meta", {}).get("enabled"):
-        try:
-            access_token = _get_secret("meta_access_token")
-            app_id = _get_secret("meta_app_id")
-            app_secret = _get_secret("meta_app_secret")
-            missing = [k for k, v in {
-                "meta_access_token": access_token,
-                "meta_app_id": app_id,
-                "meta_app_secret": app_secret,
-            }.items() if not v]
-            if missing:
-                raise RuntimeError(f"Faltan secrets para Meta: {missing}")
-            meta.init_meta_api(
-                access_token=access_token,
-                app_id=app_id,
-                app_secret=app_secret,
-            )
-            clients["meta"] = True  # marker — la API es global, no hay objeto
-            log.info(json.dumps({
-                "event": "platform_client_initialized",
-                "platform": "meta",
-                "client_id": client_id,
-            }))
-        except Exception as e:
-            init_errors["meta"] = str(e)
-            log.error(json.dumps({
-                "event": "platform_client_init_failed",
-                "platform": "meta",
-                "client_id": client_id,
-                "error": str(e),
-            }))
-
-    # ── Google Ads ──────────────────────────────────────────────────────────
-    if platforms_cfg.get("google_ads", {}).get("enabled"):
-        try:
-            developer_token = _get_secret("google_ads_developer_token")
-            ga_client_id = _get_secret("google_ads_client_id")
-            ga_client_secret = _get_secret("google_ads_client_secret")
-            refresh_token = _get_secret("google_ads_refresh_token")
-            login_customer_id = platforms_cfg["google_ads"].get("manager_id")
-            missing = [k for k, v in {
-                "google_ads_developer_token": developer_token,
-                "google_ads_client_id": ga_client_id,
-                "google_ads_client_secret": ga_client_secret,
-                "google_ads_refresh_token": refresh_token,
-                "platforms.google_ads.manager_id": login_customer_id,
-            }.items() if not v]
-            if missing:
-                raise RuntimeError(f"Faltan credenciales para Google Ads: {missing}")
-            clients["google_ads"] = google_ads.init_google_ads_client(
-                developer_token=developer_token,
-                client_id=ga_client_id,
-                client_secret=ga_client_secret,
-                refresh_token=refresh_token,
-                login_customer_id=str(login_customer_id),
-            )
-            log.info(json.dumps({
-                "event": "platform_client_initialized",
-                "platform": "google_ads",
-                "client_id": client_id,
-            }))
-        except Exception as e:
-            init_errors["google_ads"] = str(e)
-            log.error(json.dumps({
-                "event": "platform_client_init_failed",
-                "platform": "google_ads",
-                "client_id": client_id,
-                "error": str(e),
-            }))
-
-    # ── GA4 ──────────────────────────────────────────────────────────────────
-    if platforms_cfg.get("ga4", {}).get("enabled"):
-        try:
-            cid = _get_secret("ga4_client_id")
-            csec = _get_secret("ga4_client_secret")
-            rtok = _get_secret("ga4_refresh_token")
-            missing = [
-                k for k, v in [
-                    ("ga4_client_id", cid),
-                    ("ga4_client_secret", csec),
-                    ("ga4_refresh_token", rtok),
-                ] if not v
-            ]
-            if missing:
-                raise RuntimeError(f"Faltan credenciales OAuth de GA4: {', '.join(missing)}")
-            clients["ga4"] = ga4.init_ga4_client(
-                client_id=cid,
-                client_secret=csec,
-                refresh_token=rtok,
-            )
-            log.info(json.dumps({
-                "event": "platform_client_initialized",
-                "platform": "ga4",
-                "client_id": client_id,
-            }))
-        except Exception as e:
-            init_errors["ga4"] = str(e)
-            log.error(json.dumps({
-                "event": "platform_client_init_failed",
-                "platform": "ga4",
-                "client_id": client_id,
-                "error": str(e),
-            }))
-
-    # ── Shopify ──────────────────────────────────────────────────────────────
-    if platforms_cfg.get("shopify", {}).get("enabled"):
-        try:
-            access_token = _get_secret("shopify_admin_token")
-            shop_domain = platforms_cfg["shopify"].get("shop_domain")
-            api_version = platforms_cfg["shopify"].get("api_version")
-            missing = [k for k, v in {
-                "shopify_admin_token": access_token,
-                "platforms.shopify.shop_domain": shop_domain,
-                "platforms.shopify.api_version": api_version,
-            }.items() if not v]
-            if missing:
-                raise RuntimeError(f"Faltan credenciales/config para Shopify: {missing}")
-            shopify.init_shopify_api(
-                shop_domain=shop_domain,
-                access_token=access_token,
-                api_version=api_version,
-            )
-            clients["shopify"] = True  # marker — API global vía state module, no client object
-            log.info(json.dumps({
-                "event": "platform_client_initialized",
-                "platform": "shopify",
-                "client_id": client_id,
-            }))
-        except Exception as e:
-            init_errors["shopify"] = str(e)
-            log.error(json.dumps({
-                "event": "platform_client_init_failed",
-                "platform": "shopify",
-                "client_id": client_id,
-                "error": str(e),
-            }))
-
-    # ─── MAPEO DE TOOL NAME → PLATAFORMA ─────────────────────────────────────
-    # Cada prefijo determina qué client se inyecta. get_meta_* es especial:
-    # la plataforma está inicializada (API global) pero NO se prepena client.
-    PLATFORM_PREFIX_TO_KEY = (
-        ("get_meta_", "meta"),
-        ("get_google_ads_", "google_ads"),
-        ("get_ga4_", "ga4"),
-        ("get_shopify_", "shopify"),
-    )
-
-    def _resolve_platform(tool_name: str):
-        for prefix, plat in PLATFORM_PREFIX_TO_KEY:
-            if tool_name.startswith(prefix):
-                return plat
-        return None
-
-    # ─── HANDLER INTERNO ──────────────────────────────────────────────────────
     def handler(tool_name: str, tool_input: dict) -> Any:
         executor = TOOL_DISPATCHER.get(tool_name)
 
@@ -485,40 +258,14 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
             }))
             return error("unknown", "TOOL_NOT_FOUND", f"Tool '{tool_name}' no registrada en TOOL_DISPATCHER.")
 
-        # Resolver plataforma e inicialización
-        platform = _resolve_platform(tool_name)
-
-        # Si la plataforma falló al inicializar, devolver error claro sin reintentar
-        if platform and platform in init_errors:
-            log.warning(json.dumps({
-                "event": "tool_skipped_platform_uninit",
-                "client_id": client_id,
-                "agent": agent_name,
-                "tool_name": tool_name,
-                "platform": platform,
-            }))
-            return error(
-                platform,
-                "CLIENT_INIT_FAILED",
-                f"Cliente {platform} no se inicializó: {init_errors[platform]}",
-            )
-
-        # Determinar si la tool requiere client object como primer positional
-        # Meta no lo requiere (API global vía init_meta_api). Google Ads y GA4 sí.
-        client_obj = clients.get(platform) if platform else None
-        prepend_client = platform in ("google_ads", "ga4") and client_obj is not None
-
         last_result = None
         for attempt in range(1, MAX_TOOL_RETRIES + 1):
             t0 = time.monotonic()
             try:
-                if prepend_client:
-                    result = executor(client_obj, **tool_input)
-                else:
-                    result = executor(**tool_input)
+                result = executor(**tool_input)
                 duration_ms = int((time.monotonic() - t0) * 1000)
 
-                event_payload = {
+                log.info(json.dumps({
                     "event": "tool_executed",
                     "client_id": client_id,
                     "agent": agent_name,
@@ -526,12 +273,7 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
                     "attempt": attempt,
                     "status": result.get("status"),
                     "duration_ms": duration_ms,
-                }
-                if result.get("status") == "error":
-                    err = result.get("error") or {}
-                    event_payload["error_code"] = err.get("code")
-                    event_payload["error_message"] = err.get("message")
-                log.info(json.dumps(event_payload))
+                }))
 
                 if result.get("status") == "ok":
                     return result
@@ -541,7 +283,7 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
             except Exception as e:
                 duration_ms = int((time.monotonic() - t0) * 1000)
                 last_result = error(
-                    platform or "unknown",
+                    tool_name.split("_")[1] if "_" in tool_name else "unknown",
                     "EXCEPTION",
                     str(e),
                 )
@@ -551,25 +293,19 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
                     "agent": agent_name,
                     "tool_name": tool_name,
                     "attempt": attempt,
-                    "error_message": str(e),
-                    "exception_type": type(e).__name__,
-                    "exception_module": type(e).__module__,
-                    "status_code": getattr(e, "status_code", None) or getattr(e, "code", None),
+                    "error": str(e),
                     "duration_ms": duration_ms,
                 }))
 
             if attempt < MAX_TOOL_RETRIES:
                 time.sleep(2 ** attempt)  # backoff exponencial
 
-        last_err = (last_result or {}).get("error") or {}
         log.error(json.dumps({
             "event": "tool_exhausted",
             "client_id": client_id,
             "agent": agent_name,
             "tool_name": tool_name,
             "max_retries": MAX_TOOL_RETRIES,
-            "last_error_code": last_err.get("code"),
-            "last_error_message": last_err.get("message"),
         }))
 
         return last_result
@@ -577,46 +313,37 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
     return handler
 
 
-# ─── SYSTEM PROMPT BUILDERS (DEC_065) ─────────────────────────────────────────
-# Construcción client-side del system prompt en cada invocación. Antes (Managed
-# Agents) el system prompt vivía server-side en Anthropic asociado al agent_id.
-# load_static_prompt y build_dynamic_context viven en prompt_builder.py
-# (módulo dedicado sin side effects de CloudLoggingHandler — F-CloudLog, 29/05/2026).
-
-
 # ─── INVOCACIÓN DEL AGENT ─────────────────────────────────────────────────────
 
-def build_user_message(agent_name: str, config: dict, analysis_date: str) -> str:
+def build_user_message(agent_name: str, config: dict) -> str:
     """
-    Construye el mensaje inicial que se envía al modelo en cada invocación.
-    DEC_065: el system prompt y las tools se inyectan en cada llamada via
-    messages.create(). El user_message activa la ejecución con la fecha de análisis.
-
-    analysis_date: YYYY-MM-DD, fecha del día a analizar (ayer respecto al
-    momento de ejecución). Calculada en el entrypoint y propagada.
+    Construye el mensaje inicial que se envía al agent en cada invocación.
+    El system prompt ya está registrado en Anthropic para ese agent_id.
+    El mensaje activa la ejecución con la fecha actual.
     """
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     client_name = config["client"]["name"]
 
     messages = {
         "performance-monitor": (
-            f"Ejecuta el análisis de rendimiento de paid media para {client_name}. "
-            f"Fecha de análisis: {analysis_date}. "
-            f"Esa es la fecha del día a analizar — compara sus KPIs con la media "
-            f"de los 7 días naturales previos. Genera el output en el formato estructurado definido."
+            f"Ejecuta el análisis de rendimiento de paid media para {client_name} "
+            f"correspondiente al día {today}. "
+            f"Compara el día anterior con la media de los últimos 7 días en todas "
+            f"las plataformas activas. Genera el output en el formato estructurado definido."
         ),
         "budget-pacer": (
-            f"Ejecuta el análisis de presupuesto para {client_name} a fecha {analysis_date}. "
+            f"Ejecuta el análisis de presupuesto para {client_name} a fecha {today}. "
             f"Compara el gasto actual del mes con el objetivo mensual y detecta "
             f"desviaciones. Genera el output en el formato estructurado definido."
         ),
         "naming-utm-auditor": (
-            f"Ejecuta la auditoría de naming y UTMs para {client_name} a fecha {analysis_date}. "
+            f"Ejecuta la auditoría de naming y UTMs para {client_name} a fecha {today}. "
             f"Revisa todos los ads activos y detecta incumplimientos de naming convention "
             f"o parámetros UTM incompletos. Genera el output en el formato estructurado definido."
         ),
         "weekly-digest": (
             f"Genera el weekly digest para {client_name} correspondiente a la semana "
-            f"que termina el {analysis_date}. Analiza el rendimiento cross-platform, detecta "
+            f"que termina el {today}. Analiza el rendimiento cross-platform, detecta "
             f"patrones y propone 2-3 opciones de acción con datos. "
             f"Genera el output en el formato estructurado definido."
         ),
@@ -624,176 +351,74 @@ def build_user_message(agent_name: str, config: dict, analysis_date: str) -> str
 
     return messages.get(
         agent_name,
-        f"Ejecuta el análisis para {client_name} a fecha {analysis_date}."
+        f"Ejecuta el análisis para {client_name} a fecha {today}."
     )
 
 
 def run_agent(
     anthropic_client: anthropic.Anthropic,
-    system_prompt: str,
-    tools: list[dict],
+    agent_id: str,
     user_message: str,
     tool_handler,
     client_id: str,
     agent_name: str,
 ) -> dict:
     """
-    Invoca al modelo Claude vía Messages API + tool_use clásico.
+    Invoca el agent identificado por agent_id vía Managed Agents beta.
+    El system prompt y las tools ya están registrados en Anthropic para ese agent_id.
 
-    DEC_065 (26/05/2026): pivot desde Managed Agents a Messages API. El system
-    prompt y las tools se pasan en cada invocación; no hay agent persistido
-    server-side. Patrón estándar de Anthropic, perfectamente soportado por SDK
-    0.103.x y 0.104.x (sin beta header).
-
-    Loop:
-      1. messages.create() con system + tools + history acumulado.
-      2. Si stop_reason == 'end_turn' → extraer texto, parsear JSON, devolver.
-      3. Si stop_reason == 'tool_use' → por cada bloque tool_use, ejecutar vía
-         tool_handler. Appendear assistant message + tool_results al history. Loop.
-      4. Si stop_reason inesperado o MAX_AGENT_ITERATIONS alcanzado → ERROR.
+    El SDK gestiona el loop. Nosotros:
+      1. Lanzamos la invocación con el user_message.
+      2. Por cada tool_use callback, ejecutamos vía tool_handler.
+      3. Devolvemos el output final cuando el agente cierra turno.
     """
     log.info(json.dumps({
         "event": "agent_invoked",
         "client_id": client_id,
         "agent": agent_name,
-        "model": MODEL,
-        "tools_count": len(tools),
+        "agent_id": agent_id,
     }))
 
     t0 = time.monotonic()
-    messages = [{"role": "user", "content": user_message}]
-    final_response = None
-    iterations = 0
-    total_input_tokens = 0
-    total_output_tokens = 0
 
-    while iterations < MAX_AGENT_ITERATIONS:
-        iterations += 1
-        response = anthropic_client.messages.create(
-            model=MODEL,
-            max_tokens=MAX_TOKENS,
-            system=system_prompt,
-            tools=tools,
-            messages=messages,
-        )
+    # Invocación vía Managed Agents — el SDK gestiona el loop interno
+    # Referencia: managed-agents-2026-04-01 quickstart
+    with anthropic_client.beta.agents.sessions.stream(
+        agent_id=agent_id,
+        input=user_message,
+        betas=[ANTHROPIC_BETA],
+    ) as stream:
+        for event in stream:
+            # Callback de tool execution
+            if hasattr(event, "type") and event.type == "tool_use":
+                tool_result = tool_handler(event.name, event.input)
+                stream.submit_tool_result(
+                    tool_use_id=event.id,
+                    content=json.dumps(tool_result),
+                )
 
-        total_input_tokens += response.usage.input_tokens
-        total_output_tokens += response.usage.output_tokens
-
-        log.info(json.dumps({
-            "event": "agent_turn",
-            "client_id": client_id,
-            "agent": agent_name,
-            "iteration": iterations,
-            "stop_reason": response.stop_reason,
-            "input_tokens": response.usage.input_tokens,
-            "output_tokens": response.usage.output_tokens,
-        }))
-
-        if response.stop_reason == "end_turn":
-            final_response = response
-            break
-
-        if response.stop_reason == "tool_use":
-            # Appendear assistant message completo (incluye los tool_use blocks)
-            messages.append({"role": "assistant", "content": response.content})
-
-            # Procesar cada tool_use y construir tool_results
-            tool_results = []
-            for block in response.content:
-                if block.type != "tool_use":
-                    continue
-                log.info(json.dumps({
-                    "event": "tool_call",
-                    "client_id": client_id,
-                    "agent": agent_name,
-                    "tool": block.name,
-                }))
-                try:
-                    result = tool_handler(block.name, block.input)
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": json.dumps(result),
-                    })
-                except Exception as e:
-                    log.error(json.dumps({
-                        "event": "tool_handler_exception",
-                        "client_id": client_id,
-                        "agent": agent_name,
-                        "tool": block.name,
-                        "error": str(e),
-                    }))
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": json.dumps({"status": "error", "message": str(e)}),
-                        "is_error": True,
-                    })
-
-            messages.append({"role": "user", "content": tool_results})
-            continue
-
-        # stop_reason inesperado (max_tokens, stop_sequence...)
-        log.error(json.dumps({
-            "event": "unexpected_stop_reason",
-            "client_id": client_id,
-            "agent": agent_name,
-            "stop_reason": response.stop_reason,
-        }))
-        final_response = response
-        break
+        final_output = stream.get_final_message()
 
     duration_ms = int((time.monotonic() - t0) * 1000)
 
-    if final_response is None:
-        log.error(json.dumps({
-            "event": "agent_max_iterations",
-            "client_id": client_id,
-            "agent": agent_name,
-            "iterations": iterations,
-        }))
-        return {
-            "agent": agent_name,
-            "client": client_id,
-            "status_global": "ERROR",
-            "summary": f"Agente alcanzó MAX_AGENT_ITERATIONS={MAX_AGENT_ITERATIONS} sin cerrar turno.",
-        }
-
-    # Extraer texto del final_response
-    output_text = "".join(
-        block.text for block in final_response.content if hasattr(block, "text")
-    )
+    # Extraer el texto del output final
+    output_text = ""
+    for block in final_output.content:
+        if hasattr(block, "text"):
+            output_text += block.text
 
     log.info(json.dumps({
         "event": "agent_completed",
         "client_id": client_id,
         "agent": agent_name,
         "duration_ms": duration_ms,
-        "iterations": iterations,
-        "total_input_tokens": total_input_tokens,
-        "total_output_tokens": total_output_tokens,
         "output_length": len(output_text),
     }))
 
-    # Parsear el output como JSON estructurado
+    # Intentar parsear el output como JSON estructurado
     try:
         return json.loads(output_text)
     except json.JSONDecodeError:
-        # Fallback: extraer JSON de un bloque ```json ... ``` si Claude lo envolvió
-        match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', output_text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except json.JSONDecodeError:
-                pass
-
-        log.error(json.dumps({
-            "event": "json_decode_error",
-            "client_id": client_id,
-            "agent": agent_name,
-            "raw_preview": output_text[:500],
-        }))
         return {
             "agent": agent_name,
             "client": client_id,
@@ -801,12 +426,10 @@ def run_agent(
             "summary": "Output del agente no es JSON válido.",
             "raw_output": output_text,
         }
-
-
 # ─── OUTPUT WRITING ──────────────────────────────────────────────────────────
 
 def write_output_to_drive_for_agent(
-    config: dict, agent_name: str, output: dict, client_id: str, analysis_date: str
+    config: dict, agent_name: str, output: dict, client_id: str
 ) -> dict:
     """
     Wrapper que construye filename siguiendo la convención del proyecto
@@ -832,7 +455,8 @@ def write_output_to_drive_for_agent(
         }))
         return {"status": "skipped", "reason": "no outputs_folder_id in config"}
 
-    filename = f"{analysis_date}_PAID_{agent_name}-{client_id}.json"
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    filename = f"{today}_PAID_{agent_name}-{client_id}.json"
 
     try:
         return drive.write_output_to_drive(
@@ -852,147 +476,6 @@ def write_output_to_drive_for_agent(
             "status": "error",
             "error": {"code": "UNEXPECTED", "message": str(e)},
         }
-
-
-def send_notification_for_agent(
-    config: dict,
-    agent_name: str,
-    output: dict,
-    drive_result: dict,
-    status: str,
-    analysis_date: str,
-) -> dict:
-    """
-    Renderiza email HTML estructurado vía Jinja2 + email_templates/<agent_key>.html
-    y delega el envío en notifications.send_alert_email.
-
-    Refactor 2026-05-29 (DEC_050): plantilla externa con template inheritance
-    (_base.html + macros) en lugar de HTML inline. Cross-agent: cada agente
-    declara su propio template hijo bajo email_templates/.
-
-    No propaga excepciones — siempre devuelve un dict con status. Si el envío
-    falla, se loggea como ERROR; la Cloud Function NO aborta (el output sigue
-    válido en Drive y Cloud Logging). Si el template falla (TemplateNotFound,
-    UndefinedError por StrictUndefined), se loggea y se devuelve error con
-    detalle — esto fuerza visibilidad del contrato roto.
-
-    Construcción del subject:
-      [{execution_status} · {analysis_status}] {agent_name} · {client_name} · {date}
-      Si analysis_status es N/A se omite (caso ERROR sin análisis).
-    """
-    notifications_config = config.get("notifications", {})
-    recipients = notifications_config.get("alert_recipients", [])
-    client_id = config.get("client", {}).get("id")
-
-    if not recipients:
-        log.warning(json.dumps({
-            "event": "notification_skipped_no_recipients",
-            "client_id": client_id,
-            "agent": agent_name,
-        }))
-        return {"status": "skipped", "reason": "no alert_recipients in config"}
-
-    client_name = config.get("client", {}).get("name", "Cliente")
-    summary = output.get("summary", "(sin resumen)")
-    drive_url = (
-        drive_result.get("data", {}).get("url")
-        if drive_result.get("status") == "ok"
-        else None
-    )
-
-    # Modelo dual de status (DEC_050): execution + analysis separados.
-    # Backward compat: si el agente todavía devuelve status_global legacy,
-    # lo mapeamos a execution=OK/PARTIAL/ERROR y analysis=ALERTA/NORMAL.
-    execution_status = output.get("execution_status") or _derive_execution_status(status)
-    analysis_status = output.get("analysis_status") or _derive_analysis_status(status)
-    execution_status_detail = output.get("execution_status_detail", "")
-
-    # Subject: prefijo dual cuando aplica
-    subject_label = execution_status
-    if analysis_status and analysis_status != "N/A" and execution_status == "OK":
-        subject_label = analysis_status
-    elif analysis_status and analysis_status != "N/A":
-        subject_label = f"{execution_status} · {analysis_status}"
-    subject = f"[{subject_label}] {agent_name} · {client_name} · {analysis_date}"
-
-    # Contexto del template — agnostico de agente (DEC_079). Spread del output
-    # completo para que cada plantilla acceda a SUS campos (period/budget_plan/
-    # pacing/rentability budget-pacer; patterns/week/analysis_window weekly-digest;
-    # totals naming-utm-auditor; platforms/revenue_triangulation/alerts perf-monitor).
-    # Mas las claves inyectadas por el handler (no vienen del output) y las resueltas
-    # (override de legacy/missing). Con StrictUndefined cada plantilla referencia
-    # solo lo que su propio agente emite.
-    context = {
-        **output,
-        "client_name": client_name,
-        "analysis_date": analysis_date,
-        "drive_url": drive_url,
-        "execution_status": execution_status,
-        "analysis_status": analysis_status,
-        "execution_status_detail": execution_status_detail,
-        "summary": summary,
-    }
-
-    template_name = f"{agent_name.replace('-', '_')}.html"
-
-    try:
-        body_html = render_email_html(template_name, context)
-    except Exception as e:
-        log.error(json.dumps({
-            "event": "notification_template_render_failed",
-            "client_id": client_id,
-            "agent": agent_name,
-            "template": template_name,
-            "error_type": type(e).__name__,
-            "error": str(e),
-        }))
-        return {
-            "status": "error",
-            "error": {"code": "TEMPLATE_RENDER", "message": f"{type(e).__name__}: {e}"},
-        }
-
-    # Fallback plain text — versión simple para clientes sin HTML
-    body_text = (
-        f"{subject}\n\n"
-        f"{summary}\n\n"
-        + (f"Ver output completo: {drive_url}\n" if drive_url else "")
-    )
-
-    try:
-        return notifications.send_alert_email(
-            recipients=recipients,
-            subject=subject,
-            body_html=body_html,
-            body_text=body_text,
-            drive_url=drive_url,
-        )
-    except Exception as e:
-        log.error(json.dumps({
-            "event": "notification_caught_exception",
-            "client_id": client_id,
-            "agent": agent_name,
-            "error": str(e),
-        }))
-        return {
-            "status": "error",
-            "error": {"code": "UNEXPECTED", "message": str(e)},
-        }
-
-
-def _derive_execution_status(legacy_status: str) -> str:
-    """Mapea status_global legacy → execution_status del modelo dual."""
-    if legacy_status == "ERROR":
-        return "ERROR"
-    if legacy_status == "PARTIAL":
-        return "PARTIAL"
-    return "OK"
-
-
-def _derive_analysis_status(legacy_status: str) -> str:
-    """Mapea status_global legacy → analysis_status del modelo dual."""
-    if legacy_status in ("ALERTA", "NORMAL"):
-        return legacy_status
-    return "N/A"
 
 
 # ─── ENTRY POINT HTTP ─────────────────────────────────────────────────────────
@@ -1031,131 +514,67 @@ def agent_executor(request):
             "supported": list(SUPPORTED_AGENTS),
         }, 400
 
-    # Fecha del día a analizar: ayer respecto al momento de ejecución.
-    # Calculada una vez aquí y propagada a build_user_message, Drive (filename)
-    # y email (subject) para que las tres referencias muestren exactamente la
-    # misma fecha (la del dato analizado, no la de generación).
-    # TODO: usar timezone del cliente cuando config.client.timezone esté disponible.
-    analysis_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
-
     log.info(json.dumps({
         "event": "execution_started",
         "client_id": client_id,
         "agent": agent_name,
-        "analysis_date": analysis_date,
     }))
 
     try:
         # ── 1. Cargar config del cliente ──────────────────────────────────────
         config = load_client_config(client_id)
 
-        # ── 2. Resolver agent_id (DEC_065: solo validación + traza, no se usa en runtime) ─
+        # ── 2. Resolver agent_id ──────────────────────────────────────────────
         agent_id = resolve_agent_id(config, agent_name)
-        log.info(json.dumps({
-            "event": "agent_id_resolved",
-            "client_id": client_id,
-            "agent": agent_name,
-            "agent_id": agent_id,
-            "note": "DEC_065: agent_id resuelto para traza, no usado en runtime",
-        }))
 
         # ── 3. Cargar secrets ─────────────────────────────────────────────────
         secrets = load_secrets(client_id, agent_name, config)
 
-        # ── 4. Inicializar cliente Anthropic (DEC_065: sin beta header) ───────
-        # messages.create() no requiere managed-agents-2026-04-01.
+        # ── 4. Inicializar cliente Anthropic con header beta ──────────────────
         anthropic_client = anthropic.Anthropic(
             api_key=secrets["ANTHROPIC_API_KEY"],
+            default_headers={"anthropic-beta": ANTHROPIC_BETA},
         )
 
         # ── 5. Construir tool handler con secrets + config inyectados ─────────
         handler = tool_handler_factory(secrets, config, client_id, agent_name)
 
-        # ── 6. Cargar system_prompt + tools client-side (DEC_065) ─────────────
-        # Antes vivía server-side asociado al agent_id. Ahora se construye en
-        # cada invocación: static prompt del repo + contexto dinámico del config.
-        static_prompt = load_static_prompt(agent_name)
-        dynamic_context = build_dynamic_context(config, agent_name)
-
-        # DEC_075: capa de parámetros operativos. Lee el workbook operativo del
-        # cliente (budget dinámico + tolerancias KPI) por Sheets API y lo inyecta
-        # en el prompt. load_operational_inputs NUNCA lanza: degrada a fallback de
-        # config y señala la fuente, de modo que un workbook caído no tumba la
-        # ejecución (a lo sumo el agente reporta el fallback en su output).
-        enabled_platforms = [
-            k for k, v in config.get("platforms", {}).items()
-            if isinstance(v, dict) and v.get("enabled")
-        ]
-        oi = load_operational_inputs(config, agent_name, platforms=enabled_platforms)
-        log.info(json.dumps({
-            "event": "operational_inputs_loaded",
-            "client_id": client_id,
-            "agent": agent_name,
-            **reference_used(oi),
-        }))
-
-        system_prompt = f"{static_prompt}\n\n{dynamic_context}\n\n{to_prompt_block(oi)}"
-        tools = get_tool_definitions(agent_name.replace("-", "_"))
-
-        # ── 7. Construir user_message e invocar el agent ──────────────────────
-        user_message = build_user_message(agent_name, config, analysis_date)
+        # ── 6. Construir mensaje inicial y invocar el agent ───────────────────
+        user_message = build_user_message(agent_name, config)
         output = run_agent(
-            anthropic_client,
-            system_prompt,
-            tools,
-            user_message,
-            handler,
-            client_id,
-            agent_name,
+            anthropic_client, agent_id, user_message, handler, client_id, agent_name
         )
 
-        # ── 8. Log del output final (DEC_050 — modelo dual) ──────────────────
-        execution_status = output.get("execution_status") or output.get("status_global") or "UNKNOWN"
-        analysis_status = output.get("analysis_status") or "N/A"
+        # ── 7. Log del output final ───────────────────────────────────────────
+        status = output.get("status_global", "UNKNOWN")
         log.info(json.dumps({
             "event": "execution_completed",
             "client_id": client_id,
             "agent": agent_name,
-            "execution_status": execution_status,
-            "analysis_status": analysis_status,
+            "status": status,
         }))
 
-        # Determinar notify_level a comparar con alert_levels.
-        # Regla: si execution falló (PARTIAL/ERROR), notificar ese estado técnico.
-        # Si execution OK, notificar según analysis (ALERTA/NORMAL).
-        if execution_status in ("ERROR", "PARTIAL"):
-            notify_level = execution_status
-        else:
-            notify_level = analysis_status if analysis_status not in ("N/A", None) else execution_status
-
-        # ── 9. Escribir output a Drive (arq §9 step 8) ────────────────────────
+        # ── 8. Escribir output a Drive (arq §9 step 8) ────────────────────────
         drive_result = write_output_to_drive_for_agent(
-            config, agent_name, output, client_id, analysis_date
+            config, agent_name, output, client_id
         )
 
-        # ── 10. Notificar si notify_level dispara alerta (arq §9 step 9) ──────
+        # ── 9. Notificar si STATUS dispara alerta (arq §9 step 9) ─────────────
         notifications_config = config.get("notifications", {})
-        if notify_level in notifications_config.get("alert_levels", []):
+        if status in notifications_config.get("alert_on_status", []):
             notification_result = send_notification_for_agent(
-                config, agent_name, output, drive_result, notify_level, analysis_date
-            )
+            config, agent_name, output, drive_result, status
+        )
         else:
-            notification_result = {
-                "status": "skipped",
-                "reason": f"notify_level not in alert_levels (was: {notify_level})",
-            }
+          notification_result = {"status": "skipped", "reason": f"status '{status}' not in alert_on_status"}
 
         return {
             "status": "ok",
             "client_id": client_id,
             "agent_name": agent_name,
-            "execution_status": execution_status,
-            "analysis_status": analysis_status,
-            "notify_level": notify_level,
+            "agent_status": status,
             "summary": output.get("summary", ""),
-            "output": output,
             "drive": drive_result,
-            "notifications": notification_result,
         }, 200
 
     except (FileNotFoundError, RuntimeError) as e:
