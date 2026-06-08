@@ -491,7 +491,8 @@
     "alert_levels": [
       "ALERTA",
       "ERROR",
-      "PARTIAL"
+      "PARTIAL",
+      "NORMAL"
     ]
   },
   "credentials": {
