@@ -1,0 +1,199 @@
+{
+  "_template_nota": "Template base para onboarding de nuevo cliente. Copiar a clients/[client_id]/config.json y rellenar campos RELLENAR. Ver guia-despliegue-nuevo-proyecto-cliente.md Fase 1.2.",
+  "client": {
+    "id": "RELLENAR",
+    "name": "RELLENAR",
+    "sector": "RELLENAR",
+    "country": "ES",
+    "language": "es",
+    "timezone": "Europe/Madrid",
+    "currency": "EUR"
+  },
+  "agents": {
+    "performance_monitor": {
+      "agent_id": null,
+      "enabled": true,
+      "schedule": "0 8 * * *",
+      "output_folder": "04_OUTPUTS/RELLENAR/performance-monitor"
+    },
+    "budget_pacer": {
+      "agent_id": null,
+      "enabled": true,
+      "schedule": "30 8 * * *",
+      "output_folder": "04_OUTPUTS/RELLENAR/budget-pacer",
+      "_schedule_nota": "08:30 informe previous-day. Guardrail intraday (17:00) job separado en Cloud Scheduler."
+    },
+    "naming_utm_auditor": {
+      "agent_id": null,
+      "enabled": true,
+      "schedule": "0 9 * * 1",
+      "output_folder": "04_OUTPUTS/RELLENAR/naming-utm-auditor"
+    },
+    "weekly_digest": {
+      "agent_id": null,
+      "enabled": true,
+      "schedule": "0 17 * * 5",
+      "output_folder": "04_OUTPUTS/RELLENAR/weekly-digest"
+    },
+    "creative_fatigue_detector": {
+      "enabled": false,
+      "_nota": "Desactivado por defecto. Activar en Sprint 2+."
+    }
+  },
+  "operational_inputs": {
+    "_nota": "DEC_075 - workbook en Drive Operativo es fuente de verdad de budget y KPIs. Este bloque declara solo el puntero y fallback degradado.",
+    "workbook": {
+      "file_id": "PENDIENTE",
+      "_nota": "PAID_parametros-operativos-[client_id]. Compartir como Viewer con llyc-agents-sa@llyc-ai-first-core.iam.gserviceaccount.com antes del primer deploy."
+    },
+    "timezone": "Europe/Madrid",
+    "fallback": {
+      "_nota": "Modo degradado si workbook no disponible. Importes a 0 por DEC_075.",
+      "currency": "EUR",
+      "budget": {
+        "base_eur": 0,
+        "incremental_max_eur": 0
+      },
+      "kpis": [
+        {
+          "_nota": "Ajustar metrica: roas (ecomm) o cpl (lead-gen)",
+          "nivel": "cuenta",
+          "metrica": "RELLENAR",
+          "parametro": "tolerancia_desviacion_pct",
+          "valor": 15,
+          "ventana": "7d",
+          "enabled": true
+        },
+        {
+          "nivel": "cuenta",
+          "metrica": "pacing",
+          "parametro": "tolerancia_desviacion_pct",
+          "valor": 10,
+          "ventana": "mensual",
+          "enabled": true
+        }
+      ]
+    }
+  },
+  "platforms": {
+    "meta": {
+      "enabled": true,
+      "ad_account_id": "PENDIENTE",
+      "business_manager_id": "PENDIENTE",
+      "utm_medium": "paid_social",
+      "campaigns_in_scope": [],
+      "campaigns_nota": "Sin restriccion por defecto"
+    },
+    "google_ads": {
+      "enabled": true,
+      "customer_id": "PENDIENTE",
+      "manager_id": "PENDIENTE",
+      "utm_medium": [
+        "paid_search",
+        "paid_shopping",
+        "paid_pmax"
+      ],
+      "campaigns_in_scope": [],
+      "campaigns_nota": "Sin restriccion por defecto"
+    },
+    "ga4": {
+      "enabled": true,
+      "property_id": "PENDIENTE",
+      "data_stream_id": "PENDIENTE",
+      "rol": "RELLENAR - comportamiento web / fuente de verdad primaria segun modelo de negocio"
+    },
+    "tiktok": {
+      "enabled": false,
+      "_nota": "Activar si aplica. Descartado por defecto (DEC_043)."
+    },
+    "dv360": {
+      "enabled": false,
+      "_nota": "Fuera de scope por defecto. Activar en Sprint 3+ si aplica (DEC_064)."
+    },
+    "shopify": {
+      "enabled": false,
+      "_nota": "Activar solo para clientes ecommerce (DEC_048)."
+    }
+  },
+  "data_sources": {
+    "_nota": "Ecomm: revenue=shopify. Lead-gen: leads=ga4.",
+    "comportamiento_web": "ga4",
+    "sesiones": "ga4",
+    "atribucion": "ga4"
+  },
+  "notifications": {
+    "canal": "email",
+    "alert_recipients": [
+      "RELLENAR",
+      "massimiliano.turinetto@llyc.global"
+    ],
+    "alert_levels": [
+      "ALERTA",
+      "ERROR",
+      "PARTIAL",
+      "NORMAL"
+    ]
+  },
+  "credentials": {
+    "meta_access_token": "META_ACCESS_TOKEN",
+    "meta_app_id": "META_APP_ID",
+    "meta_app_secret": "META_APP_SECRET",
+    "google_ads_developer_token": "GOOGLE_ADS_DEVELOPER_TOKEN",
+    "google_ads_client_id": "GOOGLE_ADS_CLIENT_ID",
+    "google_ads_client_secret": "GOOGLE_ADS_CLIENT_SECRET",
+    "google_ads_refresh_token": "GOOGLE_ADS_REFRESH_TOKEN",
+    "ga4_client_id": "GA4_CLIENT_ID",
+    "ga4_client_secret": "GA4_CLIENT_SECRET",
+    "ga4_refresh_token": "GA4_REFRESH_TOKEN",
+    "_gmail_nota": "Gmail secrets en llyc-ai-first-core Secret Manager, no son del cliente (DEC_026).",
+    "_shopify_nota": "Anadir shopify_admin_token solo si platforms.shopify.enabled = true."
+  },
+  "gcp": {
+    "project_id": "llyc-ai-RELLENAR",
+    "region": "europe-west1",
+    "function_name": "agent-executor-RELLENAR",
+    "secret_manager_project": "llyc-ai-RELLENAR",
+    "secret_manager_core_project": "llyc-ai-first-core",
+    "_anthropic_api_key_nota": "main.py deriva el secret con patron anthropic-api-key-{agent_name}-{client_id} (DEC_058)."
+  },
+  "drive": {
+    "outputs_folder_id": "PENDIENTE",
+    "_nota": "ID de carpeta 04_OUTPUTS/[client_id]/ en Drive. Crear y rellenar antes del primer deploy."
+  },
+  "pendientes": [
+    {
+      "campo": "client.id + todos los campos RELLENAR",
+      "owner": "Alberto Gonzalez",
+      "impacto": "Bloquea todo hasta completar"
+    },
+    {
+      "campo": "platforms.*.ad_account_id / customer_id / property_id",
+      "owner": "Jesus Lopez",
+      "impacto": "Bloquea agentes por plataforma"
+    },
+    {
+      "campo": "operational_inputs.workbook.file_id",
+      "owner": "Jesus Lopez / Sara Gil",
+      "impacto": "Bloquea budget-pacer y naming-utm-auditor"
+    },
+    {
+      "campo": "drive.outputs_folder_id",
+      "owner": "Alberto Gonzalez",
+      "impacto": "Bloquea escritura de outputs en Drive"
+    }
+  ],
+  "_metadata": {
+    "version": "1.0",
+    "fecha_creacion": "2026-06-09",
+    "creado_por": "Alberto Gonzalez",
+    "decisiones_referencia": [
+      "DEC_075",
+      "DEC_058",
+      "DEC_048",
+      "DEC_064",
+      "DEC_043",
+      "DEC_026"
+    ],
+    "proxima_revision": "Al onboarding de cada nuevo cliente"
+  }
+}
