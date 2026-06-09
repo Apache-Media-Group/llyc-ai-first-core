@@ -35,6 +35,39 @@
   {{ summary }}
 </div>
 
+{% if intraday is defined %}
+<div style="margin-bottom:22px;">
+  <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">Control intradía · día en curso</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse; font-size:13px;">
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5;">Gasto de hoy</td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5; font-weight:600;">{{ fmt.money(intraday.spend_today_eur) }}</td>
+    </tr>
+    {% if intraday.spend_today_by_platform %}
+    {% for plat, val in intraday.spend_today_by_platform.items() %}
+    <tr>
+      <td style="padding:6px 10px 6px 24px; color:#666; font-size:12px;">· {{ plat }}</td>
+      <td align="right" style="padding:6px 10px; color:#666; font-size:12px;">{{ fmt.money(val) }}</td>
+    </tr>
+    {% endfor %}
+    {% endif %}
+    <tr>
+      <td style="padding:10px; border-top:1px solid #ececef;">Suelo underspend / techo overspend</td>
+      <td align="right" style="padding:10px; border-top:1px solid #ececef; color:#666; font-size:12px;">{{ fmt.money(intraday.underspend_floor_eur) }} / {{ fmt.money(intraday.overspend_ceiling_eur) }}</td>
+    </tr>
+  </table>
+</div>
+
+<div style="margin-bottom:22px;">
+  <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">Estado intradía</div>
+  <div style="font-size:13px; color:#333; line-height:1.55;">
+    <strong>{{ intraday.status }}</strong>
+    {% if intraday.platform_dark and intraday.platform_dark|length > 0 %}<br>Plataforma(s) a oscuras: {{ intraday.platform_dark|join(", ") }}{% endif %}
+    {% if intraday.detail %}<br><span style="color:#666; font-size:12px;">{{ intraday.detail }}</span>{% endif %}
+  </div>
+</div>
+{% else %}
+
 <div style="margin-bottom:22px;">
   <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">Plan del mes · {{ period.month }} <span style="text-transform:none; letter-spacing:0; color:#aaa;">(fuente: {{ budget_plan.source }})</span></div>
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse; font-size:13px;">
@@ -107,6 +140,7 @@
     {% if rentability.detail %}<br><span style="color:#666; font-size:12px;">{{ rentability.detail }}</span>{% endif %}
   </div>
 </div>
+{% endif %}
 
 {% if alerts and alerts|length > 0 %}
 <div style="margin-bottom:22px;">
