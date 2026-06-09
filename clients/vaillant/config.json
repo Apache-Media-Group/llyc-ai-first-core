@@ -144,7 +144,7 @@
     "_anthropic_api_key_nota": "main.py deriva dinámicamente el nombre del secret con el patrón anthropic-api-key-{agent_name}-{client_id} (DEC_058)."
   },
   "drive": {
-    "outputs_folder_id": "PENDIENTE",
+    "outputs_folder_id": "1C7jNKEdEdF6v3lWBlYDVxKeZ74JbNfut",
     "_nota": "ID de la carpeta 04_OUTPUTS/vaillant/ en Drive. Crear la carpeta y rellenar antes del primer deploy."
   },
   "pendientes": [
