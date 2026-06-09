@@ -225,6 +225,56 @@ GET_GOOGLE_ADS_SPEND_MONTH = {
 }
 
 
+GET_META_SPEND_TODAY = {
+    "type": "custom",
+    "name": "get_meta_spend_today",
+    "description": (
+        "Obtiene el gasto del día en curso (hoy) en Meta Ads para una cuenta. "
+        "Devuelve spend_today_eur y date_preset='today'. "
+        "Usado por budget-pacer en el perfil intraday_guardrail para vigilar "
+        "el ritmo de gasto intradía (falta o exceso) frente al diario de referencia."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "ad_account_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta publicitaria Meta SIN prefijo 'act_'. "
+                    "Ejemplo: '2466105110293178' (no 'act_2466105110293178')."
+                ),
+            },
+        },
+        "required": ["ad_account_id"],
+    },
+}
+
+
+GET_GOOGLE_ADS_SPEND_TODAY = {
+    "type": "custom",
+    "name": "get_google_ads_spend_today",
+    "description": (
+        "Obtiene el gasto del día en curso (hoy) en Google Ads para una cuenta. "
+        "Devuelve spend_today_eur y date_preset='today'. "
+        "Usado por budget-pacer en el perfil intraday_guardrail para vigilar "
+        "el ritmo de gasto intradía (falta o exceso) frente al diario de referencia."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "customer_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta Google Ads sin guiones. Ejemplo: "
+                    "'2756616331' (no '275-661-6331')."
+                ),
+            },
+        },
+        "required": ["customer_id"],
+    },
+}
+
+
 # ─── NAMING & UTM AUDITOR TOOL DEFINITIONS ───────────────────────────────────
 
 GET_META_ACTIVE_AD_URLS = {
@@ -757,6 +807,8 @@ TOOL_DEFINITIONS_BY_AGENT = {
     "budget_pacer": [
         GET_META_SPEND_MONTH,
         GET_GOOGLE_ADS_SPEND_MONTH,
+        GET_META_SPEND_TODAY,
+        GET_GOOGLE_ADS_SPEND_TODAY,
         GET_SHOPIFY_ORDERS_PERIOD,   # DEC_048 — revenue ground truth para el ROAS blended
                                      # del modelo dinámico (DEC_060/061/062 + DEC_075).
         # DV360 excluido — dv360_get_campaign_metrics no está en TOOL_DISPATCHER
