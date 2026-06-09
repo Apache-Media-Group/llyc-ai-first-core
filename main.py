@@ -586,7 +586,7 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
 
 # ─── INVOCACIÓN DEL AGENT ─────────────────────────────────────────────────────
 
-def build_user_message(agent_name: str, config: dict, analysis_date: str) -> str:
+def build_user_message(agent_name: str, config: dict, analysis_date: str, run_profile: str = "monthly_pacing") -> str:
     """
     Construye el mensaje inicial que se envía al modelo en cada invocación.
     DEC_065: el system prompt y las tools se inyectan en cada llamada via
@@ -596,6 +596,15 @@ def build_user_message(agent_name: str, config: dict, analysis_date: str) -> str
     momento de ejecución). Calculada en el entrypoint y propagada.
     """
     client_name = config["client"]["name"]
+
+    if agent_name == "budget-pacer" and run_profile == "intraday_guardrail":
+        return (
+            f"Ejecuta el CONTROL INTRADÍA de ritmo de gasto para {client_name} a fecha de hoy {analysis_date} "
+            f"(run_profile=intraday_guardrail). Lee el gasto del DÍA EN CURSO por plataforma (no MTD) y "
+            f"compáralo con el diario de referencia. Modo guardrail: MUDO salvo que el gasto de hoy quede por "
+            f"debajo del suelo de underspend, por encima del techo de overspend, o una plataforma activa esté "
+            f"a oscuras. Genera el output en el formato estructurado del perfil intradía."
+        )
 
     messages = {
         "performance-monitor": (
@@ -832,7 +841,7 @@ def write_output_to_drive_for_agent(
         }))
         return {"status": "skipped", "reason": "no outputs_folder_id in config"}
 
-    filename = f"{analysis_date}_PAID_{agent_name}-{client_id}.json"
+    filename = f"{analysis_date}_PAID_{agent_name}{'-intraday' if output.get('run_profile') == 'intraday_guardrail' else ''}-{client_id}.json"
 
     try:
         return drive.write_output_to_drive(
@@ -1036,13 +1045,21 @@ def agent_executor(request):
     # y email (subject) para que las tres referencias muestren exactamente la
     # misma fecha (la del dato analizado, no la de generación).
     # TODO: usar timezone del cliente cuando config.client.timezone esté disponible.
-    analysis_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+    # run_profile -> ventana de analisis (DEC pacer): intraday_guardrail = hoy; monthly_pacing = ayer.
+    run_profile = (payload.get("run_profile") or "monthly_pacing").strip() or "monthly_pacing"
+    if run_profile not in ("monthly_pacing", "intraday_guardrail"):
+        return {"error": f"run_profile '{run_profile}' no soportado."}, 400
+    if run_profile == "intraday_guardrail":
+        analysis_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    else:
+        analysis_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
 
     log.info(json.dumps({
         "event": "execution_started",
         "client_id": client_id,
         "agent": agent_name,
         "analysis_date": analysis_date,
+        "run_profile": run_profile,
     }))
 
     try:
@@ -1098,7 +1115,7 @@ def agent_executor(request):
         tools = get_tool_definitions(agent_name.replace("-", "_"))
 
         # ── 7. Construir user_message e invocar el agent ──────────────────────
-        user_message = build_user_message(agent_name, config, analysis_date)
+        user_message = build_user_message(agent_name, config, analysis_date, run_profile)
         output = run_agent(
             anthropic_client,
             system_prompt,
@@ -1135,7 +1152,10 @@ def agent_executor(request):
 
         # ── 10. Notificar si notify_level dispara alerta (arq §9 step 9) ──────
         notifications_config = config.get("notifications", {})
-        if notify_level in notifications_config.get("alert_levels", []):
+        effective_alert_levels = list(notifications_config.get("alert_levels", []))
+        if run_profile == "intraday_guardrail":
+            effective_alert_levels = [lvl for lvl in effective_alert_levels if lvl != "NORMAL"]
+        if notify_level in effective_alert_levels:
             notification_result = send_notification_for_agent(
                 config, agent_name, output, drive_result, notify_level, analysis_date
             )
