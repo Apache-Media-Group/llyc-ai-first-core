@@ -1,0 +1,195 @@
+{
+  "client": {
+    "id": "vaillant",
+    "name": "Vaillant",
+    "sector": "calderas_clima_residencial",
+    "country": "ES",
+    "language": "es",
+    "timezone": "Europe/Madrid",
+    "currency": "EUR"
+  },
+  "agents": {
+    "performance_monitor": {
+      "agent_id": null,
+      "enabled": true,
+      "schedule": "0 8 * * *",
+      "output_folder": "04_OUTPUTS/vaillant/performance-monitor"
+    },
+    "budget_pacer": {
+      "agent_id": null,
+      "enabled": true,
+      "schedule": "30 8 * * *",
+      "output_folder": "04_OUTPUTS/vaillant/budget-pacer",
+      "_schedule_nota": "08:30 informe previous-day. Guardrail intradía (17:00) se configura en Cloud Scheduler — no se duplica aquí."
+    },
+    "naming_utm_auditor": {
+      "agent_id": null,
+      "enabled": true,
+      "schedule": "0 9 * * 1",
+      "output_folder": "04_OUTPUTS/vaillant/naming-utm-auditor"
+    },
+    "weekly_digest": {
+      "agent_id": null,
+      "enabled": true,
+      "schedule": "0 17 * * 5",
+      "output_folder": "04_OUTPUTS/vaillant/weekly-digest"
+    },
+    "creative_fatigue_detector": {
+      "enabled": false,
+      "_nota": "Desactivado — Sprint 2. Activar cuando entre en roadmap."
+    }
+  },
+  "operational_inputs": {
+    "_nota": "DEC_075 — el workbook (Drive Operativo) es la fuente de verdad de budget dinámico y tolerancias KPI, editable por Jesús/Sara sin PR. main.py lo lee por Sheets API (operational_inputs.py). Este bloque declara solo el puntero y el fallback degradado.",
+    "workbook": {
+      "file_id": "PENDIENTE",
+      "_nota": "PAID_parametros-operativos-vaillant. Compartir como Viewer con llyc-agents-sa@llyc-ai-first-core.iam.gserviceaccount.com. file_id a rellenar por Jesús cuando el workbook esté creado."
+    },
+    "timezone": "Europe/Madrid",
+    "fallback": {
+      "_nota": "Modo degradado: solo si el workbook no está disponible. Importes a 0 — no se hardcodean valores que derivan del workbook (DEC_075). Con importes 0 budget-pacer reporta N/A y avisa del fallback. Tolerancias KPI conservadas para que performance-monitor siga alertando.",
+      "currency": "EUR",
+      "budget": {
+        "base_eur": 0,
+        "incremental_max_eur": 0
+      },
+      "kpis": [
+        { "nivel": "cuenta", "metrica": "cpl", "parametro": "tolerancia_desviacion_pct", "valor": 20, "ventana": "7d", "enabled": true },
+        { "nivel": "cuenta", "metrica": "pacing", "parametro": "tolerancia_desviacion_pct", "valor": 10, "ventana": "mensual", "enabled": true }
+      ]
+    }
+  },
+  "platforms": {
+    "meta": {
+      "enabled": true,
+      "ad_account_id": "PENDIENTE",
+      "business_manager_id": "PENDIENTE",
+      "utm_medium": "paid_social",
+      "campaigns_in_scope": [],
+      "campaigns_nota": "Sin restricción — el agente monitoriza todas las campañas activas"
+    },
+    "google_ads": {
+      "enabled": true,
+      "customer_id": "PENDIENTE",
+      "manager_id": "PENDIENTE",
+      "utm_medium": [
+        "paid_search",
+        "paid_shopping",
+        "paid_pmax"
+      ],
+      "campaigns_in_scope": [],
+      "campaigns_nota": "Sin restricción — el agente monitoriza todas las campañas activas"
+    },
+    "ga4": {
+      "enabled": true,
+      "property_id": "PENDIENTE",
+      "data_stream_id": "PENDIENTE",
+      "rol": "fuente de verdad primaria de leads y comportamiento web (DEC_074/075). GA4 events = fuente primaria online para Vaillant — no es ecomm."
+    },
+    "tiktok": {
+      "enabled": false,
+      "_nota": "Descartado — DEC_043"
+    },
+    "dv360": {
+      "enabled": false,
+      "_nota": "Fuera de scope Sprint 2. Mismo patrón que V&V — se incorpora en Sprint 3+ si aplica."
+    },
+    "shopify": {
+      "enabled": false,
+      "_nota": "No aplica — Vaillant no es ecommerce."
+    }
+  },
+  "data_sources": {
+    "leads": "ga4",
+    "comportamiento_web": "ga4",
+    "sesiones": "ga4",
+    "atribucion": "ga4",
+    "validacion_cualitativa": "salesforce",
+    "_salesforce_nota": "Salesforce como validación batch de pases comerciales (DEC_074/075). Cadencia exacta pendiente de confirmar con Sara. No leído en runtime Sprint 2 — validación cualitativa manual por el equipo."
+  },
+  "notifications": {
+    "canal": "email",
+    "alert_recipients": [
+      "jesus.lopez@llyc.global",
+      "massimiliano.turinetto@llyc.global"
+    ],
+    "_recipients_nota": "PENDIENTE — confirmar con Jesús si hay contacto de cuenta Vaillant adicional al equipo LLYC.",
+    "alert_levels": [
+      "ALERTA",
+      "ERROR",
+      "PARTIAL",
+      "NORMAL"
+    ]
+  },
+  "credentials": {
+    "meta_access_token": "META_ACCESS_TOKEN",
+    "meta_app_id": "META_APP_ID",
+    "meta_app_secret": "META_APP_SECRET",
+    "google_ads_developer_token": "GOOGLE_ADS_DEVELOPER_TOKEN",
+    "google_ads_client_id": "GOOGLE_ADS_CLIENT_ID",
+    "google_ads_client_secret": "GOOGLE_ADS_CLIENT_SECRET",
+    "google_ads_refresh_token": "GOOGLE_ADS_REFRESH_TOKEN",
+    "ga4_client_id": "GA4_CLIENT_ID",
+    "ga4_client_secret": "GA4_CLIENT_SECRET",
+    "ga4_refresh_token": "GA4_REFRESH_TOKEN",
+    "_gmail_nota": "Gmail secrets viven en llyc-ai-first-core Secret Manager — no son credenciales del cliente (DEC_026).",
+    "_shopify_nota": "No aplica — Vaillant no es ecommerce."
+  },
+  "gcp": {
+    "project_id": "llyc-ai-vaillant",
+    "region": "europe-west1",
+    "function_name": "agent-executor-vaillant",
+    "secret_manager_project": "llyc-ai-vaillant",
+    "secret_manager_core_project": "llyc-ai-first-core",
+    "_anthropic_api_key_nota": "main.py deriva dinámicamente el nombre del secret con el patrón anthropic-api-key-{agent_name}-{client_id} (DEC_058)."
+  },
+  "drive": {
+    "outputs_folder_id": "PENDIENTE",
+    "_nota": "ID de la carpeta 04_OUTPUTS/vaillant/ en Drive. Crear la carpeta y rellenar antes del primer deploy."
+  },
+  "pendientes": [
+    {
+      "campo": "platforms.meta.ad_account_id + business_manager_id",
+      "owner": "Jesús López",
+      "impacto": "Bloquea performance-monitor y budget-pacer en Meta"
+    },
+    {
+      "campo": "platforms.google_ads.customer_id + manager_id",
+      "owner": "Jesús López",
+      "impacto": "Bloquea performance-monitor y budget-pacer en Google Ads"
+    },
+    {
+      "campo": "platforms.ga4.property_id + data_stream_id",
+      "owner": "Jesús López",
+      "impacto": "Bloquea todos los agentes — GA4 es fuente de verdad primaria"
+    },
+    {
+      "campo": "operational_inputs.workbook.file_id",
+      "owner": "Jesús López / Sara Gil",
+      "impacto": "Bloquea budget-pacer y naming-utm-auditor — sin workbook operan en fallback"
+    },
+    {
+      "campo": "drive.outputs_folder_id",
+      "owner": "Alberto González",
+      "impacto": "Bloquea escritura de outputs en Drive"
+    },
+    {
+      "campo": "notifications.alert_recipients",
+      "owner": "Jesús López",
+      "impacto": "Confirmar si hay contacto de cuenta Vaillant adicional"
+    }
+  ],
+  "_metadata": {
+    "version": "1.0",
+    "fecha_creacion": "2026-06-09",
+    "creado_por": "Alberto González",
+    "decisiones_referencia": [
+      "DEC_074 — Vaillant como piloto Sprint 2, lead-gen, fuente de verdad GA4+Salesforce",
+      "DEC_075 — capa de parámetros operativos, workbook como fuente de verdad operativa",
+      "DEC_058 — patrón de API keys por agente+cliente",
+      "DEC_043 — TikTok descartado",
+      "DEC_026 — Gmail secrets en core"
+    ],
+    "proxima_revision": "Cuando Jesús complete los IDs de plataformas y el workbook esté creado"
+  }
+}
