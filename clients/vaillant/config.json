@@ -62,7 +62,7 @@
   "platforms": {
     "meta": {
       "enabled": true,
-      "ad_account_id": "PENDIENTE",
+      "ad_account_id": "3145475265690106",
       "business_manager_id": "PENDIENTE",
       "utm_medium": "paid_social",
       "campaigns_in_scope": [],
@@ -70,8 +70,8 @@
     },
     "google_ads": {
       "enabled": true,
-      "customer_id": "PENDIENTE",
-      "manager_id": "PENDIENTE",
+      "customer_id": "6531369988",
+      "manager_id": "6572886766",
       "utm_medium": [
         "paid_search",
         "paid_shopping",
