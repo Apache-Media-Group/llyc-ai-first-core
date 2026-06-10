@@ -63,7 +63,7 @@
     "meta": {
       "enabled": true,
       "ad_account_id": "3145475265690106",
-      "business_manager_id": "PENDIENTE",
+      "business_manager_id": "542534059266449",
       "utm_medium": "paid_social",
       "campaigns_in_scope": [],
       "campaigns_nota": "Sin restricción — el agente monitoriza todas las campañas activas"
@@ -82,8 +82,8 @@
     },
     "ga4": {
       "enabled": true,
-      "property_id": "PENDIENTE",
-      "data_stream_id": "PENDIENTE",
+      "property_id": "417918775",
+      "data_stream_id": "6423800780",
       "rol": "fuente de verdad primaria de leads y comportamiento web (DEC_074/075). GA4 events = fuente primaria online para Vaillant — no es ecomm."
     },
     "tiktok": {
