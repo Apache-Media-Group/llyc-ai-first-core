@@ -166,66 +166,116 @@ def list_insertion_orders(
         return error("dv360", "UNEXPECTED_ERROR", str(e))
 
 
-# ── TOOL 3: get_campaign_metrics ──────────────────────────────────────────────
+# -- TOOL 3 (reimplementacion): get_campaign_metrics con Query API -------------
+# Sustituye el stub anterior. Fuente: DV360 Query API asincrona (DEC_068).
+# Flujo: queries.create() -> queries.run() -> poll queries.get() -> download CSV -> parse.
+# Timeout interno: 60s. Si polling no resuelve -> error degradado (DEC_022).
+
+import csv
+import io
+import time
+import urllib.request
+
 
 @with_timeout("dv360")
 def get_campaign_metrics(
-    secrets: dict, config: dict, campaign_id: str
+    secrets: dict, config: dict, campaign_id: str,
+    date_range: str = "LAST_7_DAYS"
 ) -> dict:
     """
-    Devuelve métricas de la campaña.
-
-    ESTADO: stub parcial — devuelve entityStatus, budgets y líneas activas.
-    Métricas reales (impresiones, clicks, CPA, gasto) pendientes de decisión
-    sobre fuente de datos: BigQuery export vs DV360 Query API.
-    Ver META_dv360-rescue-inventory §4 y Decisión 064.
-
-    Suficiente para budget-pacer (estado + presupuesto).
-    Insuficiente para performance-monitor (necesita métricas de rendimiento).
+    Devuelve metricas de rendimiento de la campana via DV360 Query API asincrona.
+    date_range: LAST_7_DAYS | LAST_30_DAYS | LAST_90_DAYS | CURRENT_MONTH | PREVIOUS_MONTH
+    Timeout interno de polling: 60s. Si no resuelve devuelve error degradado.
+    Ver DEC_068 - Query API como fuente unica de metricas DV360.
     """
     advertiser_id = config["platforms"]["dv360"]["advertiser_id"]
+    POLL_INTERVAL = 5
+    POLL_TIMEOUT = 60
+
     try:
         svc = _build_service(secrets)
 
-        # Datos del objeto campaña (síncronos, disponibles ahora)
-        campaign = (
-            svc.advertisers()
-            .campaigns()
-            .get(advertiserId=advertiser_id, campaignId=campaign_id)
-            .execute()
-        )
+        query_body = {
+            "metadata": {
+                "title": f"llyc_agent_campaign_{campaign_id}",
+                "dataRange": {"range": date_range},
+                "format": "CSV",
+            },
+            "params": {
+                "type": "TYPE_GENERAL",
+                "groupBys": ["FILTER_DATE", "FILTER_ADVERTISER_CAMPAIGN"],
+                "filters": [
+                    {"type": "FILTER_ADVERTISER", "value": advertiser_id},
+                    {"type": "FILTER_ADVERTISER_CAMPAIGN", "value": campaign_id},
+                ],
+                "metrics": [
+                    "METRIC_IMPRESSIONS",
+                    "METRIC_CLICKS",
+                    "METRIC_CTR",
+                    "METRIC_REVENUE_ADVERTISER",
+                    "METRIC_MEDIA_COST_ADVERTISER",
+                    "METRIC_TOTAL_CONVERSIONS",
+                    "METRIC_LAST_CLICKS_COUNT",
+                ],
+            },
+            "schedule": {"frequency": "ONE_TIME"},
+        }
+        query = svc.queries().create(body=query_body).execute()
+        query_id = query["queryId"]
+        log.info("dv360.get_campaign_metrics query_created query_id=%s", query_id)
 
-        # Line items activos de la campaña
-        li_resp = (
-            svc.advertisers()
-            .lineItems()
-            .list(
-                advertiserId=advertiser_id,
-                filter=f"campaignId={campaign_id}",
+        svc.queries().run(queryId=query_id, body={}).execute()
+
+        elapsed = 0
+        report_url = None
+        while elapsed < POLL_TIMEOUT:
+            time.sleep(POLL_INTERVAL)
+            elapsed += POLL_INTERVAL
+            q = svc.queries().get(queryId=query_id).execute()
+            running = q.get("metadata", {}).get("running")
+            gcs_path = q.get("metadata", {}).get("googleCloudStoragePath")
+            if not running and gcs_path:
+                report_url = gcs_path
+                break
+            log.info("dv360.get_campaign_metrics polling elapsed=%ds", elapsed)
+
+        if not report_url:
+            return error(
+                "dv360", "TIMEOUT",
+                f"Report no listo en {POLL_TIMEOUT}s (query_id={query_id}). "
+                "El agente opera sin metricas DV360 en esta ejecucion."
             )
-            .execute()
-        )
-        line_items = li_resp.get("lineItems", [])
-        active_lis = [
-            li for li in line_items
-            if li.get("entityStatus") == "ENTITY_STATUS_ACTIVE"
-        ]
+
+        with urllib.request.urlopen(report_url) as resp:
+            raw = resp.read().decode("utf-8")
+
+        reader = csv.DictReader(io.StringIO(raw))
+        rows = list(reader)
+
+        total_impressions = sum(int(r.get("Impressions", 0) or 0) for r in rows)
+        total_clicks = sum(int(r.get("Clicks", 0) or 0) for r in rows)
+        total_spend = sum(float(r.get("Revenue (Adv Currency)", 0) or 0) for r in rows)
+        total_conversions = sum(float(r.get("Total Conversions", 0) or 0) for r in rows)
+        ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0.0
+        cpa = (total_spend / total_conversions) if total_conversions > 0 else None
 
         log.info(
-            "dv360.get_campaign_metrics ok advertiser=%s campaign=%s li_total=%d li_active=%d",
-            advertiser_id, campaign_id, len(line_items), len(active_lis),
+            "dv360.get_campaign_metrics ok query_id=%s rows=%d impressions=%d spend=%.2f",
+            query_id, len(rows), total_impressions, total_spend,
         )
         return ok("dv360", {
             "campaign_id": campaign_id,
-            "name": campaign.get("displayName"),
-            "status": campaign.get("entityStatus"),
-            "budgets": campaign.get("campaignBudgets", []),
-            "line_items_total": len(line_items),
-            "line_items_active": len(active_lis),
-            "metrics_note": (
-                "STUB: métricas de rendimiento (impresiones/clicks/CPA/gasto) "
-                "pendientes de fuente de datos. Ver Decisión 064."
-            ),
+            "date_range": date_range,
+            "query_id": query_id,
+            "metrics": {
+                "impressions": total_impressions,
+                "clicks": total_clicks,
+                "ctr_pct": round(ctr, 2),
+                "spend_advertiser_currency": round(total_spend, 2),
+                "total_conversions": round(total_conversions, 2),
+                "cpa": round(cpa, 2) if cpa is not None else None,
+            },
+            "daily_breakdown": rows,
         })
 
     except HttpError as e:
