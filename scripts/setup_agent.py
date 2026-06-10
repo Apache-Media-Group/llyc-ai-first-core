@@ -104,10 +104,6 @@ def validate_config(config: dict, agent_name: str) -> None:
             config.get("client", {}).get("id")),
         ("client.name",
             config.get("client", {}).get("name")),
-        ("kpis.roas_blended_base_target",
-            config.get("kpis", {}).get("roas_blended_base_target")),
-        ("umbrales.roas.alerta_desviacion_pct",
-            config.get("umbrales", {}).get("roas", {}).get("alerta_desviacion_pct")),
         ("gcp.secret_manager_project",
             config.get("gcp", {}).get("secret_manager_project")),
     ]
@@ -274,11 +270,11 @@ def setup(client_id: str, agent_name: str, dry_run: bool) -> None:
         print("\nPASOS QUE EJECUTARÍA SIN --dry-run:")
         client_project_id = config["gcp"]["secret_manager_project"]
         secret_name = f"anthropic-api-key-{agent_name}-{client_id}"
-        print(f"  1. Solicitar Anthropic API key (getpass, sin shell history)")
+        print("  1. Solicitar Anthropic API key (getpass, sin shell history)")
         print(f"  2. Crear/actualizar secret '{secret_name}' en {client_project_id}")
         print(f"  3. Grant 'roles/secretmanager.secretAccessor' a {AGENTS_SA}")
         print(f"  4. Marcar config.agents[{agent_name}].enabled=true + created_at")
-        print(f"  5. Imprimir comando curl de validación E2E")
+        print("  5. Imprimir comando curl de validación E2E")
         print("=" * 70)
         return
 

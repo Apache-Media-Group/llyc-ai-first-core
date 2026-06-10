@@ -55,106 +55,45 @@
         "roas_floor_incremental": 3.0
       },
       "kpis": [
-        { "nivel": "cuenta", "metrica": "roas", "parametro": "tolerancia_desviacion_pct", "valor": 15, "ventana": "7d", "enabled": true },
-        { "nivel": "cuenta", "metrica": "cpa", "parametro": "tolerancia_desviacion_pct", "valor": 20, "ventana": "7d", "enabled": true },
-        { "nivel": "cuenta", "metrica": "pacing", "parametro": "tolerancia_desviacion_pct", "valor": 10, "ventana": "mensual", "enabled": true }
+        {
+          "nivel": "cuenta",
+          "metrica": "roas",
+          "parametro": "tolerancia_desviacion_pct",
+          "valor": 15,
+          "ventana": "7d",
+          "enabled": true
+        },
+        {
+          "nivel": "cuenta",
+          "metrica": "cpa",
+          "parametro": "tolerancia_desviacion_pct",
+          "valor": 20,
+          "ventana": "7d",
+          "enabled": true
+        },
+        {
+          "nivel": "cuenta",
+          "metrica": "pacing",
+          "parametro": "tolerancia_desviacion_pct",
+          "valor": 10,
+          "ventana": "mensual",
+          "enabled": true
+        }
       ]
     }
   },
   "kpis": {
-    "revenue_anual_objetivo_eur": 1730000,
-    "roas_blended_base_target": 5.0,
-    "roas_blended_dinamico_minimo": 3.0,
     "roas_blended_ponderado_formula": "(inv_base * 5.0 + inv_dinamica * 3.0) / (inv_base + inv_dinamica)",
-    "aov_eur": 76.61,
     "aov_nuevos_eur": 75.42,
     "aov_recurrentes_eur": 80.67,
-    "cpa_google_provisional_eur": 11.46,
-    "cpa_meta_provisional_eur": 28.04,
-    "cpa_combinado_provisional_eur": 17.48,
     "ctr_google_provisional_pct": 3.1,
     "ctr_meta_provisional_pct": 3.2,
-    "ctr_combinado_provisional_pct": 3.2,
     "kpis_provisionales_nota": "CPA y CTR calculados sobre Feb-Abr 2026 (90 días). Revisar tras 6 semanas en producción.",
     "margen_bruto": null,
     "margen_bruto_nota": "No declarado — el cliente no ha facilitado este dato"
   },
-  "presupuesto_2026": {
-    "reparto_nota": "Reparto aproximado: 60% Meta / 40% Google Ads",
-    "dinamico_nota": "Todo gasto que supere el presupuesto base mensual declarado se considera inversión dinámica. El sistema calcula el ROAS blended ponderado para validar que se cumple el mínimo de 3.0x.",
-    "activador": "jesus.lopez@llyc.global",
-    "seguimiento": "Semanal con Ignasi",
-    "mensual": {
-      "2026-01": {
-        "total": 24871,
-        "meta": 14923,
-        "google": 9948
-      },
-      "2026-02": {
-        "total": 14514,
-        "meta": 8708,
-        "google": 5806
-      },
-      "2026-03": {
-        "total": 15250,
-        "meta": 9150,
-        "google": 6100
-      },
-      "2026-04": {
-        "total": 28775,
-        "meta": 17265,
-        "google": 11510
-      },
-      "2026-05": {
-        "total": 23350,
-        "meta": 14010,
-        "google": 9340
-      },
-      "2026-06": {
-        "total": 33350,
-        "meta": 20010,
-        "google": 13340
-      },
-      "2026-07": {
-        "total": 24400,
-        "meta": 14640,
-        "google": 9760
-      },
-      "2026-08": {
-        "total": 18300,
-        "meta": 10980,
-        "google": 7320
-      },
-      "2026-09": {
-        "total": 26775,
-        "meta": 16065,
-        "google": 10710
-      },
-      "2026-10": {
-        "total": 32825,
-        "meta": 19695,
-        "google": 13130
-      },
-      "2026-11": {
-        "total": 64850,
-        "meta": 38910,
-        "google": 25940
-      },
-      "2026-12": {
-        "total": 72950,
-        "meta": 43770,
-        "google": 29180
-      }
-    },
-    "total_anual": {
-      "total": 380210,
-      "meta": 228126,
-      "google": 152084
-    }
-  },
   "umbrales": {
     "roas": {
-      "alerta_desviacion_pct": 10,
       "minimo_absoluto": 5.0,
       "ventana": "semanal",
       "por_periodo": {
@@ -184,7 +123,6 @@
       }
     },
     "budget": {
-      "alerta_desviacion_pct": 10,
       "ventana": "diaria",
       "nota": "Compara gasto acumulado del mes vs ritmo esperado a fecha de hoy"
     },
@@ -535,12 +473,14 @@
     }
   ],
   "_metadata": {
-    "version": "3.0",
+    "version": "4.0",
     "fecha_creacion": "2026-05-24",
     "creado_por": "Sara Gil + Claude AI-First",
     "decisiones_referencia": [
       "Decisión 046 — seasonality calendar",
-      "Decisión 048 — shopify DTC source"
+      "Decisión 048 — shopify DTC source",
+      "Decisión 075 — workbook fuente única de parámetros operativos",
+      "Decisión 081 — poda de budget/tolerancias/refs de config"
     ],
     "proxima_revision": "Tras 6 semanas en producción — calibrar CPA, CTR e inventory_paid_mismatch"
   },
