@@ -109,7 +109,7 @@
     "dv360": {
       "enabled": false,
       "advertiser_id": "PENDIENTE",
-      "_nota": "Fuera de scope por defecto. Activar en Sprint 3+ si aplica (DEC_064). advertiser_id a rellenar con el ID del advertiser del cliente."
+      "_nota": "API directa via tools/dv360.py (DEC_083). enabled=false por defecto. Activar en Sprint 3+ si aplica. advertiser_id a rellenar con el ID del advertiser del cliente."
     },
     "shopify": {
       "enabled": false,
