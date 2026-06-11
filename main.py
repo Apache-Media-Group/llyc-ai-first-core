@@ -78,7 +78,7 @@ SUPPORTED_AGENTS = {
 
 
 # Mapa de despacho: nombre de tool que pide el agente → función ejecutora.
-# DV360 NO está aquí — vive en su propio MCP server en Cloud Run (DEC_037).
+# DV360 — tools/dv360.py, API directa (DEC_083, deroga DEC_064 y DEC_037).
 TOOL_DISPATCHER = {
     # Meta
     "get_meta_performance":             meta.get_meta_performance,
@@ -106,7 +106,7 @@ TOOL_DISPATCHER = {
     "get_shopify_inventory_status":     shopify.get_shopify_inventory_status,
     "get_shopify_active_discounts":     shopify.get_shopify_active_discounts,
 
-    # DV360 (DEC_064) — inerte si dv360.enabled=false en config del cliente
+    # DV360 (DEC_083) — inerte si dv360.enabled=false en config del cliente
     "dv360_list_campaigns":             dv360.list_campaigns,
     "dv360_list_insertion_orders":       dv360.list_insertion_orders,
     "dv360_get_campaign_metrics":        dv360.get_campaign_metrics,

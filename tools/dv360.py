@@ -9,7 +9,7 @@ POC Sprint 1 — 3 herramientas prioritarias:
   - list_campaigns
   - list_insertion_orders
 
-Refactor aplicado sobre dv360_client.py (Apache-Media-Group/dv360-mcp-server):
+Refactor aplicado sobre dv360_client.py (Apache-Media-Group/dv360-mcp-server, archivado):
   1. Credenciales vía Secret Manager (DEC_026)
   2. advertiser_id / partner_id desde config.json del cliente
   3. @with_timeout("dv360") — 45s (DEC_022, response.py)
