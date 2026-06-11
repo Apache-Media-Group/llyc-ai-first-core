@@ -41,7 +41,7 @@ import google.cloud.logging
 import anthropic
 
 from tools.response import ok, error
-from tools import meta, google_ads, ga4, drive, notifications, shopify
+from tools import meta, google_ads, ga4, drive, notifications, shopify, dv360
 from tools.email import render_email_html
 from tools.definitions import get_tool_definitions  # DEC_065
 from prompt_builder import load_static_prompt, build_dynamic_context  # F-CloudLog (29/05)
@@ -105,6 +105,19 @@ TOOL_DISPATCHER = {
     "get_shopify_customer_segment":     shopify.get_shopify_customer_segment,
     "get_shopify_inventory_status":     shopify.get_shopify_inventory_status,
     "get_shopify_active_discounts":     shopify.get_shopify_active_discounts,
+
+    # DV360 (DEC_064) — inerte si dv360.enabled=false en config del cliente
+    "dv360_list_campaigns":             dv360.list_campaigns,
+    "dv360_list_insertion_orders":       dv360.list_insertion_orders,
+    "dv360_get_campaign_metrics":        dv360.get_campaign_metrics,
+    "dv360_get_campaign":                dv360.get_campaign,
+    "dv360_list_line_items":             dv360.list_line_items,
+    "dv360_get_line_item":               dv360.get_line_item,
+    "dv360_get_targeting":               dv360.get_targeting,
+    "dv360_get_insertion_order":         dv360.get_insertion_order,
+    "dv360_list_creatives":              dv360.list_creatives,
+    "dv360_list_google_audiences":       dv360.list_google_audiences,
+    "dv360_search_targeting_options":    dv360.search_targeting_options,
 
     # tiktok → Sprint 1.5 (Jesús pendiente de validar access token)
 }
