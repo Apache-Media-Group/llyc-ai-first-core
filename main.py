@@ -1095,7 +1095,7 @@ def agent_executor(request):
         }))
 
         system_prompt = f"{static_prompt}\n\n{dynamic_context}\n\n{to_prompt_block(oi)}"
-        tools = get_tool_definitions(agent_name.replace("-", "_"))
+        tools = get_tool_definitions(agent_name.replace("-", "_"), config)
 
         # ── 7. Construir user_message e invocar el agent ──────────────────────
         user_message = build_user_message(agent_name, config, analysis_date)

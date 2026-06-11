@@ -354,6 +354,155 @@ GET_GA4_WEEKLY_COMPARISON = {
 }
 
 
+# --- DV360 TOOL DEFINITIONS - Fase 2 (DEC_064) ------------------------------
+ 
+DV360_GET_CAMPAIGN = {
+    "type": "custom",
+    "name": "dv360_get_campaign",
+    "description": (
+        "Obtiene los datos de una campana DV360 por ID. "
+        "Devuelve nombre, estado, objetivo y presupuestos. "
+        "Usar cuando se necesita el detalle de una campana concreta "
+        "ya identificada via dv360_list_campaigns."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "campaign_id": {"type": "string", "description": "ID de la campana DV360."},
+        },
+        "required": ["campaign_id"],
+    },
+}
+ 
+DV360_LIST_LINE_ITEMS = {
+    "type": "custom",
+    "name": "dv360_list_line_items",
+    "description": (
+        "Lista Line Items del advertiser DV360. "
+        "Si se especifica campaign_id, filtra por campana. "
+        "Devuelve id, nombre, estado, tipo, pacing, presupuesto y bid strategy. "
+        "Util para analizar la estructura de activacion y ritmo de gasto granular."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "campaign_id": {"type": "string", "description": "ID de campana para filtrar. Si se omite devuelve todos los LIs."},
+            "filter_str": {"type": "string", "description": "Filtro adicional en formato DV360 API."},
+        },
+        "required": [],
+    },
+}
+ 
+DV360_GET_LINE_ITEM = {
+    "type": "custom",
+    "name": "dv360_get_line_item",
+    "description": (
+        "Obtiene el detalle completo de un Line Item DV360 por ID. "
+        "Devuelve estado, tipo, pacing, presupuesto, bid strategy y targeting expansion. "
+        "Usar tras dv360_list_line_items para inspeccionar un LI concreto."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "line_item_id": {"type": "string", "description": "ID del Line Item DV360."},
+        },
+        "required": ["line_item_id"],
+    },
+}
+ 
+DV360_GET_TARGETING = {
+    "type": "custom",
+    "name": "dv360_get_targeting",
+    "description": (
+        "Obtiene el targeting asignado a un Line Item DV360. "
+        "Por defecto consulta: GEO_REGION, DEVICE_TYPE, AUDIENCE_GROUP, AGE_RANGE, GENDER. "
+        "Se puede especificar una lista de tipos concretos. "
+        "Util para auditar coherencia entre targeting y KPIs del cliente."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "line_item_id": {"type": "string", "description": "ID del Line Item DV360."},
+            "targeting_types": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Lista de tipos de targeting a consultar. Si se omite consulta los 5 principales.",
+            },
+        },
+        "required": ["line_item_id"],
+    },
+}
+ 
+DV360_GET_INSERTION_ORDER = {
+    "type": "custom",
+    "name": "dv360_get_insertion_order",
+    "description": (
+        "Obtiene el detalle de un Insertion Order DV360 por ID. "
+        "Devuelve estado, pacing, segmentos de presupuesto y frequency cap. "
+        "Usar tras dv360_list_insertion_orders para inspeccionar un IO concreto."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "insertion_order_id": {"type": "string", "description": "ID del Insertion Order DV360."},
+        },
+        "required": ["insertion_order_id"],
+    },
+}
+ 
+DV360_LIST_CREATIVES = {
+    "type": "custom",
+    "name": "dv360_list_creatives",
+    "description": (
+        "Lista creatividades del advertiser DV360. "
+        "Devuelve id, nombre, estado, tipo, dimensiones y estado de revision. "
+        "Base para el agente creative-fatigue-detector (Sprint 2+)."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "filter_str": {"type": "string", "description": "Filtro opcional en formato DV360 API."},
+        },
+        "required": [],
+    },
+}
+ 
+DV360_LIST_GOOGLE_AUDIENCES = {
+    "type": "custom",
+    "name": "dv360_list_google_audiences",
+    "description": (
+        "Lista audiencias de Google disponibles para targeting en DV360. "
+        "Devuelve id, nombre y tipo de audiencia. "
+        "Util para auditar audiencias activas y detectar solapamientos o gaps."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "filter_str": {"type": "string", "description": "Filtro opcional en formato DV360 API."},
+        },
+        "required": [],
+    },
+}
+ 
+DV360_SEARCH_TARGETING_OPTIONS = {
+    "type": "custom",
+    "name": "dv360_search_targeting_options",
+    "description": (
+        "Busca opciones de targeting disponibles por tipo en DV360. "
+        "Util para descubrir valores validos antes de asignarlos. "
+        "targeting_type ejemplos: TARGETING_TYPE_GEO_REGION, TARGETING_TYPE_DEVICE_TYPE."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "targeting_type": {"type": "string", "description": "Tipo de targeting a consultar (TARGETING_TYPE_*)."},
+            "search_terms": {"type": "string", "description": "Termino de busqueda opcional para filtrar resultados."},
+        },
+        "required": ["targeting_type"],
+    },
+}
+ 
+
 # ─── SHOPIFY TOOL DEFINITIONS ────────────────────────────────────────────────
 #
 # Shopify es fuente de verdad de revenue (DEC_048). Las 4 tools alimentan
@@ -750,23 +899,24 @@ TOOL_DEFINITIONS_BY_AGENT = {
         GET_META_PERFORMANCE,
         GET_GOOGLE_ADS_PERFORMANCE,
         GET_GA4_PERFORMANCE,
-        GET_SHOPIFY_ORDERS_PERIOD,  # DEC_048 — ground truth revenue + triangulación 3-way
-        # DV360 excluido — ver Decisión 064 y META_dv360-rescue-inventory §4.
-        # Shopify customer_segment/inventory/discounts en catálogo, asignados a weekly-digest.
+        GET_SHOPIFY_ORDERS_PERIOD,      # DEC_048 -- ground truth revenue + triangulacion 3-way
+        DV360_GET_CAMPAIGN_METRICS,     # DEC_068 -- Query API; inerte si dv360.enabled=false
+        DV360_LIST_CAMPAIGNS,
+        DV360_LIST_INSERTION_ORDERS,
     ],
     "budget_pacer": [
         GET_META_SPEND_MONTH,
         GET_GOOGLE_ADS_SPEND_MONTH,
-        GET_SHOPIFY_ORDERS_PERIOD,   # DEC_048 — revenue ground truth para el ROAS blended
-                                     # del modelo dinámico (DEC_060/061/062 + DEC_075).
-        # DV360 excluido — dv360_get_campaign_metrics no está en TOOL_DISPATCHER
-        # (vive en MCP server en Cloud Run, DEC_037).
+        GET_SHOPIFY_ORDERS_PERIOD,      # DEC_048 -- revenue ground truth ROAS blended
+        DV360_GET_CAMPAIGN_METRICS,     # DEC_068 -- inerte si dv360.enabled=false
+        DV360_LIST_INSERTION_ORDERS,
     ],
     "naming_utm_auditor": [
         GET_META_ACTIVE_AD_URLS,
         GET_META_ACTIVE_CAMPAIGNS,
         GET_GOOGLE_ADS_ACTIVE_AD_URLS,
         GET_GOOGLE_ADS_ACTIVE_CAMPAIGNS,
+        # DV360 naming/UTM fuera de scope Sprint 2
     ],
     "weekly_digest": [
         GET_META_PERFORMANCE,
@@ -777,38 +927,65 @@ TOOL_DEFINITIONS_BY_AGENT = {
         GET_SHOPIFY_CUSTOMER_SEGMENT,
         GET_SHOPIFY_INVENTORY_STATUS,
         GET_SHOPIFY_ACTIVE_DISCOUNTS,
-        # DV360 excluido — dv360_list_campaigns y dv360_list_insertion_orders
-        # no están en TOOL_DISPATCHER (MCP server en Cloud Run, DEC_037).
+        DV360_GET_CAMPAIGN_METRICS,     # DEC_068 -- inerte si dv360.enabled=false
+        DV360_LIST_CAMPAIGNS,
+        DV360_LIST_INSERTION_ORDERS,
+        DV360_LIST_CREATIVES,           # Base creative-fatigue-detector Sprint 2+
     ],
-    # Otros agentes — añadir entrada cuando se desarrollen siguiendo el patrón
-    # de DEC_021. Las tools del catálogo se reutilizan; las nuevas se definen
-    # como constante a nivel módulo arriba antes de referenciarlas aquí.
 }
+ 
 
 
-def get_tool_definitions(agent_name: str) -> list:
+
+def get_tool_definitions(agent_name: str, config: dict = None) -> list:
     """
     Devuelve la lista de tool definitions para el agente solicitado.
-
+    Filtra tools de plataformas con enabled=false en el config del cliente.
+ 
     Args:
-        agent_name: Nombre del agente (snake_case). Debe existir en
-            TOOL_DEFINITIONS_BY_AGENT.
-
+        agent_name: Nombre del agente (snake_case).
+        config: Config del cliente. Si None devuelve catalogo completo (retrocompatible).
+ 
     Returns:
-        Lista de dicts con tool definitions listos para enviar a Anthropic
-        en el campo `tools` al crear el Managed Agent.
-
+        Lista de dicts con tool definitions listos para enviar a Anthropic.
+ 
     Raises:
-        KeyError: Si el agente no tiene tools registradas en el dict.
-            Indica que el agente no está bootstrappeado o que se está
-            invocando antes de haber registrado sus tools en este fichero.
+        KeyError: Si el agente no tiene tools registradas.
     """
     if agent_name not in TOOL_DEFINITIONS_BY_AGENT:
         registered = sorted(TOOL_DEFINITIONS_BY_AGENT.keys())
         raise KeyError(
             f"Agente '{agent_name}' no tiene tool definitions registradas. "
             f"Agentes disponibles: {registered}. "
-            f"Si '{agent_name}' es nuevo, añadir su entrada en "
+            f"Si '{agent_name}' es nuevo, anadir su entrada en "
             f"tools/definitions.py:TOOL_DEFINITIONS_BY_AGENT."
         )
-    return TOOL_DEFINITIONS_BY_AGENT[agent_name]
+ 
+    tools = list(TOOL_DEFINITIONS_BY_AGENT[agent_name])
+ 
+    if config is None:
+        return tools
+ 
+    platforms = config.get("platforms", {})
+    disabled = {
+        name for name, cfg in platforms.items()
+        if isinstance(cfg, dict) and not cfg.get("enabled", True)
+    }
+ 
+    PLATFORM_TOOL_PREFIX = {
+        "dv360": "dv360_",
+        "tiktok": "tiktok_",
+        "shopify": "shopify_",
+    }
+ 
+    prefixes_to_exclude = {
+        PLATFORM_TOOL_PREFIX[p] for p in disabled if p in PLATFORM_TOOL_PREFIX
+    }
+ 
+    if not prefixes_to_exclude:
+        return tools
+ 
+    return [
+        t for t in tools
+        if not any(t["name"].startswith(prefix) for prefix in prefixes_to_exclude)
+    ]
