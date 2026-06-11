@@ -54,8 +54,22 @@
         "incremental_max_eur": 0
       },
       "kpis": [
-        { "nivel": "cuenta", "metrica": "cpl", "parametro": "tolerancia_desviacion_pct", "valor": 20, "ventana": "7d", "enabled": true },
-        { "nivel": "cuenta", "metrica": "pacing", "parametro": "tolerancia_desviacion_pct", "valor": 10, "ventana": "mensual", "enabled": true }
+        {
+          "nivel": "cuenta",
+          "metrica": "cpl",
+          "parametro": "tolerancia_desviacion_pct",
+          "valor": 20,
+          "ventana": "7d",
+          "enabled": true
+        },
+        {
+          "nivel": "cuenta",
+          "metrica": "pacing",
+          "parametro": "tolerancia_desviacion_pct",
+          "valor": 10,
+          "ventana": "mensual",
+          "enabled": true
+        }
       ]
     }
   },
@@ -92,7 +106,8 @@
     },
     "dv360": {
       "enabled": false,
-      "_nota": "Fuera de scope Sprint 2. Mismo patrón que V&V — se incorpora en Sprint 3+ si aplica."
+      "advertiser_id": "1169341103",
+      "_nota": "Fuera de scope Sprint 2. Activar en Sprint 3+ si aplica (DEC_064). advertiser_id listo para cuando se active."
     },
     "shopify": {
       "enabled": false,
