@@ -107,7 +107,7 @@
     "dv360": {
       "enabled": false,
       "advertiser_id": "1169341103",
-      "_nota": "Fuera de scope Sprint 2. Activar en Sprint 3+ si aplica (DEC_064). advertiser_id listo para cuando se active."
+      "_nota": "API directa via tools/dv360.py (DEC_083, deroga DEC_064 y DEC_037). enabled=false — activar en Sprint 3+ cuando se decida. advertiser_id listo."
     },
     "shopify": {
       "enabled": false,
