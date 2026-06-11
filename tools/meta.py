@@ -94,12 +94,14 @@ def get_meta_performance(ad_account_id: str, date_start: str, date_end: str, met
         insight = results[0]
         spend = float(insight.get("spend", 0))
 
-        # Revenue: suma de purchase_value en action_values
+        # Revenue: omni_purchase es el evento canonico deduplicado de Meta
+        # (web/app/offline). NO sumar "purchase": esta contenido en
+        # omni_purchase y duplica el valor (x2 en cuentas web-only).
         action_values = insight.get("action_values", [])
         revenue = sum(
             float(av["value"])
             for av in action_values
-            if av["action_type"] in ("omni_purchase", "purchase")
+            if av["action_type"] == "omni_purchase"
         )
 
         # Conversiones: suma de purchase actions
@@ -107,7 +109,7 @@ def get_meta_performance(ad_account_id: str, date_start: str, date_end: str, met
         conversions = sum(
             int(float(a["value"]))
             for a in actions
-            if a["action_type"] in ("omni_purchase", "purchase")
+            if a["action_type"] == "omni_purchase"
         )
 
         roas = revenue / spend if spend > 0 else 0.0
