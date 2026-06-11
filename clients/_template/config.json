@@ -108,7 +108,8 @@
     },
     "dv360": {
       "enabled": false,
-      "_nota": "Fuera de scope por defecto. Activar en Sprint 3+ si aplica (DEC_064)."
+      "advertiser_id": "PENDIENTE",
+      "_nota": "Fuera de scope por defecto. Activar en Sprint 3+ si aplica (DEC_064). advertiser_id a rellenar con el ID del advertiser del cliente."
     },
     "shopify": {
       "enabled": false,
