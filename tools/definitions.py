@@ -283,9 +283,13 @@ GET_META_ACTIVE_AD_URLS = {
     "description": (
         "Extrae las URLs de destino de todos los ads activos de Meta para auditar "
         "parámetros UTM y naming convention. "
-        "Devuelve lista de ads con ad_id, ad_name, adset_name, campaign_name y "
-        "destination_url. Usado por naming-utm-auditor para detectar UTMs "
-        "incompletos o incumplimientos de naming."
+        "Devuelve lista de ads con ad_id, ad_name, adset_name, campaign_name, "
+        "destination_url (link crudo del creative), url_tags (template UTM que "
+        "Meta anexa en delivery) y effective_url (link + url_tags con macros "
+        "{{campaign.name}} etc. resueltos). En Meta los UTMs viven en url_tags, "
+        "no en el link: la verificación UTM debe hacerse sobre effective_url. "
+        "Usado por naming-utm-auditor para detectar UTMs incompletos o "
+        "incumplimientos de naming."
     ),
     "input_schema": {
         "type": "object",
@@ -336,6 +340,36 @@ GET_GOOGLE_ADS_ACTIVE_AD_URLS = {
         "Devuelve lista de ads con ad_id, ad_name, ad_type, adgroup_name, "
         "campaign_name, channel_type y destination_url. "
         "Usado por naming-utm-auditor."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "customer_id": {
+                "type": "string",
+                "description": (
+                    "ID de la cuenta Google Ads sin guiones. Ejemplo: "
+                    "'2756616331' (no '275-661-6331')."
+                ),
+            },
+        },
+        "required": ["customer_id"],
+    },
+}
+
+
+GET_GOOGLE_ADS_URL_SETTINGS = {
+    "type": "custom",
+    "name": "get_google_ads_url_settings",
+    "description": (
+        "Devuelve la configuración de tracking de URLs de Google Ads a nivel "
+        "customer y campaign: auto_tagging_enabled, tracking_url_template y "
+        "final_url_suffix. En Google Ads el tracking canónico es el auto-tagging "
+        "(GCLID): si auto_tagging_enabled=true y no hay tracking_url_template ni "
+        "final_url_suffix manuales, la ausencia de UTMs en los final_urls de los "
+        "ads NO es un error — no generes UTM_MISSING en ese caso. Si hay UTMs "
+        "manuales en suffix/template que puedan pisar el GCLID, repórtalo. "
+        "campaigns_with_overrides lista solo las campañas ENABLED que pisan el "
+        "setting de cuenta. Usado por naming-utm-auditor."
     ),
     "input_schema": {
         "type": "object",
@@ -809,8 +843,8 @@ TOOL_DEFINITIONS_BY_AGENT = {
         GET_GOOGLE_ADS_SPEND_MONTH,
         GET_META_SPEND_TODAY,
         GET_GOOGLE_ADS_SPEND_TODAY,
-        GET_SHOPIFY_ORDERS_PERIOD,   # DEC_048 — revenue ground truth para el ROAS blended
-                                     # del modelo dinámico (DEC_060/061/062 + DEC_075).
+        GET_SHOPIFY_ORDERS_PERIOD,  # DEC_048 — revenue ground truth para el ROAS blended
+        # del modelo dinámico (DEC_060/061/062 + DEC_075).
         # DV360 excluido — dv360_get_campaign_metrics no está en TOOL_DISPATCHER
         # (vive en MCP server en Cloud Run, DEC_037).
     ],
@@ -819,6 +853,7 @@ TOOL_DEFINITIONS_BY_AGENT = {
         GET_META_ACTIVE_CAMPAIGNS,
         GET_GOOGLE_ADS_ACTIVE_AD_URLS,
         GET_GOOGLE_ADS_ACTIVE_CAMPAIGNS,
+        GET_GOOGLE_ADS_URL_SETTINGS,
     ],
     "weekly_digest": [
         GET_META_PERFORMANCE,

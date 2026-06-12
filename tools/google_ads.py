@@ -24,6 +24,7 @@ from tools.response import ok, error, with_timeout
 # INICIALIZACIÓN
 # ─────────────────────────────────────────────
 
+
 def init_google_ads_client(
     developer_token: str,
     client_id: str,
@@ -50,6 +51,7 @@ def init_google_ads_client(
 # ─────────────────────────────────────────────
 # PERFORMANCE MONITOR
 # ─────────────────────────────────────────────
+
 
 @with_timeout("google_ads")
 def get_google_ads_performance(
@@ -113,18 +115,20 @@ def get_google_ads_performance(
                 clicks = row.metrics.clicks
                 roas = revenue / spend if spend > 0 else 0.0
 
-                campaigns.append({
-                    "campaign_id": str(row.campaign.id),
-                    "campaign_name": row.campaign.name,
-                    "channel_type": row.campaign.advertising_channel_type.name,
-                    "spend_eur": round(spend, 2),
-                    "revenue_eur": round(revenue, 2),
-                    "roas": round(roas, 2),
-                    "conversions": round(conversions, 1),
-                    "impressions": impressions,
-                    "clicks": clicks,
-                    "ctr_pct": round(row.metrics.ctr, 4),
-                })
+                campaigns.append(
+                    {
+                        "campaign_id": str(row.campaign.id),
+                        "campaign_name": row.campaign.name,
+                        "channel_type": row.campaign.advertising_channel_type.name,
+                        "spend_eur": round(spend, 2),
+                        "revenue_eur": round(revenue, 2),
+                        "roas": round(roas, 2),
+                        "conversions": round(conversions, 1),
+                        "impressions": impressions,
+                        "clicks": clicks,
+                        "ctr_pct": round(row.metrics.ctr, 4),
+                    }
+                )
 
                 total_spend += spend
                 total_revenue += revenue
@@ -135,18 +139,21 @@ def get_google_ads_performance(
         total_roas = total_revenue / total_spend if total_spend > 0 else 0.0
         total_ctr = total_clicks / total_impressions if total_impressions > 0 else 0.0
 
-        return ok("google_ads", {
-            "spend_eur": round(total_spend, 2),
-            "revenue_eur": round(total_revenue, 2),
-            "roas": round(total_roas, 2),
-            "conversions": round(total_conversions, 1),
-            "impressions": total_impressions,
-            "clicks": total_clicks,
-            "ctr_pct": round(total_ctr, 4),
-            "campaigns": campaigns,
-            "date_start": date_start,
-            "date_end": date_end,
-        })
+        return ok(
+            "google_ads",
+            {
+                "spend_eur": round(total_spend, 2),
+                "revenue_eur": round(total_revenue, 2),
+                "roas": round(total_roas, 2),
+                "conversions": round(total_conversions, 1),
+                "impressions": total_impressions,
+                "clicks": total_clicks,
+                "ctr_pct": round(total_ctr, 4),
+                "campaigns": campaigns,
+                "date_start": date_start,
+                "date_end": date_end,
+            },
+        )
 
     except GoogleAdsException as e:
         return error(
@@ -161,6 +168,7 @@ def get_google_ads_performance(
 # ─────────────────────────────────────────────
 # BUDGET PACER
 # ─────────────────────────────────────────────
+
 
 @with_timeout("google_ads")
 def get_google_ads_spend_today(
@@ -183,15 +191,16 @@ def get_google_ads_spend_today(
 
         response = ga_service.search_stream(customer_id=str(customer_id), query=query)
         total_micros = sum(
-            row.metrics.cost_micros
-            for batch in response
-            for row in batch.results
+            row.metrics.cost_micros for batch in response for row in batch.results
         )
 
-        return ok("google_ads", {
-            "spend_today_eur": round(total_micros / 1_000_000, 2),
-            "date_preset": "today",
-        })
+        return ok(
+            "google_ads",
+            {
+                "spend_today_eur": round(total_micros / 1_000_000, 2),
+                "date_preset": "today",
+            },
+        )
 
     except GoogleAdsException as e:
         return error(
@@ -224,15 +233,16 @@ def get_google_ads_spend_month(
 
         response = ga_service.search_stream(customer_id=str(customer_id), query=query)
         total_micros = sum(
-            row.metrics.cost_micros
-            for batch in response
-            for row in batch.results
+            row.metrics.cost_micros for batch in response for row in batch.results
         )
 
-        return ok("google_ads", {
-            "spend_month_eur": round(total_micros / 1_000_000, 2),
-            "date_preset": "this_month",
-        })
+        return ok(
+            "google_ads",
+            {
+                "spend_month_eur": round(total_micros / 1_000_000, 2),
+                "date_preset": "this_month",
+            },
+        )
 
     except GoogleAdsException as e:
         return error(
@@ -247,6 +257,7 @@ def get_google_ads_spend_month(
 # ─────────────────────────────────────────────
 # NAMING & UTM AUDITOR
 # ─────────────────────────────────────────────
+
 
 @with_timeout("google_ads")
 def get_google_ads_active_ad_urls(
@@ -282,20 +293,118 @@ def get_google_ads_active_ad_urls(
         for batch in response:
             for row in batch.results:
                 final_urls = list(row.ad_group_ad.ad.final_urls)
-                ad_list.append({
-                    "ad_id": str(row.ad_group_ad.ad.id),
-                    "ad_name": row.ad_group_ad.ad.name,
-                    "ad_type": row.ad_group_ad.ad.type_.name,
-                    "adgroup_name": row.ad_group.name,
-                    "campaign_name": row.campaign.name,
-                    "channel_type": row.campaign.advertising_channel_type.name,
-                    "destination_url": final_urls[0] if final_urls else None,
-                })
+                ad_list.append(
+                    {
+                        "ad_id": str(row.ad_group_ad.ad.id),
+                        "ad_name": row.ad_group_ad.ad.name,
+                        "ad_type": row.ad_group_ad.ad.type_.name,
+                        "adgroup_name": row.ad_group.name,
+                        "campaign_name": row.campaign.name,
+                        "channel_type": row.campaign.advertising_channel_type.name,
+                        "destination_url": final_urls[0] if final_urls else None,
+                    }
+                )
 
-        return ok("google_ads", {
-            "ads": ad_list,
-            "total_active_ads": len(ad_list),
-        })
+        return ok(
+            "google_ads",
+            {
+                "ads": ad_list,
+                "total_active_ads": len(ad_list),
+            },
+        )
+
+    except GoogleAdsException as e:
+        return error(
+            "google_ads",
+            "API_ERROR",
+            f"GoogleAdsException: {e.error.code().name}",
+        )
+    except Exception as e:
+        return error("google_ads", "UNEXPECTED_ERROR", str(e))
+
+
+@with_timeout("google_ads")
+def get_google_ads_url_settings(
+    client: GoogleAdsClient,
+    customer_id: str,
+) -> dict:
+    """
+    Devuelve la configuración de tracking de URLs a nivel customer y campaign:
+    auto_tagging_enabled, tracking_url_template y final_url_suffix.
+    Usado por: naming-utm-auditor.
+
+    En Google Ads el tracking canónico es el auto-tagging (GCLID). UTMs manuales
+    en tracking_url_template / final_url_suffix pueden pisar el GCLID o duplicar
+    parámetros. Esta tool permite al auditor confirmar que el setup está limpio
+    (auto_tagging on, sin suffix/template manual) y NO generar falsos UTM_MISSING
+    cuando los final_urls de los ads no llevan UTMs en la propia URL.
+
+    Returns:
+        customer: customer_id, auto_tagging_enabled, tracking_url_template,
+            final_url_suffix.
+        campaigns_with_overrides: solo campañas ENABLED con tracking_url_template
+            o final_url_suffix propios (vacío = ninguna campaña pisa el setting
+            de cuenta).
+        total_enabled_campaigns: campañas ENABLED escaneadas.
+    """
+    try:
+        ga_service = client.get_service("GoogleAdsService")
+
+        customer_query = """
+            SELECT
+                customer.id,
+                customer.auto_tagging_enabled,
+                customer.tracking_url_template,
+                customer.final_url_suffix
+            FROM customer
+        """
+        customer_block = {}
+        for batch in ga_service.search_stream(
+            customer_id=str(customer_id), query=customer_query
+        ):
+            for row in batch.results:
+                customer_block = {
+                    "customer_id": str(row.customer.id),
+                    "auto_tagging_enabled": row.customer.auto_tagging_enabled,
+                    "tracking_url_template": row.customer.tracking_url_template or None,
+                    "final_url_suffix": row.customer.final_url_suffix or None,
+                }
+
+        campaign_query = """
+            SELECT
+                campaign.id,
+                campaign.name,
+                campaign.tracking_url_template,
+                campaign.final_url_suffix
+            FROM campaign
+            WHERE campaign.status = 'ENABLED'
+        """
+        overrides = []
+        total = 0
+        for batch in ga_service.search_stream(
+            customer_id=str(customer_id), query=campaign_query
+        ):
+            for row in batch.results:
+                total += 1
+                if row.campaign.tracking_url_template or row.campaign.final_url_suffix:
+                    overrides.append(
+                        {
+                            "campaign_id": str(row.campaign.id),
+                            "campaign_name": row.campaign.name,
+                            "tracking_url_template": row.campaign.tracking_url_template
+                            or None,
+                            "final_url_suffix": row.campaign.final_url_suffix or None,
+                        }
+                    )
+
+        return ok(
+            "google_ads",
+            {
+                "customer": customer_block,
+                "campaigns_with_overrides": overrides,
+                "total_enabled_campaigns": total,
+            },
+        )
 
     except GoogleAdsException as e:
         return error(
@@ -310,6 +419,7 @@ def get_google_ads_active_ad_urls(
 # ─────────────────────────────────────────────
 # CAMPAÑAS ACTIVAS (auxiliar)
 # ─────────────────────────────────────────────
+
 
 @with_timeout("google_ads")
 def get_google_ads_active_campaigns(
@@ -341,17 +451,22 @@ def get_google_ads_active_campaigns(
         for batch in response:
             for row in batch.results:
                 budget = row.campaign_budget.amount_micros / 1_000_000
-                campaign_list.append({
-                    "campaign_id": str(row.campaign.id),
-                    "campaign_name": row.campaign.name,
-                    "channel_type": row.campaign.advertising_channel_type.name,
-                    "daily_budget_eur": round(budget, 2),
-                })
+                campaign_list.append(
+                    {
+                        "campaign_id": str(row.campaign.id),
+                        "campaign_name": row.campaign.name,
+                        "channel_type": row.campaign.advertising_channel_type.name,
+                        "daily_budget_eur": round(budget, 2),
+                    }
+                )
 
-        return ok("google_ads", {
-            "campaigns": campaign_list,
-            "total_active_campaigns": len(campaign_list),
-        })
+        return ok(
+            "google_ads",
+            {
+                "campaigns": campaign_list,
+                "total_active_campaigns": len(campaign_list),
+            },
+        )
 
     except GoogleAdsException as e:
         return error(

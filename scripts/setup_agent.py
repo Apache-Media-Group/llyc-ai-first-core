@@ -57,6 +57,11 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from google.cloud import secretmanager  # noqa: E402
 
+from operational_inputs import (  # noqa: E402
+    load_operational_inputs,
+    reference_used,
+    to_prompt_block,
+)
 from prompt_builder import load_static_prompt, build_dynamic_context  # noqa: E402
 from tools.definitions import get_tool_definitions  # noqa: E402
 
@@ -66,7 +71,7 @@ from tools.definitions import get_tool_definitions  # noqa: E402
 CORE_PROJECT_ID = "llyc-ai-first-core"
 AGENTS_SA = "llyc-agents-sa@llyc-ai-first-core.iam.gserviceaccount.com"
 
-SUPPORTED_AGENTS = {"performance_monitor"}
+SUPPORTED_AGENTS = {"performance_monitor", "naming_utm_auditor"}
 
 logging.basicConfig(
     level=logging.INFO,
@@ -76,6 +81,7 @@ log = logging.getLogger("setup_agent")
 
 
 # ─── HELPERS ─────────────────────────────────────────────────────────────────
+
 
 def load_config(client_id: str) -> tuple[Path, dict]:
     """Carga config.json del cliente y devuelve (path, dict)."""
@@ -100,12 +106,12 @@ def validate_config(config: dict, agent_name: str) -> None:
     INVALID_SCALARS = {"PENDIENTE", "", None}
 
     scalar_required = [
-        ("client.id",
-            config.get("client", {}).get("id")),
-        ("client.name",
-            config.get("client", {}).get("name")),
-        ("gcp.secret_manager_project",
-            config.get("gcp", {}).get("secret_manager_project")),
+        ("client.id", config.get("client", {}).get("id")),
+        ("client.name", config.get("client", {}).get("name")),
+        (
+            "gcp.secret_manager_project",
+            config.get("gcp", {}).get("secret_manager_project"),
+        ),
     ]
     errors = [field for field, val in scalar_required if val in INVALID_SCALARS]
 
@@ -176,7 +182,10 @@ def grant_secretmanager_accessor_to_agents_sa(
     role = "roles/secretmanager.secretAccessor"
 
     cmd = [
-        "gcloud", "secrets", "add-iam-policy-binding", secret_name,
+        "gcloud",
+        "secrets",
+        "add-iam-policy-binding",
+        secret_name,
         f"--member={member}",
         f"--role={role}",
         f"--project={client_project_id}",
@@ -203,7 +212,9 @@ def update_config_agents_enabled(
     was_enabled = agent_block.get("enabled", False)
     agent_block["enabled"] = True
     if "created_at" not in agent_block:
-        agent_block["created_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        agent_block["created_at"] = datetime.now(timezone.utc).isoformat(
+            timespec="seconds"
+        )
 
     with config_path.open("w", encoding="utf-8") as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
@@ -220,10 +231,12 @@ def update_config_agents_enabled(
 
 def print_validation_curl(client_id: str, agent_name: str) -> None:
     """Imprime el comando curl listo para validar E2E el nuevo agente."""
-    payload = json.dumps({
-        "client_id": client_id,
-        "agent_name": agent_name.replace("_", "-"),
-    })
+    payload = json.dumps(
+        {
+            "client_id": client_id,
+            "agent_name": agent_name.replace("_", "-"),
+        }
+    )
     print("\n" + "=" * 70)
     print("VALIDACIÓN E2E — pega y ejecuta:")
     print("=" * 70)
@@ -242,6 +255,7 @@ curl -X POST https://europe-west1-llyc-ai-first-core.cloudfunctions.net/agent-ex
 
 # ─── FLUJO PRINCIPAL ─────────────────────────────────────────────────────────
 
+
 def setup(client_id: str, agent_name: str, dry_run: bool) -> None:
     log.info(f"Setup: client={client_id} agent={agent_name} dry_run={dry_run}")
 
@@ -251,11 +265,28 @@ def setup(client_id: str, agent_name: str, dry_run: bool) -> None:
 
     static_prompt = load_static_prompt(agent_name)
     dynamic_context = build_dynamic_context(config, agent_name)
-    full_prompt = f"{static_prompt}\n\n{dynamic_context}"
+
+    # Espejo de main.py (DEC_075): el prompt real incluye el bloque de parámetros
+    # operativos del workbook — el dry-run debe ejercitar el mismo path para que
+    # el gate sea real (resolución naming/UTM incluida). Requiere ADC con scope
+    # spreadsheets.readonly; sin él, load_operational_inputs degrada a fallback
+    # y lo señala en el trace.
+    enabled_platforms = [
+        k
+        for k, v in config.get("platforms", {}).items()
+        if isinstance(v, dict) and v.get("enabled")
+    ]
+    oi = load_operational_inputs(config, agent_name, platforms=enabled_platforms)
+    full_prompt = f"{static_prompt}\n\n{dynamic_context}\n\n{to_prompt_block(oi)}"
     log.info(f"System prompt construido: {len(full_prompt)} chars")
+    log.info(
+        f"Operational inputs: {json.dumps(reference_used(oi), ensure_ascii=False)}"
+    )
 
     tools = get_tool_definitions(agent_name)
-    log.info(f"Tools del catálogo del agente: {len(tools)} — {[t['name'] for t in tools]}")
+    log.info(
+        f"Tools del catálogo del agente: {len(tools)} — {[t['name'] for t in tools]}"
+    )
 
     if dry_run:
         print("\n" + "=" * 70)
@@ -266,6 +297,13 @@ def setup(client_id: str, agent_name: str, dry_run: bool) -> None:
         print(full_prompt[:3000])
         if len(full_prompt) > 3000:
             print(f"\n... [truncado, total {len(full_prompt)} chars]")
+        print("-" * 70)
+        print("\nBLOQUE PARÁMETROS OPERATIVOS (completo, DEC_075):")
+        print("-" * 70)
+        print(to_prompt_block(oi))
+        print("-" * 70)
+        print("\nreference_used (gate 3.2):")
+        print(json.dumps(reference_used(oi), indent=2, ensure_ascii=False))
         print("-" * 70)
         print("\nPASOS QUE EJECUTARÍA SIN --dry-run:")
         client_project_id = config["gcp"]["secret_manager_project"]
@@ -302,6 +340,7 @@ def setup(client_id: str, agent_name: str, dry_run: bool) -> None:
 
 
 # ─── CLI ─────────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
