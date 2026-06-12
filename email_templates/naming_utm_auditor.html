@@ -78,7 +78,7 @@
   </div>
   {% else %}
   <div style="font-size:13px; color:#333; margin-bottom:8px;">
-    {{ fmt.number(plat.total_active_ads, 0) }} ads activos · <strong>{{ fmt.number(plat.ads_with_errors, 0) }}</strong> con errores{% if plat.errors_truncated %} <span style="color:#888; font-size:11px;">(mostrando los primeros 10)</span>{% endif %}
+    {{ fmt.number(plat.total_active_ads, 0) }} ads activos · <strong>{{ fmt.number(plat.ads_with_errors, 0) }}</strong> con errores{% if plat.errors_truncated %} <span style="color:#888; font-size:11px;">(muestra parcial: {{ plat.errors|length }} entradas)</span>{% endif %}
   </div>
   {% if plat.errors and plat.errors|length > 0 %}
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse; font-size:12px;">

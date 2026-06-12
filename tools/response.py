@@ -14,12 +14,63 @@ el thread principal del intérprete y signal.alarm solo funciona ahí.
 
 import concurrent.futures
 import functools
+import re
 from datetime import datetime, timezone
+
+
+# ─────────────────────────────────────────────
+# SANITIZACIÓN DE MENSAJES DE EXCEPCIÓN
+# ─────────────────────────────────────────────
+
+# Las excepciones de red (requests/urllib3: SSLError, ConnectionError, ...)
+# incluyen la URL completa de la request en str(e), query string incluido.
+# En Graph API eso significa access_token y appsecret_proof en claro.
+# urllib3 además omite el esquema ("Max retries exceeded with url: /v23.0/...?access_token=..."),
+# así que no basta con detectar URLs https:// — se redacta cualquier query
+# string y cualquier par clave=valor sensible, esté donde esté.
+
+_SENSITIVE_PARAMS = (
+    "access_token",
+    "appsecret_proof",
+    "app_secret",
+    "client_secret",
+    "refresh_token",
+    "api_key",
+    "apikey",
+    "key",
+    "token",
+    "signature",
+    "sig",
+    "password",
+)
+
+_SENSITIVE_KV_RE = re.compile(
+    r"(?i)\b(" + "|".join(_SENSITIVE_PARAMS) + r")=[^&\s'\"<>]+"
+)
+
+# Query string completo tras '?'. Se exige al menos un '=' para no tocar
+# signos de interrogación en prosa.
+_QUERY_STRING_RE = re.compile(r"\?[^\s'\"<>]*=[^\s'\"<>]*")
+
+
+def sanitize_error_message(message: str) -> str:
+    """
+    Redacta credenciales embebidas en mensajes de excepción antes de que
+    lleguen al output del agente o a Cloud Logging (regla "NUNCA loggear
+    los valores" de load_secrets, main.py).
+    """
+    if not message:
+        return message
+    message = str(message)
+    message = _QUERY_STRING_RE.sub("?[REDACTED]", message)
+    message = _SENSITIVE_KV_RE.sub(r"\1=[REDACTED]", message)
+    return message
 
 
 # ─────────────────────────────────────────────
 # CONTRATO OK / ERROR
 # ─────────────────────────────────────────────
+
 
 def ok(platform: str, data: dict) -> dict:
     return {
@@ -37,7 +88,7 @@ def error(platform: str, code: str, message: str) -> dict:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "error": {
             "code": code,
-            "message": message,
+            "message": sanitize_error_message(message),
         },
     }
 
@@ -71,6 +122,7 @@ def with_timeout(platform: str):
     respecto a la versión con signal.alarm — todos los callers funcionan
     sin modificación.
     """
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -81,5 +133,7 @@ def with_timeout(platform: str):
                     return future.result(timeout=timeout_seconds)
             except concurrent.futures.TimeoutError:
                 return error(platform, "TIMEOUT", f"Timeout tras {timeout_seconds}s")
+
         return wrapper
+
     return decorator

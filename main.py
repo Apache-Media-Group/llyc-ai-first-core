@@ -25,7 +25,6 @@ Decisiones aplicadas:
 """
 
 # ─── IMPORTS ──────────────────────────────────────────────────────────────────
-import os
 import json
 import logging
 import re
@@ -40,13 +39,18 @@ import google.cloud.logging
 
 import anthropic
 
-from tools.response import ok, error
+from tools.response import error
 from tools import meta, google_ads, ga4, drive, notifications, shopify
 from tools.email import render_email_html
 from tools.definitions import get_tool_definitions  # DEC_065
-from prompt_builder import load_static_prompt, build_dynamic_context  # F-CloudLog (29/05)
+from prompt_builder import (
+    load_static_prompt,
+    build_dynamic_context,
+)  # F-CloudLog (29/05)
 from operational_inputs import (  # DEC_075
-    load_operational_inputs, to_prompt_block, reference_used,
+    load_operational_inputs,
+    to_prompt_block,
+    reference_used,
 )
 
 # ─── BOOTSTRAP ────────────────────────────────────────────────────────────────
@@ -64,7 +68,12 @@ CORE_PROJECT_ID = "llyc-ai-first-core"
 MAX_TOOL_RETRIES = 2  # DEC_056: reintentos antes de devolver 500
 
 # DEC_065: parámetros del loop Messages API + tool_use
-MAX_TOKENS = 4096
+# 16384: el output JSON de naming-utm-auditor con inventarios grandes (59 ads
+# auditados en V&V) no cabe en 4096 — stop_reason=max_tokens dejaba el JSON sin
+# emitir (E2E 2026-06-11). Techo, no consumo. NO subir a 32768: el SDK exige
+# streaming para max_tokens que impliquen >10 min de generación y la CF
+# (timeout 540s) tampoco lo aprovecharía.
+MAX_TOKENS = 16384
 MAX_AGENT_ITERATIONS = 20  # tope de seguridad para evitar bucles
 
 # ─── AGENTES Y TOOLS SOPORTADOS ───────────────────────────────────────────────
@@ -81,36 +90,34 @@ SUPPORTED_AGENTS = {
 # DV360 NO está aquí — vive en su propio MCP server en Cloud Run (DEC_037).
 TOOL_DISPATCHER = {
     # Meta
-    "get_meta_performance":             meta.get_meta_performance,
-    "get_meta_spend_today":             meta.get_meta_spend_today,
-    "get_meta_spend_month":             meta.get_meta_spend_month,
-    "get_meta_active_ad_urls":          meta.get_meta_active_ad_urls,
-    "get_meta_active_campaigns":        meta.get_meta_active_campaigns,
-
+    "get_meta_performance": meta.get_meta_performance,
+    "get_meta_spend_today": meta.get_meta_spend_today,
+    "get_meta_spend_month": meta.get_meta_spend_month,
+    "get_meta_active_ad_urls": meta.get_meta_active_ad_urls,
+    "get_meta_active_campaigns": meta.get_meta_active_campaigns,
     # Google Ads
-    "get_google_ads_performance":       google_ads.get_google_ads_performance,
-    "get_google_ads_spend_today":       google_ads.get_google_ads_spend_today,
-    "get_google_ads_spend_month":       google_ads.get_google_ads_spend_month,
-    "get_google_ads_active_ad_urls":    google_ads.get_google_ads_active_ad_urls,
-    "get_google_ads_active_campaigns":  google_ads.get_google_ads_active_campaigns,
-
+    "get_google_ads_performance": google_ads.get_google_ads_performance,
+    "get_google_ads_spend_today": google_ads.get_google_ads_spend_today,
+    "get_google_ads_spend_month": google_ads.get_google_ads_spend_month,
+    "get_google_ads_active_ad_urls": google_ads.get_google_ads_active_ad_urls,
+    "get_google_ads_active_campaigns": google_ads.get_google_ads_active_campaigns,
+    "get_google_ads_url_settings": google_ads.get_google_ads_url_settings,
     # GA4
-    "get_ga4_performance":              ga4.get_ga4_performance,
+    "get_ga4_performance": ga4.get_ga4_performance,
     "get_ga4_paid_channel_performance": ga4.get_ga4_paid_channel_performance,
-    "get_ga4_funnel":                   ga4.get_ga4_funnel,
-    "get_ga4_weekly_comparison":        ga4.get_ga4_weekly_comparison,
-
+    "get_ga4_funnel": ga4.get_ga4_funnel,
+    "get_ga4_weekly_comparison": ga4.get_ga4_weekly_comparison,
     # Shopify (DEC_048 + DEC_050)
-    "get_shopify_orders_period":        shopify.get_shopify_orders_period,
-    "get_shopify_customer_segment":     shopify.get_shopify_customer_segment,
-    "get_shopify_inventory_status":     shopify.get_shopify_inventory_status,
-    "get_shopify_active_discounts":     shopify.get_shopify_active_discounts,
-
+    "get_shopify_orders_period": shopify.get_shopify_orders_period,
+    "get_shopify_customer_segment": shopify.get_shopify_customer_segment,
+    "get_shopify_inventory_status": shopify.get_shopify_inventory_status,
+    "get_shopify_active_discounts": shopify.get_shopify_active_discounts,
     # tiktok → Sprint 1.5 (Jesús pendiente de validar access token)
 }
 
 # ─── CARGA DE CONFIGURACIÓN ───────────────────────────────────────────────────
 INVALID_VALUES = {"PENDIENTE", "", None, 0, "null", "undefined"}
+
 
 def load_client_config(client_id: str) -> dict:
     """
@@ -127,10 +134,14 @@ def load_client_config(client_id: str) -> dict:
     with open(config_path, encoding="utf-8") as f:
         config = json.load(f)
 
-    log.info(json.dumps({
-        "event": "config_loaded",
-        "client_id": client_id,
-    }))
+    log.info(
+        json.dumps(
+            {
+                "event": "config_loaded",
+                "client_id": client_id,
+            }
+        )
+    )
 
     return config
 
@@ -170,6 +181,7 @@ def resolve_agent_id(config: dict, agent_name: str) -> str | None:
 
 # ─── CARGA DE SECRETS ─────────────────────────────────────────────────────────
 
+
 def _access_secret(sm_client, project_id: str, secret_name: str) -> str:
     """Lee la última versión de un secret de Secret Manager."""
     name = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
@@ -195,7 +207,9 @@ def load_secrets(client_id: str, agent_name: str, config: dict) -> dict[str, str
 
     # API key de Anthropic: nombre derivado de agent_name + client_id (DEC_058 Actualización 2026-05-22)
     # agent_name viene en kebab-case del payload HTTP → normalizamos a snake_case para el secret name
-    anthropic_secret_name = f"anthropic-api-key-{agent_name.replace('-', '_')}-{client_id}"
+    anthropic_secret_name = (
+        f"anthropic-api-key-{agent_name.replace('-', '_')}-{client_id}"
+    )
     secrets["ANTHROPIC_API_KEY"] = _access_secret(
         sm_client, client_project_id, anthropic_secret_name
     )
@@ -269,17 +283,22 @@ def load_secrets(client_id: str, agent_name: str, config: dict) -> dict[str, str
                 sm_client, client_project_id, secret_name
             )
 
-    log.info(json.dumps({
-        "event": "secrets_loaded",
-        "client_id": client_id,
-        "agent": agent_name,
-        "secret_count": len(secrets),
-    }))
+    log.info(
+        json.dumps(
+            {
+                "event": "secrets_loaded",
+                "client_id": client_id,
+                "agent": agent_name,
+                "secret_count": len(secrets),
+            }
+        )
+    )
 
     return secrets
 
 
 # ─── TOOL HANDLER ─────────────────────────────────────────────────────────────
+
 
 def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name: str):
     """
@@ -324,11 +343,15 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
             access_token = _get_secret("meta_access_token")
             app_id = _get_secret("meta_app_id")
             app_secret = _get_secret("meta_app_secret")
-            missing = [k for k, v in {
-                "meta_access_token": access_token,
-                "meta_app_id": app_id,
-                "meta_app_secret": app_secret,
-            }.items() if not v]
+            missing = [
+                k
+                for k, v in {
+                    "meta_access_token": access_token,
+                    "meta_app_id": app_id,
+                    "meta_app_secret": app_secret,
+                }.items()
+                if not v
+            ]
             if missing:
                 raise RuntimeError(f"Faltan secrets para Meta: {missing}")
             meta.init_meta_api(
@@ -337,19 +360,27 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
                 app_secret=app_secret,
             )
             clients["meta"] = True  # marker — la API es global, no hay objeto
-            log.info(json.dumps({
-                "event": "platform_client_initialized",
-                "platform": "meta",
-                "client_id": client_id,
-            }))
+            log.info(
+                json.dumps(
+                    {
+                        "event": "platform_client_initialized",
+                        "platform": "meta",
+                        "client_id": client_id,
+                    }
+                )
+            )
         except Exception as e:
             init_errors["meta"] = str(e)
-            log.error(json.dumps({
-                "event": "platform_client_init_failed",
-                "platform": "meta",
-                "client_id": client_id,
-                "error": str(e),
-            }))
+            log.error(
+                json.dumps(
+                    {
+                        "event": "platform_client_init_failed",
+                        "platform": "meta",
+                        "client_id": client_id,
+                        "error": str(e),
+                    }
+                )
+            )
 
     # ── Google Ads ──────────────────────────────────────────────────────────
     if platforms_cfg.get("google_ads", {}).get("enabled"):
@@ -359,13 +390,17 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
             ga_client_secret = _get_secret("google_ads_client_secret")
             refresh_token = _get_secret("google_ads_refresh_token")
             login_customer_id = platforms_cfg["google_ads"].get("manager_id")
-            missing = [k for k, v in {
-                "google_ads_developer_token": developer_token,
-                "google_ads_client_id": ga_client_id,
-                "google_ads_client_secret": ga_client_secret,
-                "google_ads_refresh_token": refresh_token,
-                "platforms.google_ads.manager_id": login_customer_id,
-            }.items() if not v]
+            missing = [
+                k
+                for k, v in {
+                    "google_ads_developer_token": developer_token,
+                    "google_ads_client_id": ga_client_id,
+                    "google_ads_client_secret": ga_client_secret,
+                    "google_ads_refresh_token": refresh_token,
+                    "platforms.google_ads.manager_id": login_customer_id,
+                }.items()
+                if not v
+            ]
             if missing:
                 raise RuntimeError(f"Faltan credenciales para Google Ads: {missing}")
             clients["google_ads"] = google_ads.init_google_ads_client(
@@ -375,19 +410,27 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
                 refresh_token=refresh_token,
                 login_customer_id=str(login_customer_id),
             )
-            log.info(json.dumps({
-                "event": "platform_client_initialized",
-                "platform": "google_ads",
-                "client_id": client_id,
-            }))
+            log.info(
+                json.dumps(
+                    {
+                        "event": "platform_client_initialized",
+                        "platform": "google_ads",
+                        "client_id": client_id,
+                    }
+                )
+            )
         except Exception as e:
             init_errors["google_ads"] = str(e)
-            log.error(json.dumps({
-                "event": "platform_client_init_failed",
-                "platform": "google_ads",
-                "client_id": client_id,
-                "error": str(e),
-            }))
+            log.error(
+                json.dumps(
+                    {
+                        "event": "platform_client_init_failed",
+                        "platform": "google_ads",
+                        "client_id": client_id,
+                        "error": str(e),
+                    }
+                )
+            )
 
     # ── GA4 ──────────────────────────────────────────────────────────────────
     if platforms_cfg.get("ga4", {}).get("enabled"):
@@ -396,32 +439,44 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
             csec = _get_secret("ga4_client_secret")
             rtok = _get_secret("ga4_refresh_token")
             missing = [
-                k for k, v in [
+                k
+                for k, v in [
                     ("ga4_client_id", cid),
                     ("ga4_client_secret", csec),
                     ("ga4_refresh_token", rtok),
-                ] if not v
+                ]
+                if not v
             ]
             if missing:
-                raise RuntimeError(f"Faltan credenciales OAuth de GA4: {', '.join(missing)}")
+                raise RuntimeError(
+                    f"Faltan credenciales OAuth de GA4: {', '.join(missing)}"
+                )
             clients["ga4"] = ga4.init_ga4_client(
                 client_id=cid,
                 client_secret=csec,
                 refresh_token=rtok,
             )
-            log.info(json.dumps({
-                "event": "platform_client_initialized",
-                "platform": "ga4",
-                "client_id": client_id,
-            }))
+            log.info(
+                json.dumps(
+                    {
+                        "event": "platform_client_initialized",
+                        "platform": "ga4",
+                        "client_id": client_id,
+                    }
+                )
+            )
         except Exception as e:
             init_errors["ga4"] = str(e)
-            log.error(json.dumps({
-                "event": "platform_client_init_failed",
-                "platform": "ga4",
-                "client_id": client_id,
-                "error": str(e),
-            }))
+            log.error(
+                json.dumps(
+                    {
+                        "event": "platform_client_init_failed",
+                        "platform": "ga4",
+                        "client_id": client_id,
+                        "error": str(e),
+                    }
+                )
+            )
 
     # ── Shopify ──────────────────────────────────────────────────────────────
     if platforms_cfg.get("shopify", {}).get("enabled"):
@@ -429,32 +484,48 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
             access_token = _get_secret("shopify_admin_token")
             shop_domain = platforms_cfg["shopify"].get("shop_domain")
             api_version = platforms_cfg["shopify"].get("api_version")
-            missing = [k for k, v in {
-                "shopify_admin_token": access_token,
-                "platforms.shopify.shop_domain": shop_domain,
-                "platforms.shopify.api_version": api_version,
-            }.items() if not v]
+            missing = [
+                k
+                for k, v in {
+                    "shopify_admin_token": access_token,
+                    "platforms.shopify.shop_domain": shop_domain,
+                    "platforms.shopify.api_version": api_version,
+                }.items()
+                if not v
+            ]
             if missing:
-                raise RuntimeError(f"Faltan credenciales/config para Shopify: {missing}")
+                raise RuntimeError(
+                    f"Faltan credenciales/config para Shopify: {missing}"
+                )
             shopify.init_shopify_api(
                 shop_domain=shop_domain,
                 access_token=access_token,
                 api_version=api_version,
             )
-            clients["shopify"] = True  # marker — API global vía state module, no client object
-            log.info(json.dumps({
-                "event": "platform_client_initialized",
-                "platform": "shopify",
-                "client_id": client_id,
-            }))
+            clients["shopify"] = (
+                True  # marker — API global vía state module, no client object
+            )
+            log.info(
+                json.dumps(
+                    {
+                        "event": "platform_client_initialized",
+                        "platform": "shopify",
+                        "client_id": client_id,
+                    }
+                )
+            )
         except Exception as e:
             init_errors["shopify"] = str(e)
-            log.error(json.dumps({
-                "event": "platform_client_init_failed",
-                "platform": "shopify",
-                "client_id": client_id,
-                "error": str(e),
-            }))
+            log.error(
+                json.dumps(
+                    {
+                        "event": "platform_client_init_failed",
+                        "platform": "shopify",
+                        "client_id": client_id,
+                        "error": str(e),
+                    }
+                )
+            )
 
     # ─── MAPEO DE TOOL NAME → PLATAFORMA ─────────────────────────────────────
     # Cada prefijo determina qué client se inyecta. get_meta_* es especial:
@@ -477,26 +548,38 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
         executor = TOOL_DISPATCHER.get(tool_name)
 
         if not executor:
-            log.error(json.dumps({
-                "event": "tool_not_found",
-                "client_id": client_id,
-                "agent": agent_name,
-                "tool_name": tool_name,
-            }))
-            return error("unknown", "TOOL_NOT_FOUND", f"Tool '{tool_name}' no registrada en TOOL_DISPATCHER.")
+            log.error(
+                json.dumps(
+                    {
+                        "event": "tool_not_found",
+                        "client_id": client_id,
+                        "agent": agent_name,
+                        "tool_name": tool_name,
+                    }
+                )
+            )
+            return error(
+                "unknown",
+                "TOOL_NOT_FOUND",
+                f"Tool '{tool_name}' no registrada en TOOL_DISPATCHER.",
+            )
 
         # Resolver plataforma e inicialización
         platform = _resolve_platform(tool_name)
 
         # Si la plataforma falló al inicializar, devolver error claro sin reintentar
         if platform and platform in init_errors:
-            log.warning(json.dumps({
-                "event": "tool_skipped_platform_uninit",
-                "client_id": client_id,
-                "agent": agent_name,
-                "tool_name": tool_name,
-                "platform": platform,
-            }))
+            log.warning(
+                json.dumps(
+                    {
+                        "event": "tool_skipped_platform_uninit",
+                        "client_id": client_id,
+                        "agent": agent_name,
+                        "tool_name": tool_name,
+                        "platform": platform,
+                    }
+                )
+            )
             return error(
                 platform,
                 "CLIENT_INIT_FAILED",
@@ -545,32 +628,41 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
                     "EXCEPTION",
                     str(e),
                 )
-                log.warning(json.dumps({
-                    "event": "tool_error",
+                log.warning(
+                    json.dumps(
+                        {
+                            "event": "tool_error",
+                            "client_id": client_id,
+                            "agent": agent_name,
+                            "tool_name": tool_name,
+                            "attempt": attempt,
+                            "error_message": str(e),
+                            "exception_type": type(e).__name__,
+                            "exception_module": type(e).__module__,
+                            "status_code": getattr(e, "status_code", None)
+                            or getattr(e, "code", None),
+                            "duration_ms": duration_ms,
+                        }
+                    )
+                )
+
+            if attempt < MAX_TOOL_RETRIES:
+                time.sleep(2**attempt)  # backoff exponencial
+
+        last_err = (last_result or {}).get("error") or {}
+        log.error(
+            json.dumps(
+                {
+                    "event": "tool_exhausted",
                     "client_id": client_id,
                     "agent": agent_name,
                     "tool_name": tool_name,
-                    "attempt": attempt,
-                    "error_message": str(e),
-                    "exception_type": type(e).__name__,
-                    "exception_module": type(e).__module__,
-                    "status_code": getattr(e, "status_code", None) or getattr(e, "code", None),
-                    "duration_ms": duration_ms,
-                }))
-
-            if attempt < MAX_TOOL_RETRIES:
-                time.sleep(2 ** attempt)  # backoff exponencial
-
-        last_err = (last_result or {}).get("error") or {}
-        log.error(json.dumps({
-            "event": "tool_exhausted",
-            "client_id": client_id,
-            "agent": agent_name,
-            "tool_name": tool_name,
-            "max_retries": MAX_TOOL_RETRIES,
-            "last_error_code": last_err.get("code"),
-            "last_error_message": last_err.get("message"),
-        }))
+                    "max_retries": MAX_TOOL_RETRIES,
+                    "last_error_code": last_err.get("code"),
+                    "last_error_message": last_err.get("message"),
+                }
+            )
+        )
 
         return last_result
 
@@ -586,7 +678,13 @@ def tool_handler_factory(secrets: dict, config: dict, client_id: str, agent_name
 
 # ─── INVOCACIÓN DEL AGENT ─────────────────────────────────────────────────────
 
-def build_user_message(agent_name: str, config: dict, analysis_date: str, run_profile: str = "monthly_pacing") -> str:
+
+def build_user_message(
+    agent_name: str,
+    config: dict,
+    analysis_date: str,
+    run_profile: str = "monthly_pacing",
+) -> str:
     """
     Construye el mensaje inicial que se envía al modelo en cada invocación.
     DEC_065: el system prompt y las tools se inyectan en cada llamada via
@@ -632,8 +730,7 @@ def build_user_message(agent_name: str, config: dict, analysis_date: str, run_pr
     }
 
     return messages.get(
-        agent_name,
-        f"Ejecuta el análisis para {client_name} a fecha {analysis_date}."
+        agent_name, f"Ejecuta el análisis para {client_name} a fecha {analysis_date}."
     )
 
 
@@ -661,13 +758,17 @@ def run_agent(
          tool_handler. Appendear assistant message + tool_results al history. Loop.
       4. Si stop_reason inesperado o MAX_AGENT_ITERATIONS alcanzado → ERROR.
     """
-    log.info(json.dumps({
-        "event": "agent_invoked",
-        "client_id": client_id,
-        "agent": agent_name,
-        "model": MODEL,
-        "tools_count": len(tools),
-    }))
+    log.info(
+        json.dumps(
+            {
+                "event": "agent_invoked",
+                "client_id": client_id,
+                "agent": agent_name,
+                "model": MODEL,
+                "tools_count": len(tools),
+            }
+        )
+    )
 
     t0 = time.monotonic()
     messages = [{"role": "user", "content": user_message}]
@@ -689,15 +790,19 @@ def run_agent(
         total_input_tokens += response.usage.input_tokens
         total_output_tokens += response.usage.output_tokens
 
-        log.info(json.dumps({
-            "event": "agent_turn",
-            "client_id": client_id,
-            "agent": agent_name,
-            "iteration": iterations,
-            "stop_reason": response.stop_reason,
-            "input_tokens": response.usage.input_tokens,
-            "output_tokens": response.usage.output_tokens,
-        }))
+        log.info(
+            json.dumps(
+                {
+                    "event": "agent_turn",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                    "iteration": iterations,
+                    "stop_reason": response.stop_reason,
+                    "input_tokens": response.usage.input_tokens,
+                    "output_tokens": response.usage.output_tokens,
+                }
+            )
+        )
 
         if response.stop_reason == "end_turn":
             final_response = response
@@ -712,56 +817,78 @@ def run_agent(
             for block in response.content:
                 if block.type != "tool_use":
                     continue
-                log.info(json.dumps({
-                    "event": "tool_call",
-                    "client_id": client_id,
-                    "agent": agent_name,
-                    "tool": block.name,
-                }))
+                log.info(
+                    json.dumps(
+                        {
+                            "event": "tool_call",
+                            "client_id": client_id,
+                            "agent": agent_name,
+                            "tool": block.name,
+                        }
+                    )
+                )
                 try:
                     result = tool_handler(block.name, block.input)
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": json.dumps(result),
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": json.dumps(result),
+                        }
+                    )
                 except Exception as e:
-                    log.error(json.dumps({
-                        "event": "tool_handler_exception",
-                        "client_id": client_id,
-                        "agent": agent_name,
-                        "tool": block.name,
-                        "error": str(e),
-                    }))
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": json.dumps({"status": "error", "message": str(e)}),
-                        "is_error": True,
-                    })
+                    log.error(
+                        json.dumps(
+                            {
+                                "event": "tool_handler_exception",
+                                "client_id": client_id,
+                                "agent": agent_name,
+                                "tool": block.name,
+                                "error": str(e),
+                            }
+                        )
+                    )
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": json.dumps(
+                                {"status": "error", "message": str(e)}
+                            ),
+                            "is_error": True,
+                        }
+                    )
 
             messages.append({"role": "user", "content": tool_results})
             continue
 
         # stop_reason inesperado (max_tokens, stop_sequence...)
-        log.error(json.dumps({
-            "event": "unexpected_stop_reason",
-            "client_id": client_id,
-            "agent": agent_name,
-            "stop_reason": response.stop_reason,
-        }))
+        log.error(
+            json.dumps(
+                {
+                    "event": "unexpected_stop_reason",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                    "stop_reason": response.stop_reason,
+                }
+            )
+        )
         final_response = response
         break
 
     duration_ms = int((time.monotonic() - t0) * 1000)
 
     if final_response is None:
-        log.error(json.dumps({
-            "event": "agent_max_iterations",
-            "client_id": client_id,
-            "agent": agent_name,
-            "iterations": iterations,
-        }))
+        log.error(
+            json.dumps(
+                {
+                    "event": "agent_max_iterations",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                    "iterations": iterations,
+                }
+            )
+        )
         return {
             "agent": agent_name,
             "client": client_id,
@@ -774,35 +901,64 @@ def run_agent(
         block.text for block in final_response.content if hasattr(block, "text")
     )
 
-    log.info(json.dumps({
-        "event": "agent_completed",
-        "client_id": client_id,
-        "agent": agent_name,
-        "duration_ms": duration_ms,
-        "iterations": iterations,
-        "total_input_tokens": total_input_tokens,
-        "total_output_tokens": total_output_tokens,
-        "output_length": len(output_text),
-    }))
+    log.info(
+        json.dumps(
+            {
+                "event": "agent_completed",
+                "client_id": client_id,
+                "agent": agent_name,
+                "duration_ms": duration_ms,
+                "iterations": iterations,
+                "total_input_tokens": total_input_tokens,
+                "total_output_tokens": total_output_tokens,
+                "output_length": len(output_text),
+            }
+        )
+    )
 
     # Parsear el output como JSON estructurado
     try:
         return json.loads(output_text)
     except json.JSONDecodeError:
-        # Fallback: extraer JSON de un bloque ```json ... ``` si Claude lo envolvió
-        match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', output_text, re.DOTALL)
+        # Fallback 1: extraer JSON de un bloque ```json ... ``` si Claude lo envolvió
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", output_text, re.DOTALL)
         if match:
             try:
                 return json.loads(match.group(1))
             except json.JSONDecodeError:
                 pass
 
-        log.error(json.dumps({
-            "event": "json_decode_error",
-            "client_id": client_id,
-            "agent": agent_name,
-            "raw_preview": output_text[:500],
-        }))
+        # Fallback 2: objeto JSON embebido en prosa (el modelo a veces antepone
+        # análisis en texto pese a la instrucción del prompt). first{...last}
+        # no sirve: la prosa contiene llaves literales ({{adset.name}}, ejemplos).
+        # raw_decode tolera texto posterior: probamos cada '{' como inicio y nos
+        # quedamos con el objeto más largo (el del contrato, no fragmentos
+        # JSON-ish del análisis). Un JSON truncado por max_tokens no parsea en
+        # ningún candidato y cae al error de abajo, que es lo correcto.
+        decoder = json.JSONDecoder()
+        best_obj, best_span = None, 0
+        for i, ch in enumerate(output_text):
+            if ch != "{":
+                continue
+            try:
+                obj, end = decoder.raw_decode(output_text[i:])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(obj, dict) and end > best_span:
+                best_obj, best_span = obj, end
+        if best_obj is not None:
+            return best_obj
+
+        log.error(
+            json.dumps(
+                {
+                    "event": "json_decode_error",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                    "raw_preview": output_text[:500],
+                }
+            )
+        )
         return {
             "agent": agent_name,
             "client": client_id,
@@ -813,6 +969,7 @@ def run_agent(
 
 
 # ─── OUTPUT WRITING ──────────────────────────────────────────────────────────
+
 
 def write_output_to_drive_for_agent(
     config: dict, agent_name: str, output: dict, client_id: str, analysis_date: str
@@ -834,11 +991,15 @@ def write_output_to_drive_for_agent(
     folder_id = drive_config.get("outputs_folder_id")
 
     if not folder_id:
-        log.error(json.dumps({
-            "event": "drive_write_skipped_no_folder_id",
-            "client_id": client_id,
-            "agent": agent_name,
-        }))
+        log.error(
+            json.dumps(
+                {
+                    "event": "drive_write_skipped_no_folder_id",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                }
+            )
+        )
         return {"status": "skipped", "reason": "no outputs_folder_id in config"}
 
     filename = f"{analysis_date}_PAID_{agent_name}{'-intraday' if output.get('run_profile') == 'intraday_guardrail' else ''}-{client_id}.json"
@@ -850,13 +1011,17 @@ def write_output_to_drive_for_agent(
             payload=output,
         )
     except Exception as e:
-        log.error(json.dumps({
-            "event": "drive_write_caught_exception",
-            "client_id": client_id,
-            "agent": agent_name,
-            "filename": filename,
-            "error": str(e),
-        }))
+        log.error(
+            json.dumps(
+                {
+                    "event": "drive_write_caught_exception",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                    "filename": filename,
+                    "error": str(e),
+                }
+            )
+        )
         return {
             "status": "error",
             "error": {"code": "UNEXPECTED", "message": str(e)},
@@ -894,11 +1059,15 @@ def send_notification_for_agent(
     client_id = config.get("client", {}).get("id")
 
     if not recipients:
-        log.warning(json.dumps({
-            "event": "notification_skipped_no_recipients",
-            "client_id": client_id,
-            "agent": agent_name,
-        }))
+        log.warning(
+            json.dumps(
+                {
+                    "event": "notification_skipped_no_recipients",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                }
+            )
+        )
         return {"status": "skipped", "reason": "no alert_recipients in config"}
 
     client_name = config.get("client", {}).get("name", "Cliente")
@@ -912,7 +1081,9 @@ def send_notification_for_agent(
     # Modelo dual de status (DEC_050): execution + analysis separados.
     # Backward compat: si el agente todavía devuelve status_global legacy,
     # lo mapeamos a execution=OK/PARTIAL/ERROR y analysis=ALERTA/NORMAL.
-    execution_status = output.get("execution_status") or _derive_execution_status(status)
+    execution_status = output.get("execution_status") or _derive_execution_status(
+        status
+    )
     analysis_status = output.get("analysis_status") or _derive_analysis_status(status)
     execution_status_detail = output.get("execution_status_detail", "")
 
@@ -947,24 +1118,26 @@ def send_notification_for_agent(
     try:
         body_html = render_email_html(template_name, context)
     except Exception as e:
-        log.error(json.dumps({
-            "event": "notification_template_render_failed",
-            "client_id": client_id,
-            "agent": agent_name,
-            "template": template_name,
-            "error_type": type(e).__name__,
-            "error": str(e),
-        }))
+        log.error(
+            json.dumps(
+                {
+                    "event": "notification_template_render_failed",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                    "template": template_name,
+                    "error_type": type(e).__name__,
+                    "error": str(e),
+                }
+            )
+        )
         return {
             "status": "error",
             "error": {"code": "TEMPLATE_RENDER", "message": f"{type(e).__name__}: {e}"},
         }
 
     # Fallback plain text — versión simple para clientes sin HTML
-    body_text = (
-        f"{subject}\n\n"
-        f"{summary}\n\n"
-        + (f"Ver output completo: {drive_url}\n" if drive_url else "")
+    body_text = f"{subject}\n\n{summary}\n\n" + (
+        f"Ver output completo: {drive_url}\n" if drive_url else ""
     )
 
     try:
@@ -976,12 +1149,16 @@ def send_notification_for_agent(
             drive_url=drive_url,
         )
     except Exception as e:
-        log.error(json.dumps({
-            "event": "notification_caught_exception",
-            "client_id": client_id,
-            "agent": agent_name,
-            "error": str(e),
-        }))
+        log.error(
+            json.dumps(
+                {
+                    "event": "notification_caught_exception",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                    "error": str(e),
+                }
+            )
+        )
         return {
             "status": "error",
             "error": {"code": "UNEXPECTED", "message": str(e)},
@@ -1005,6 +1182,7 @@ def _derive_analysis_status(legacy_status: str) -> str:
 
 
 # ─── ENTRY POINT HTTP ─────────────────────────────────────────────────────────
+
 
 @functions_framework.http
 def agent_executor(request):
@@ -1046,21 +1224,33 @@ def agent_executor(request):
     # misma fecha (la del dato analizado, no la de generación).
     # TODO: usar timezone del cliente cuando config.client.timezone esté disponible.
     # run_profile -> ventana de analisis (DEC pacer): intraday_guardrail = hoy; monthly_pacing = ayer.
-    run_profile = (payload.get("run_profile") or "monthly_pacing").strip() or "monthly_pacing"
+    run_profile = (
+        payload.get("run_profile") or "monthly_pacing"
+    ).strip() or "monthly_pacing"
     if run_profile not in ("monthly_pacing", "intraday_guardrail"):
         return {"error": f"run_profile '{run_profile}' no soportado."}, 400
     if run_profile == "intraday_guardrail":
         analysis_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     else:
-        analysis_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        analysis_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime(
+            "%Y-%m-%d"
+        )
 
-    log.info(json.dumps({
-        "event": "execution_started",
-        "client_id": client_id,
-        "agent": agent_name,
-        "analysis_date": analysis_date,
-        "run_profile": run_profile,
-    }))
+    # E2E/test: con skip_notification=true en el payload no se envía email.
+    # Drive y Cloud Logging se escriben igual — solo se suprime la notificación.
+    skip_notification = bool(payload.get("skip_notification", False))
+
+    log.info(
+        json.dumps(
+            {
+                "event": "execution_started",
+                "client_id": client_id,
+                "agent": agent_name,
+                "analysis_date": analysis_date,
+                "run_profile": run_profile,
+            }
+        )
+    )
 
     try:
         # ── 1. Cargar config del cliente ──────────────────────────────────────
@@ -1068,13 +1258,17 @@ def agent_executor(request):
 
         # ── 2. Resolver agent_id (DEC_065: solo validación + traza, no se usa en runtime) ─
         agent_id = resolve_agent_id(config, agent_name)
-        log.info(json.dumps({
-            "event": "agent_id_resolved",
-            "client_id": client_id,
-            "agent": agent_name,
-            "agent_id": agent_id,
-            "note": "DEC_065: agent_id resuelto para traza, no usado en runtime",
-        }))
+        log.info(
+            json.dumps(
+                {
+                    "event": "agent_id_resolved",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                    "agent_id": agent_id,
+                    "note": "DEC_065: agent_id resuelto para traza, no usado en runtime",
+                }
+            )
+        )
 
         # ── 3. Cargar secrets ─────────────────────────────────────────────────
         secrets = load_secrets(client_id, agent_name, config)
@@ -1100,22 +1294,29 @@ def agent_executor(request):
         # config y señala la fuente, de modo que un workbook caído no tumba la
         # ejecución (a lo sumo el agente reporta el fallback en su output).
         enabled_platforms = [
-            k for k, v in config.get("platforms", {}).items()
+            k
+            for k, v in config.get("platforms", {}).items()
             if isinstance(v, dict) and v.get("enabled")
         ]
         oi = load_operational_inputs(config, agent_name, platforms=enabled_platforms)
-        log.info(json.dumps({
-            "event": "operational_inputs_loaded",
-            "client_id": client_id,
-            "agent": agent_name,
-            **reference_used(oi),
-        }))
+        log.info(
+            json.dumps(
+                {
+                    "event": "operational_inputs_loaded",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                    **reference_used(oi),
+                }
+            )
+        )
 
         system_prompt = f"{static_prompt}\n\n{dynamic_context}\n\n{to_prompt_block(oi)}"
         tools = get_tool_definitions(agent_name.replace("-", "_"))
 
         # ── 7. Construir user_message e invocar el agent ──────────────────────
-        user_message = build_user_message(agent_name, config, analysis_date, run_profile)
+        user_message = build_user_message(
+            agent_name, config, analysis_date, run_profile
+        )
         output = run_agent(
             anthropic_client,
             system_prompt,
@@ -1126,16 +1327,30 @@ def agent_executor(request):
             agent_name,
         )
 
+        # generated_at lo inyecta el executor con el timestamp real de ejecución.
+        # El modelo no tiene reloj: si se le pide, inventa una hora plausible
+        # (p. ej. la hora del scheduler del prompt), no la real.
+        if isinstance(output, dict):
+            output["generated_at"] = datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
+
         # ── 8. Log del output final (DEC_050 — modelo dual) ──────────────────
-        execution_status = output.get("execution_status") or output.get("status_global") or "UNKNOWN"
+        execution_status = (
+            output.get("execution_status") or output.get("status_global") or "UNKNOWN"
+        )
         analysis_status = output.get("analysis_status") or "N/A"
-        log.info(json.dumps({
-            "event": "execution_completed",
-            "client_id": client_id,
-            "agent": agent_name,
-            "execution_status": execution_status,
-            "analysis_status": analysis_status,
-        }))
+        log.info(
+            json.dumps(
+                {
+                    "event": "execution_completed",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                    "execution_status": execution_status,
+                    "analysis_status": analysis_status,
+                }
+            )
+        )
 
         # Determinar notify_level a comparar con alert_levels.
         # Regla: si execution falló (PARTIAL/ERROR), notificar ese estado técnico.
@@ -1143,7 +1358,11 @@ def agent_executor(request):
         if execution_status in ("ERROR", "PARTIAL"):
             notify_level = execution_status
         else:
-            notify_level = analysis_status if analysis_status not in ("N/A", None) else execution_status
+            notify_level = (
+                analysis_status
+                if analysis_status not in ("N/A", None)
+                else execution_status
+            )
 
         # ── 9. Escribir output a Drive (arq §9 step 8) ────────────────────────
         drive_result = write_output_to_drive_for_agent(
@@ -1154,8 +1373,15 @@ def agent_executor(request):
         notifications_config = config.get("notifications", {})
         effective_alert_levels = list(notifications_config.get("alert_levels", []))
         if run_profile == "intraday_guardrail":
-            effective_alert_levels = [lvl for lvl in effective_alert_levels if lvl != "NORMAL"]
-        if notify_level in effective_alert_levels:
+            effective_alert_levels = [
+                lvl for lvl in effective_alert_levels if lvl != "NORMAL"
+            ]
+        if skip_notification:
+            notification_result = {
+                "status": "skipped",
+                "reason": "skip_notification=true en payload (E2E/test)",
+            }
+        elif notify_level in effective_alert_levels:
             notification_result = send_notification_for_agent(
                 config, agent_name, output, drive_result, notify_level, analysis_date
             )
@@ -1179,19 +1405,28 @@ def agent_executor(request):
         }, 200
 
     except (FileNotFoundError, RuntimeError) as e:
-        log.error(json.dumps({
-            "event": "execution_error_400",
-            "client_id": client_id,
-            "agent": agent_name,
-            "error": str(e),
-        }))
+        log.error(
+            json.dumps(
+                {
+                    "event": "execution_error_400",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                    "error": str(e),
+                }
+            )
+        )
         return {"error": str(e)}, 400
 
     except Exception as e:
-        log.error(json.dumps({
-            "event": "execution_error_500",
-            "client_id": client_id,
-            "agent": agent_name,
-            "error": str(e),
-        }), exc_info=True)
+        log.error(
+            json.dumps(
+                {
+                    "event": "execution_error_500",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                    "error": str(e),
+                }
+            ),
+            exc_info=True,
+        )
         return {"error": "Error interno. Ver Cloud Logging para detalles."}, 500

@@ -219,3 +219,6 @@ __marimo__/
 
 # Claude Code personal instructions
 CLAUDE.local.md
+
+# Claude Code worktrees (sesiones paralelas — nunca commitear)
+.claude/worktrees/

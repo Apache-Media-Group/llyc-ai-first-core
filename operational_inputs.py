@@ -8,6 +8,11 @@ el agente NUNCA escribe en el workbook.
 Diseño:
 - Schema-driven y client-agnostic. Cliente N+1 = nuevo file_id en config, sin tocar código.
 - Resolución most-specific-wins en 'nivel': plataforma concreta > cuenta > '*'.
+- Pestaña naming_utm — contrato: plataforma|nivel|tipo|parametro|valor|enabled[|ejemplo].
+  tipo=naming → patrón por (plataforma, nivel); tipo=utm → valor esperado por
+  (plataforma, parametro). utm_rules absorbe el utm_medium que vivía en config.json.
+  Sin fallback de naming por diseño: vacío → warning en trace, el auditor omite
+  la verificación (rama "no configurado" de su prompt).
 - El modelo de budget dinámico (base + incremental_max, floors 5x/3x, floor blended)
   se RECALCULA en código a partir de los importes y floors — no se confía en el valor
   cacheado de la fórmula del Sheet (single source = importes + floors).
@@ -17,6 +22,7 @@ Diseño:
 Requiere: google-api-python-client, google-auth. La CF corre como la SA
 llyc-agents-sa@llyc-ai-first-core; el Sheet debe estar compartido como Viewer con ella.
 """
+
 from __future__ import annotations
 
 import datetime as _dt
@@ -34,6 +40,7 @@ _ACCOUNT = ("*", "cuenta", "account")
 
 
 # ----------------------------- coerciones -----------------------------
+
 
 def _num(v: Any) -> Optional[float]:
     # Camino feliz: con valueRenderOption=UNFORMATTED_VALUE las celdas numéricas
@@ -73,6 +80,7 @@ def _s(v: Any) -> str:
 
 # ----------------------------- resolución -----------------------------
 
+
 def _level_rank(nivel: str) -> int:
     n = _s(nivel).lower()
     if n in ("", "*"):
@@ -103,6 +111,7 @@ def _best(rows: list[dict], platform: Optional[str]) -> Optional[dict]:
 
 # ----------------------------- lectura Sheet -----------------------------
 
+
 def _rows_to_dicts(values: list[list]) -> list[dict]:
     if not values:
         return []
@@ -118,15 +127,24 @@ def _rows_to_dicts(values: list[list]) -> list[dict]:
 def _read_workbook(file_id: str) -> dict[str, list[dict]]:
     creds, _ = google.auth.default(scopes=[SHEETS_SCOPE])
     svc = build("sheets", "v4", credentials=creds, cache_discovery=False)
-    meta = svc.spreadsheets().get(
-        spreadsheetId=file_id, fields="sheets.properties.title"
-    ).execute()
+    meta = (
+        svc.spreadsheets()
+        .get(spreadsheetId=file_id, fields="sheets.properties.title")
+        .execute()
+    )
     present = {s["properties"]["title"] for s in meta.get("sheets", [])}
     ranges = [f"{t}!A1:Z2000" for t in TABS if t in present]
-    resp = svc.spreadsheets().values().batchGet(
-        spreadsheetId=file_id, ranges=ranges,
-        valueRenderOption="UNFORMATTED_VALUE", majorDimension="ROWS",
-    ).execute()
+    resp = (
+        svc.spreadsheets()
+        .values()
+        .batchGet(
+            spreadsheetId=file_id,
+            ranges=ranges,
+            valueRenderOption="UNFORMATTED_VALUE",
+            majorDimension="ROWS",
+        )
+        .execute()
+    )
     requested = [t for t in TABS if t in present]
     out = {t: [] for t in TABS}
     for tab, vr in zip(requested, resp.get("valueRanges", [])):
@@ -136,26 +154,53 @@ def _read_workbook(file_id: str) -> dict[str, list[dict]]:
 
 # ----------------------------- modelo -----------------------------
 
+
 @dataclass
 class OperationalInputs:
     month: str
     currency: str = "EUR"
-    budget: dict = field(default_factory=dict)        # {nivel: {...}}, incl. 'cuenta'
-    kpis: list[dict] = field(default_factory=list)     # filas resueltas (enabled)
-    naming_utm: dict = field(default_factory=dict)     # {plataforma: {...}}
-    trace: dict = field(default_factory=dict)          # fuente, fallback, file_id, leído
+    budget: dict = field(default_factory=dict)  # {nivel: {...}}, incl. 'cuenta'
+    kpis: list[dict] = field(default_factory=list)  # filas resueltas (enabled)
+    naming_patterns: dict = field(
+        default_factory=dict
+    )  # {plataforma: {nivel: {patron, ejemplo}}}
+    utm_rules: dict = field(default_factory=dict)  # {plataforma: {parametro: valor}}
+    trace: dict = field(default_factory=dict)  # fuente, fallback, file_id, leído
 
-    def kpi(self, metrica: str, parametro: str, platform: Optional[str] = None,
-            periodo: Optional[str] = None) -> Optional[float]:
-        rows = [r for r in self.kpis
-                if _s(r["metrica"]).lower() == metrica.lower()
-                and _s(r["parametro"]).lower() == parametro.lower()
-                and _period_matches(r.get("periodo"), periodo)]
+    def kpi(
+        self,
+        metrica: str,
+        parametro: str,
+        platform: Optional[str] = None,
+        periodo: Optional[str] = None,
+    ) -> Optional[float]:
+        rows = [
+            r
+            for r in self.kpis
+            if _s(r["metrica"]).lower() == metrica.lower()
+            and _s(r["parametro"]).lower() == parametro.lower()
+            and _period_matches(r.get("periodo"), periodo)
+        ]
         best = _best(rows, platform)
         return _num(best["valor"]) if best else None
 
     def budget_for(self, platform: Optional[str] = None) -> Optional[dict]:
-        return self.budget.get((platform or "cuenta").lower()) or self.budget.get("cuenta")
+        return self.budget.get((platform or "cuenta").lower()) or self.budget.get(
+            "cuenta"
+        )
+
+    def naming_for(self, platform: str, nivel: str) -> Optional[str]:
+        """Patrón de naming vigente para (plataforma, nivel), o None si no hay regla."""
+        entry = (self.naming_patterns.get(_s(platform).lower()) or {}).get(
+            _s(nivel).lower()
+        )
+        return entry["patron"] if entry else None
+
+    def utm_for(self, platform: str, parametro: str) -> Optional[str]:
+        """Valor esperado de un parámetro UTM para la plataforma, o None si no hay regla."""
+        return (self.utm_rules.get(_s(platform).lower()) or {}).get(
+            _s(parametro).lower()
+        )
 
 
 def _budget_block(row: dict) -> dict:
@@ -165,86 +210,183 @@ def _budget_block(row: dict) -> dict:
     fi = _num(row.get("roas_floor_incremental"))
     total = base + incr
     # floor blended recalculado, no se confía en el valor cacheado del Sheet
-    blended = (base * fb + incr * fi) / total if total and fb is not None and fi is not None else None
+    blended = (
+        (base * fb + incr * fi) / total
+        if total and fb is not None and fi is not None
+        else None
+    )
     return {
         "nivel": _s(row.get("nivel")) or "cuenta",
-        "base_eur": base, "incremental_max_eur": incr, "total_max_eur": total,
-        "roas_floor_base": fb, "roas_floor_incremental": fi,
+        "base_eur": base,
+        "incremental_max_eur": incr,
+        "total_max_eur": total,
+        "roas_floor_base": fb,
+        "roas_floor_incremental": fi,
         "roas_blended_floor": round(blended, 2) if blended is not None else None,
     }
 
 
-def _resolve(wb: dict[str, list[dict]], month: str,
-             platforms: list[str]) -> tuple[dict, list[dict], dict, str]:
+def _naming_utm_rules(rows: list[dict]) -> tuple[dict, dict]:
+    """
+    Pestaña naming_utm — contrato: plataforma|nivel|tipo|parametro|valor|enabled[|ejemplo].
+    tipo=naming → naming_patterns[plataforma][nivel] = {patron, ejemplo}.
+    tipo=utm    → utm_rules[plataforma][parametro] = valor (absorbe el utm_medium
+    que vivía en platforms.<p>.utm_medium del config.json).
+    Filas sin plataforma o sin valor se ignoran; duplicados: última fila gana.
+    """
+    naming: dict = {}
+    utm: dict = {}
+    for r in rows:
+        if not _b(r.get("enabled")):
+            continue
+        plat = _s(r.get("plataforma")).lower()
+        tipo = _s(r.get("tipo")).lower()
+        valor = _s(r.get("valor"))
+        if not plat or not valor:
+            continue
+        if tipo == "naming":
+            nivel = _s(r.get("nivel")).lower()
+            if nivel:
+                naming.setdefault(plat, {})[nivel] = {
+                    "patron": valor,
+                    "ejemplo": _s(r.get("ejemplo")) or None,
+                }
+        elif tipo == "utm":
+            parametro = _s(r.get("parametro")).lower()
+            if parametro:
+                utm.setdefault(plat, {})[parametro] = valor
+    return naming, utm
+
+
+def _resolve(
+    wb: dict[str, list[dict]], month: str, platforms: list[str]
+) -> tuple[dict, list[dict], dict, dict, str]:
     # budget: fila del mes actual, por nivel cuenta + cada plataforma pedida
-    bud_rows = [r for r in wb["budget"] if _b(r.get("enabled")) and _s(r.get("mes")) == month]
+    bud_rows = [
+        r for r in wb["budget"] if _b(r.get("enabled")) and _s(r.get("mes")) == month
+    ]
     budget = {}
     acc = _best(bud_rows, None)
     if acc:
         budget["cuenta"] = _budget_block(acc)
     for p in platforms:
-        row = _best([r for r in bud_rows if _level_rank(r.get("nivel")) == 2
-                     and _s(r.get("nivel")).lower() == p.lower()], p)
+        row = _best(
+            [
+                r
+                for r in bud_rows
+                if _level_rank(r.get("nivel")) == 2
+                and _s(r.get("nivel")).lower() == p.lower()
+            ],
+            p,
+        )
         if row:
             budget[p.lower()] = _budget_block(row)
     # kpis: todas las filas enabled (la resolución se hace on-demand vía .kpi())
     kpis = [r for r in wb["kpis"] if _b(r.get("enabled"))]
-    # naming_utm por plataforma
-    naming = {_s(r.get("plataforma")).lower(): r for r in wb["naming_utm"] if _b(r.get("enabled"))}
-    currency = next((_s(r.get("value")) for r in wb["_meta"] if _s(r.get("key")) == "currency"), "EUR")
-    return budget, kpis, naming, currency or "EUR"
+    # naming_utm: doble diccionario por (plataforma, nivel) / (plataforma, parametro)
+    naming_patterns, utm_rules = _naming_utm_rules(wb["naming_utm"])
+    currency = next(
+        (_s(r.get("value")) for r in wb["_meta"] if _s(r.get("key")) == "currency"),
+        "EUR",
+    )
+    return budget, kpis, naming_patterns, utm_rules, currency or "EUR"
 
 
 # ----------------------------- API pública -----------------------------
 
-def load_operational_inputs(client_config: dict, agent_name: str,
-                            platforms: Optional[list[str]] = None,
-                            now: Optional[_dt.datetime] = None) -> OperationalInputs:
+
+def load_operational_inputs(
+    client_config: dict,
+    agent_name: str,
+    platforms: Optional[list[str]] = None,
+    now: Optional[_dt.datetime] = None,
+) -> OperationalInputs:
     """
     Punto de entrada. Llamar tras cargar config/secrets y antes de construir el prompt.
     Inyectar to_prompt_block(oi) en el system prompt y volcar oi.trace al log de la ejecución.
     """
-    oi_cfg = (client_config.get("operational_inputs") or {})
+    oi_cfg = client_config.get("operational_inputs") or {}
     file_id = (oi_cfg.get("workbook") or {}).get("file_id")
     tz = ZoneInfo((oi_cfg.get("timezone") or "Europe/Madrid"))
     now = now or _dt.datetime.now(tz)
     month = now.strftime("%Y-%m")
     platforms = [p.lower() for p in (platforms or [])]
 
-    trace = {"file_id": file_id, "read_at": now.isoformat(), "source": "workbook",
-             "fallback_used": False, "warnings": []}
+    trace = {
+        "file_id": file_id,
+        "read_at": now.isoformat(),
+        "source": "workbook",
+        "fallback_used": False,
+        "warnings": [],
+    }
 
     if not file_id:
-        return _from_fallback(oi_cfg, month, trace, "config sin operational_inputs.workbook.file_id")
+        return _from_fallback(
+            oi_cfg, month, trace, "config sin operational_inputs.workbook.file_id"
+        )
 
     try:
         wb = _read_workbook(file_id)
     except Exception as e:  # red, permisos, Sheet inaccesible
-        return _from_fallback(oi_cfg, month, trace, f"workbook ilegible: {type(e).__name__}: {e}")
+        return _from_fallback(
+            oi_cfg, month, trace, f"workbook ilegible: {type(e).__name__}: {e}"
+        )
 
-    budget, kpis, naming, currency = _resolve(wb, month, platforms)
+    budget, kpis, naming_patterns, utm_rules, currency = _resolve(wb, month, platforms)
     if "cuenta" not in budget:
         # sin fila de budget del mes → fallback de budget (bloque), KPIs sí del workbook
         fb = (oi_cfg.get("fallback") or {}).get("budget")
         if fb:
             budget["cuenta"] = _budget_block({**fb, "nivel": "cuenta"})
             trace["fallback_used"] = True
-            trace["warnings"].append(f"sin fila budget para {month}; usado fallback de config")
+            trace["warnings"].append(
+                f"sin fila budget para {month}; usado fallback de config"
+            )
         else:
-            trace["warnings"].append(f"sin fila budget para {month} y sin fallback en config")
+            trace["warnings"].append(
+                f"sin fila budget para {month} y sin fallback en config"
+            )
 
-    return OperationalInputs(month=month, currency=currency, budget=budget,
-                             kpis=kpis, naming_utm=naming, trace=trace)
+    # Sin fallback de naming por diseño: vacío se señala, no se inventa.
+    if not naming_patterns and not utm_rules:
+        trace["warnings"].append(
+            "pestaña naming_utm sin filas enabled — sin reglas de naming/UTM "
+            "(no hay fallback de naming por diseño)"
+        )
+
+    return OperationalInputs(
+        month=month,
+        currency=currency,
+        budget=budget,
+        kpis=kpis,
+        naming_patterns=naming_patterns,
+        utm_rules=utm_rules,
+        trace=trace,
+    )
 
 
-def _from_fallback(oi_cfg: dict, month: str, trace: dict, reason: str) -> OperationalInputs:
+def _from_fallback(
+    oi_cfg: dict, month: str, trace: dict, reason: str
+) -> OperationalInputs:
     fb = oi_cfg.get("fallback") or {}
     trace.update(source="config_fallback", fallback_used=True)
     trace["warnings"].append(reason)
-    budget = {"cuenta": _budget_block({**(fb.get("budget") or {}), "nivel": "cuenta"})} if fb.get("budget") else {}
+    budget = (
+        {"cuenta": _budget_block({**(fb.get("budget") or {}), "nivel": "cuenta"})}
+        if fb.get("budget")
+        else {}
+    )
     kpis = [r for r in (fb.get("kpis") or []) if _b(r.get("enabled", True))]
-    return OperationalInputs(month=month, currency=_s(fb.get("currency")) or "EUR",
-                             budget=budget, kpis=kpis, trace=trace)
+    trace["warnings"].append(
+        "sin reglas de naming/UTM en fallback (no hay fallback de naming por diseño)"
+    )
+    return OperationalInputs(
+        month=month,
+        currency=_s(fb.get("currency")) or "EUR",
+        budget=budget,
+        kpis=kpis,
+        trace=trace,
+    )
 
 
 def to_prompt_block(oi: OperationalInputs) -> str:
@@ -254,8 +396,10 @@ def to_prompt_block(oi: OperationalInputs) -> str:
         f"Mes: {oi.month} · Moneda: {oi.currency} · Fuente: {oi.trace.get('source')}",
     ]
     if oi.trace.get("fallback_used"):
-        lines.append("AVISO: algún valor proviene del FALLBACK de config (el workbook no estaba "
-                     "disponible o faltaba la fila). Señálalo explícitamente en el output.")
+        lines.append(
+            "AVISO: algún valor proviene del FALLBACK de config (el workbook no estaba "
+            "disponible o faltaba la fila). Señálalo explícitamente en el output."
+        )
     acc = oi.budget.get("cuenta")
     if acc:
         lines.append(
@@ -266,23 +410,40 @@ def to_prompt_block(oi: OperationalInputs) -> str:
         )
     for p, blk in oi.budget.items():
         if p != "cuenta":
-            lines.append(f"Budget ({p}): total_max {blk['total_max_eur']:.0f}{oi.currency}, "
-                         f"floor blended {blk['roas_blended_floor']}x.")
+            lines.append(
+                f"Budget ({p}): total_max {blk['total_max_eur']:.0f}{oi.currency}, "
+                f"floor blended {blk['roas_blended_floor']}x."
+            )
     if oi.kpis:
         lines.append("Tolerancias y referencias (most-specific-wins por plataforma):")
         for r in oi.kpis:
             lvl = _s(r.get("nivel")) or "cuenta"
-            lines.append(f"  - [{lvl}] {_s(r.get('metrica'))}.{_s(r.get('parametro'))} = "
-                         f"{_s(r.get('valor'))} (ventana {_s(r.get('ventana')) or 'n/a'})")
+            lines.append(
+                f"  - [{lvl}] {_s(r.get('metrica'))}.{_s(r.get('parametro'))} = "
+                f"{_s(r.get('valor'))} (ventana {_s(r.get('ventana')) or 'n/a'})"
+            )
+    plats = sorted(set(oi.naming_patterns) | set(oi.utm_rules))
+    if plats:
+        lines.append("Naming & UTM (workbook):")
+        for p in plats:
+            for nivel, e in (oi.naming_patterns.get(p) or {}).items():
+                ej = f" (ej. {e['ejemplo']})" if e.get("ejemplo") else ""
+                lines.append(f"  - [{p}] naming {nivel}: {e['patron']}{ej}")
+            for parametro, valor in (oi.utm_rules.get(p) or {}).items():
+                lines.append(f"  - [{p}] utm {parametro} = {valor}")
     return "\n".join(lines)
 
 
 def reference_used(oi: OperationalInputs) -> dict:
     """Resumen para el log/output de la ejecución (gate de validación 3.2)."""
     return {
-        "month": oi.month, "source": oi.trace.get("source"),
+        "month": oi.month,
+        "source": oi.trace.get("source"),
         "fallback_used": oi.trace.get("fallback_used"),
         "budget_cuenta": oi.budget.get("cuenta"),
-        "kpis_count": len(oi.kpis), "warnings": oi.trace.get("warnings"),
+        "kpis_count": len(oi.kpis),
+        "naming_rules_count": sum(len(v) for v in oi.naming_patterns.values()),
+        "utm_rules_count": sum(len(v) for v in oi.utm_rules.values()),
+        "warnings": oi.trace.get("warnings"),
         "file_id": oi.trace.get("file_id"),
     }
