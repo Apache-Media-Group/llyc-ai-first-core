@@ -44,6 +44,22 @@ FREQUENCY_CAP_UNITS = {
 }
 
 
+
+OPTIMIZATION_OBJECTIVES = {
+    "CONVERSIONS":     "CONVERSION",
+    "CLICKS":          "CLICK",
+    "BRAND_AWARENESS": "BRAND_AWARENESS",
+    "VIEWABILITY":     "VIEWABILITY",
+    "CUSTOM":          "CUSTOM",
+    "NONE":            "NONE",
+}
+
+AUTOMATION_TYPES = {
+    "NONE":   "INSERTION_ORDER_AUTOMATION_TYPE_NONE",
+    "BUDGET": "INSERTION_ORDER_AUTOMATION_TYPE_BUDGET",
+    "BID":    "INSERTION_ORDER_AUTOMATION_TYPE_BID",
+}
+
 def _eur_to_micros(eur: float) -> int:
     return int(eur * _EUR_TO_MICROS)
 
@@ -67,6 +83,8 @@ def build_io_body(
     frequency_cap: int | None,
     frequency_cap_unit: str | None,
     budget_segments: list | None,
+    optimization_objective: str = "CONVERSIONS",
+    automation_type: str = "NONE",
 ) -> dict:
     pacing_type = PACING_TYPES.get(pacing.upper())
     if not pacing_type:
@@ -78,18 +96,24 @@ def build_io_body(
 
     budget_unit_mapped = "BUDGET_UNIT_CURRENCY" if budget_unit.upper() == "AMOUNT" else "BUDGET_UNIT_IMPRESSIONS"
 
+    opt_obj_mapped = OPTIMIZATION_OBJECTIVES.get(optimization_objective.upper(), "CONVERSION")
     body = {
-        "advertiserId": advertiser_id,
         "campaignId": campaign_id,
         "displayName": name,
         "entityStatus": "ENTITY_STATUS_DRAFT",
+        "optimizationObjective": opt_obj_mapped,
+        "kpi": {
+            "kpiType": "KPI_TYPE_VIEWABILITY",
+            "kpiPercentageMicros": "700000",
+        },
         "pacing": {
             "pacingPeriod": pacing_period_type,
             "pacingType": pacing_type,
+            "dailyMaxMicros": str(int(budget_eur / 90 * 1_000_000)),
         },
         "budget": {
             "budgetUnit": budget_unit_mapped,
-            "automationType": "INSERTION_ORDER_AUTOMATION_TYPE_NONE",
+            "automationType": AUTOMATION_TYPES.get(automation_type.upper(), "INSERTION_ORDER_AUTOMATION_TYPE_NONE"),
         },
     }
 
@@ -160,9 +184,11 @@ def create_io(
     frequency_cap: int | None = None,
     frequency_cap_unit: str | None = None,
     budget_segments: list | None = None,
+    optimization_objective: str = "CONVERSIONS",
+    automation_type: str = "NONE",
     dry_run: bool = False,
 ) -> dict:
-    """Crea un Insertion Order en DV360. Se crea siempre en DRAFT."""
+    """Crea un Insertion Order en DV360. Se crea siempre en PAUSED."""
     advertiser_id = get_advertiser_id(client_id)
 
     body = build_io_body(
@@ -179,6 +205,8 @@ def create_io(
         frequency_cap=frequency_cap,
         frequency_cap_unit=frequency_cap_unit,
         budget_segments=budget_segments,
+        optimization_objective=optimization_objective,
+        automation_type=automation_type,
     )
 
     action_msg = (
@@ -278,6 +306,8 @@ def main() -> None:
     parser.add_argument("--frequency-cap", type=int, default=None)
     parser.add_argument("--frequency-cap-unit", choices=list(FREQUENCY_CAP_UNITS), default=None)
     parser.add_argument("--budget-segments", type=str, default=None)
+    parser.add_argument("--optimization-objective", choices=list(OPTIMIZATION_OBJECTIVES), default="CONVERSIONS", help="Objetivo de optimizacion del IO (defecto: CONVERSIONS)")
+    parser.add_argument("--automation-type", choices=list(AUTOMATION_TYPES), default="NONE", help="Tipo de automatizacion: NONE | BUDGET (automate bid+budget) | BID")
     parser.add_argument("--dry-run", action="store_true")
 
     args = parser.parse_args()
@@ -304,6 +334,8 @@ def main() -> None:
         frequency_cap=args.frequency_cap,
         frequency_cap_unit=args.frequency_cap_unit,
         budget_segments=budget_segments,
+        optimization_objective=getattr(args, "optimization_objective", "CONVERSIONS"),
+        automation_type=getattr(args, "automation_type", "NONE"),
         dry_run=args.dry_run,
     )
 
