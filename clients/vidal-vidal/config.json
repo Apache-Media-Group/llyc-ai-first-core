@@ -12,25 +12,21 @@
     "performance_monitor": {
       "agent_id": "agent_012GwhFrbyVLGo3EamQqRzhD",
       "enabled": true,
-      "schedule": "0 8 * * *",
       "output_folder": "04_OUTPUTS/vidal-vidal/performance-monitor"
     },
     "budget_pacer": {
       "agent_id": null,
       "enabled": true,
-      "schedule": "0 12,18 * * *",
       "output_folder": "04_OUTPUTS/vidal-vidal/budget-pacer"
     },
     "naming_utm_auditor": {
       "agent_id": null,
       "enabled": true,
-      "schedule": "0 9 * * 1",
       "output_folder": "04_OUTPUTS/vidal-vidal/naming-utm-auditor"
     },
     "weekly_digest": {
       "agent_id": null,
       "enabled": true,
-      "schedule": "0 17 * * 5",
       "output_folder": "04_OUTPUTS/vidal-vidal/weekly-digest"
     },
     "creative_fatigue_detector": {
