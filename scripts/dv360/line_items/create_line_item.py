@@ -1,27 +1,16 @@
 """
 scripts/dv360/line_items/create_line_item.py
-Crea un Line Item de Display en DV360 con targeting completo.
+Crea un Line Item en DV360 con targeting completo.
 
-Jerarquia: Campaign → Insertion Order → Line Item → Creatives
+Soporta tres formatos:
+  DISPLAY  — Display estandar (LINE_ITEM_TYPE_DISPLAY_DEFAULT)
+  VIDEO    — Video instream/outstream (LINE_ITEM_TYPE_VIDEO_DEFAULT)
+  YOUTUBE  — YouTube & Partners (LINE_ITEM_TYPE_YOUTUBE_AND_PARTNERS_VIDEO_SEQUENCE)
+  YOUTUBE_BUMPER       — Bumper 6s (LINE_ITEM_TYPE_YOUTUBE_AND_PARTNERS_BUMPER)
+  YOUTUBE_NON_SKIP     — Non-skippable 15s (LINE_ITEM_TYPE_YOUTUBE_AND_PARTNERS_NON_SKIPPABLE)
+  YOUTUBE_VIEW         — TrueView in-stream (LINE_ITEM_TYPE_YOUTUBE_AND_PARTNERS_VIEW)
 
-El LI es la unidad de ejecucion tactica. Aqui se configura la puja exacta
-y el targeting completo: brand safety, contenido, audiencia, geografia,
-dayparting, tecnologia y asignacion de creatividades.
-
-Uso:
-    python scripts/dv360/line_items/create_line_item.py \\
-        --client vidal-vidal \\
-        --campaign-id 123456 \\
-        --io-id 789012 \\
-        --name "LI_Display_InMarket_Automocion_Desktop" \\
-        --bid-eur 2.50 \\
-        --budget-eur 1000 \\
-        --start-date 2026-07-01 \\
-        --end-date 2026-09-30 \\
-        --geo-regions ES-MD ES-CT \\
-        --device-types DESKTOP \\
-        --audience-inmarket "Automotive/Cars & Trucks" \\
-        --dry-run
+Jerarquia: Campaign -> Insertion Order -> Line Item -> Creatives
 
 SA: llyc-ops-writer-sa (DEC_084). NUNCA llyc-agents-sa.
 """
@@ -44,33 +33,48 @@ log = logging.getLogger(__name__)
 
 _EUR_TO_MICROS = 1_000_000
 
-# ── Valores validos ────────────────────────────────────────────────────────────
+# ── Tipos de Line Item ────────────────────────────────────────────────────────
 
-BID_STRATEGIES = {
-    "FIXED":    "fixed",
-    "MAXIMIZE": "maximizeSpend",
-    "TARGET_CPA": "performanceGoalAutoBid",
+LINE_ITEM_TYPES = {
+    "DISPLAY":            "LINE_ITEM_TYPE_DISPLAY_DEFAULT",
+    "VIDEO":              "LINE_ITEM_TYPE_VIDEO_DEFAULT",
+    "YOUTUBE":            "LINE_ITEM_TYPE_YOUTUBE_AND_PARTNERS_VIDEO_SEQUENCE",
+    "YOUTUBE_BUMPER":     "LINE_ITEM_TYPE_YOUTUBE_AND_PARTNERS_BUMPER",
+    "YOUTUBE_NON_SKIP":   "LINE_ITEM_TYPE_YOUTUBE_AND_PARTNERS_NON_SKIPPABLE",
+    "YOUTUBE_VIEW":       "LINE_ITEM_TYPE_YOUTUBE_AND_PARTNERS_VIEW",
 }
 
+# ── Bid strategies por tipo de LI ─────────────────────────────────────────────
+
+BID_STRATEGIES = {
+    "FIXED":       "fixed",
+    "MAXIMIZE":    "maximizeSpend",
+    "TARGET_CPA":  "performanceGoalAutoBid",
+    "TARGET_CPV":  "performanceGoalAutoBid",  # Cost Per View para YouTube
+    "TARGET_CPM":  "performanceGoalAutoBid",  # CPM objetivo
+}
+
+# ── Targeting maps ────────────────────────────────────────────────────────────
+
 DEVICE_TYPES = {
-    "DESKTOP":    "DEVICE_TYPE_DESKTOP",
-    "MOBILE":     "DEVICE_TYPE_SMART_PHONE",
-    "TABLET":     "DEVICE_TYPE_TABLET",
-    "CONNECTED":  "DEVICE_TYPE_CONNECTED_TV",
+    "DESKTOP":   "DEVICE_TYPE_DESKTOP",
+    "MOBILE":    "DEVICE_TYPE_SMART_PHONE",
+    "TABLET":    "DEVICE_TYPE_TABLET",
+    "CONNECTED": "DEVICE_TYPE_CONNECTED_TV",
 }
 
 ENVIRONMENTS = {
-    "DESKTOP_WEB":  "ENVIRONMENT_TYPE_BROWSER",
-    "MOBILE_WEB":   "ENVIRONMENT_TYPE_BROWSER",
-    "APP":          "ENVIRONMENT_TYPE_APP",
-    "ALL":          "ENVIRONMENT_TYPE_ALL",
+    "DESKTOP_WEB": "ENVIRONMENT_TYPE_BROWSER",
+    "MOBILE_WEB":  "ENVIRONMENT_TYPE_BROWSER",
+    "APP":         "ENVIRONMENT_TYPE_APP",
+    "ALL":         "ENVIRONMENT_TYPE_ALL",
 }
 
 CONTENT_LABELS = {
-    "G":   "CONTENT_RATING_TIER_G",
-    "PG":  "CONTENT_RATING_TIER_PG",
-    "T":   "CONTENT_RATING_TIER_T",
-    "MA":  "CONTENT_RATING_TIER_MA",
+    "G":  "CONTENT_RATING_TIER_G",
+    "PG": "CONTENT_RATING_TIER_PG",
+    "T":  "CONTENT_RATING_TIER_T",
+    "MA": "CONTENT_RATING_TIER_MA",
 }
 
 GENDER_TYPES = {
@@ -89,10 +93,10 @@ AGE_RANGES = {
 }
 
 VIEWABILITY_TARGETS = {
-    "50":  "VIEWABILITY_50_PERCENT_OR_MORE",
-    "60":  "VIEWABILITY_60_PERCENT_OR_MORE",
-    "70":  "VIEWABILITY_70_PERCENT_OR_MORE",
-    "80":  "VIEWABILITY_80_PERCENT_OR_MORE",
+    "50": "VIEWABILITY_50_PERCENT_OR_MORE",
+    "60": "VIEWABILITY_60_PERCENT_OR_MORE",
+    "70": "VIEWABILITY_70_PERCENT_OR_MORE",
+    "80": "VIEWABILITY_80_PERCENT_OR_MORE",
 }
 
 PARENTAL_STATUS = {
@@ -124,42 +128,53 @@ BROWSERS = {
 }
 
 OS_TYPES = {
-    "ANDROID":   "OPERATING_SYSTEM_ANDROID",
-    "IOS":       "OPERATING_SYSTEM_IOS",
-    "WINDOWS":   "OPERATING_SYSTEM_WINDOWS",
-    "MACOS":     "OPERATING_SYSTEM_MAC_OS_X",
-    "CHROMEOS":  "OPERATING_SYSTEM_CHROME_OS",
+    "ANDROID":  "OPERATING_SYSTEM_ANDROID",
+    "IOS":      "OPERATING_SYSTEM_IOS",
+    "WINDOWS":  "OPERATING_SYSTEM_WINDOWS",
+    "MACOS":    "OPERATING_SYSTEM_MAC_OS_X",
+    "CHROMEOS": "OPERATING_SYSTEM_CHROME_OS",
 }
 
 CONNECTION_SPEEDS = {
-    "WIFI":   "CONNECTION_SPEED_WIFI",
-    "4G":     "CONNECTION_SPEED_4G",
-    "5G":     "CONNECTION_SPEED_5G",
-    "3G":     "CONNECTION_SPEED_3G",
-    "ALL":    "CONNECTION_SPEED_ALL",
+    "WIFI": "CONNECTION_SPEED_WIFI",
+    "4G":   "CONNECTION_SPEED_4G",
+    "5G":   "CONNECTION_SPEED_5G",
+    "3G":   "CONNECTION_SPEED_3G",
+    "ALL":  "CONNECTION_SPEED_ALL",
 }
 
 SENSITIVE_CATEGORIES = {
-    "POLITICS":    "SENSITIVE_CATEGORY_POLITICS",
-    "RELIGION":    "SENSITIVE_CATEGORY_RELIGION",
-    "GAMBLING":    "SENSITIVE_CATEGORY_GAMBLING",
-    "TRAGEDY":     "SENSITIVE_CATEGORY_TRAGEDY",
-    "WEAPONS":     "SENSITIVE_CATEGORY_WEAPONS",
-    "ADULT":       "SENSITIVE_CATEGORY_ADULT",
-    "DRUGS":       "SENSITIVE_CATEGORY_ILLEGAL_DRUGS",
-    "VIOLENCE":    "SENSITIVE_CATEGORY_VIOLENCE",
-    "HATE":        "SENSITIVE_CATEGORY_HATE_SPEECH",
-    "TOBACCO":     "SENSITIVE_CATEGORY_TOBACCO",
+    "POLITICS":  "SENSITIVE_CATEGORY_POLITICS",
+    "RELIGION":  "SENSITIVE_CATEGORY_RELIGION",
+    "GAMBLING":  "SENSITIVE_CATEGORY_GAMBLING",
+    "TRAGEDY":   "SENSITIVE_CATEGORY_TRAGEDY",
+    "WEAPONS":   "SENSITIVE_CATEGORY_WEAPONS",
+    "ADULT":     "SENSITIVE_CATEGORY_ADULT",
+    "DRUGS":     "SENSITIVE_CATEGORY_ILLEGAL_DRUGS",
+    "VIOLENCE":  "SENSITIVE_CATEGORY_VIOLENCE",
+    "HATE":      "SENSITIVE_CATEGORY_HATE_SPEECH",
+    "TOBACCO":   "SENSITIVE_CATEGORY_TOBACCO",
 }
 
 BRAND_SAFETY_CATEGORIES = {
-    "ADULT":      "BRAND_SAFETY_ADULT",
-    "WEAPONS":    "BRAND_SAFETY_ARMS",
-    "VIOLENCE":   "BRAND_SAFETY_CRIME_VIOLENCE",
-    "DRUGS":      "BRAND_SAFETY_DRUGS",
-    "HATE":       "BRAND_SAFETY_HATE_SPEECH",
-    "TRAGEDY":    "BRAND_SAFETY_TRAGEDY",
-    "TOBACCO":    "BRAND_SAFETY_TOBACCO",
+    "ADULT":    "BRAND_SAFETY_ADULT",
+    "WEAPONS":  "BRAND_SAFETY_ARMS",
+    "VIOLENCE": "BRAND_SAFETY_CRIME_VIOLENCE",
+    "DRUGS":    "BRAND_SAFETY_DRUGS",
+    "HATE":     "BRAND_SAFETY_HATE_SPEECH",
+    "TRAGEDY":  "BRAND_SAFETY_TRAGEDY",
+    "TOBACCO":  "BRAND_SAFETY_TOBACCO",
+}
+
+# YouTube: tipos de contenido donde mostrar el anuncio
+YOUTUBE_CONTENT_CATEGORIES = {
+    "BEAUTY":       "YOUTUBE_AND_PARTNERS_CONTENT_CATEGORY_BEAUTY",
+    "FOOD":         "YOUTUBE_AND_PARTNERS_CONTENT_CATEGORY_FOOD",
+    "GAMING":       "YOUTUBE_AND_PARTNERS_CONTENT_CATEGORY_GAMING",
+    "NEWS":         "YOUTUBE_AND_PARTNERS_CONTENT_CATEGORY_NEWS",
+    "SPORTS":       "YOUTUBE_AND_PARTNERS_CONTENT_CATEGORY_SPORTS",
+    "TECHNOLOGY":   "YOUTUBE_AND_PARTNERS_CONTENT_CATEGORY_TECHNOLOGY",
+    "TRAVEL":       "YOUTUBE_AND_PARTNERS_CONTENT_CATEGORY_TRAVEL",
 }
 
 
@@ -172,53 +187,45 @@ def _parse_date(date_str: str) -> dict:
     return {"year": int(parts[0]), "month": int(parts[1]), "day": int(parts[2])}
 
 
+def _is_youtube(li_type: str) -> bool:
+    return li_type.upper().startswith("YOUTUBE")
+
+
 def build_targeting_settings(
-    # Brand Safety
-    content_labels: list[str] | None,
-    brand_safety_categories: list[str] | None,
-    sensitive_categories: list[str] | None,
-    # Content
-    keyword_includes: list[str] | None,
-    keyword_excludes: list[str] | None,
-    iab_categories: list[str] | None,
+    content_labels: list | None,
+    brand_safety_categories: list | None,
+    sensitive_categories: list | None,
+    keyword_includes: list | None,
+    keyword_excludes: list | None,
+    iab_categories: list | None,
     environment: str | None,
     viewability_target: str | None,
-    positions: list[str] | None,
-    # Audience
-    audience_list_ids: list[str] | None,
-    audience_inmarket: list[str] | None,
-    audience_affinity: list[str] | None,
+    positions: list | None,
+    audience_list_ids: list | None,
+    audience_inmarket: list | None,
+    audience_affinity: list | None,
     audience_expansion: bool,
-    genders: list[str] | None,
-    age_ranges: list[str] | None,
-    parental_status: list[str] | None,
-    # Geography
-    geo_regions: list[str] | None,
-    geo_cities: list[str] | None,
-    geo_zip_codes: list[str] | None,
-    geo_exclude: list[str] | None,
-    language_codes: list[str] | None,
-    # Day & Time
+    genders: list | None,
+    age_ranges: list | None,
+    parental_status: list | None,
+    geo_regions: list | None,
+    geo_cities: list | None,
+    geo_zip_codes: list | None,
+    geo_exclude: list | None,
+    language_codes: list | None,
     daypart_matrix: dict | None,
-    # Technology
-    device_types: list[str] | None,
-    operating_systems: list[str] | None,
-    browsers: list[str] | None,
-    connection_speeds: list[str] | None,
-) -> list[dict]:
-    """
-    Construye la lista de targeting options para el LI.
-
-    Cada targeting option es un dict con targetingType y assignedTargetingOptionDetails.
-    Se aplica la logica AND entre categorias y OR dentro de cada categoria.
-
-    Returns:
-        Lista de assigned targeting options lista para la API
-    """
+    device_types: list | None,
+    operating_systems: list | None,
+    browsers: list | None,
+    connection_speeds: list | None,
+    youtube_content_categories: list | None,
+    youtube_channel_ids: list | None,
+    youtube_video_ids: list | None,
+    li_type: str = "DISPLAY",
+) -> list:
     targeting = []
 
     # ── Brand Safety ──────────────────────────────────────────────────────────
-
     if content_labels:
         for label in content_labels:
             mapped = CONTENT_LABELS.get(label.upper())
@@ -253,88 +260,102 @@ def build_targeting_settings(
                 })
 
     # ── Content ───────────────────────────────────────────────────────────────
-
     if keyword_includes:
         for kw in keyword_includes:
             targeting.append({
                 "targetingType": "TARGETING_TYPE_KEYWORD",
-                "keywordDetails": {
-                    "keyword": kw,
-                    "negative": False,
-                },
+                "keywordDetails": {"keyword": kw, "negative": False},
             })
 
     if keyword_excludes:
         for kw in keyword_excludes:
             targeting.append({
                 "targetingType": "TARGETING_TYPE_KEYWORD",
-                "keywordDetails": {
-                    "keyword": kw,
-                    "negative": True,
-                },
+                "keywordDetails": {"keyword": kw, "negative": True},
             })
 
     if iab_categories:
         for cat in iab_categories:
             targeting.append({
                 "targetingType": "TARGETING_TYPE_CATEGORY",
-                "categoryDetails": {
-                    "displayName": cat,
-                    "negative": False,
-                },
+                "categoryDetails": {"displayName": cat, "negative": False},
             })
 
-    if environment:
+    if environment and not _is_youtube(li_type):
         mapped = ENVIRONMENTS.get(environment.upper())
         if mapped:
             targeting.append({
                 "targetingType": "TARGETING_TYPE_ENVIRONMENT",
-                "environmentDetails": {
-                    "environment": mapped,
-                },
+                "environmentDetails": {"environment": mapped},
             })
 
-    if viewability_target:
+    if viewability_target and not _is_youtube(li_type):
         mapped = VIEWABILITY_TARGETS.get(str(viewability_target))
         if mapped:
             targeting.append({
                 "targetingType": "TARGETING_TYPE_VIEWABILITY",
-                "viewabilityDetails": {
-                    "viewability": mapped,
-                },
+                "viewabilityDetails": {"viewability": mapped},
             })
 
-    if positions:
+    if positions and not _is_youtube(li_type):
         for pos in positions:
             mapped = POSITION_TYPES.get(pos.upper())
             if mapped:
                 targeting.append({
                     "targetingType": "TARGETING_TYPE_ON_SCREEN_POSITION",
-                    "onScreenPositionDetails": {
-                        "onScreenPosition": mapped,
+                    "onScreenPositionDetails": {"onScreenPosition": mapped},
+                })
+
+    # ── YouTube-specific content ──────────────────────────────────────────────
+    if _is_youtube(li_type):
+        if youtube_content_categories:
+            for cat in youtube_content_categories:
+                mapped = YOUTUBE_CONTENT_CATEGORIES.get(cat.upper())
+                if mapped:
+                    targeting.append({
+                        "targetingType": "TARGETING_TYPE_YOUTUBE_AND_PARTNERS_CONTENT_CATEGORY",
+                        "youtubeAndPartnersContentCategoryDetails": {
+                            "contentCategory": mapped,
+                        },
+                    })
+
+        if youtube_channel_ids:
+            for channel_id in youtube_channel_ids:
+                targeting.append({
+                    "targetingType": "TARGETING_TYPE_YOUTUBE_CHANNEL",
+                    "youtubeChannelDetails": {
+                        "channelId": channel_id,
+                        "negative": False,
+                    },
+                })
+
+        if youtube_video_ids:
+            for video_id in youtube_video_ids:
+                targeting.append({
+                    "targetingType": "TARGETING_TYPE_YOUTUBE_VIDEO",
+                    "youtubeVideoDetails": {
+                        "videoId": video_id,
+                        "negative": False,
                     },
                 })
 
     # ── Audience ──────────────────────────────────────────────────────────────
-
     if audience_list_ids:
-        # First-party / remarketing lists
-        audience_group = {
-            "includedFirstAndThirdPartyAudienceGroups": [
-                {
-                    "firstAndThirdPartyAudiences": [
-                        {
-                            "firstAndThirdPartyAudienceId": aid,
-                            "recency": "AUDIENCE_RECENCY_NO_LIMIT",
-                        }
-                        for aid in audience_list_ids
-                    ]
-                }
-            ]
-        }
         targeting.append({
             "targetingType": "TARGETING_TYPE_AUDIENCE_GROUP",
-            "audienceGroupDetails": audience_group,
+            "audienceGroupDetails": {
+                "includedFirstAndThirdPartyAudienceGroups": [
+                    {
+                        "firstAndThirdPartyAudiences": [
+                            {
+                                "firstAndThirdPartyAudienceId": aid,
+                                "recency": "AUDIENCE_RECENCY_NO_LIMIT",
+                            }
+                            for aid in audience_list_ids
+                        ]
+                    }
+                ]
+            },
         })
 
     if audience_inmarket:
@@ -343,12 +364,7 @@ def build_targeting_settings(
                 "targetingType": "TARGETING_TYPE_AUDIENCE_GROUP",
                 "audienceGroupDetails": {
                     "includedGoogleAudienceGroup": {
-                        "settings": [
-                            {
-                                "targetingOptionId": audience,
-                                "negative": False,
-                            }
-                        ]
+                        "settings": [{"targetingOptionId": audience, "negative": False}]
                     }
                 },
             })
@@ -359,12 +375,7 @@ def build_targeting_settings(
                 "targetingType": "TARGETING_TYPE_AUDIENCE_GROUP",
                 "audienceGroupDetails": {
                     "includedGoogleAudienceGroup": {
-                        "settings": [
-                            {
-                                "targetingOptionId": audience,
-                                "negative": False,
-                            }
-                        ]
+                        "settings": [{"targetingOptionId": audience, "negative": False}]
                     }
                 },
             })
@@ -397,7 +408,6 @@ def build_targeting_settings(
                 })
 
     # ── Geography ─────────────────────────────────────────────────────────────
-
     if geo_regions:
         for region in geo_regions:
             targeting.append({
@@ -435,35 +445,26 @@ def build_targeting_settings(
         for region in geo_exclude:
             targeting.append({
                 "targetingType": "TARGETING_TYPE_GEO_REGION",
-                "geoRegionDetails": {
-                    "displayName": region,
-                    "negative": True,
-                },
+                "geoRegionDetails": {"displayName": region, "negative": True},
             })
 
     if language_codes:
         for lang in language_codes:
             targeting.append({
                 "targetingType": "TARGETING_TYPE_LANGUAGE",
-                "languageDetails": {
-                    "displayName": lang,
-                    "negative": False,
-                },
+                "languageDetails": {"displayName": lang, "negative": False},
             })
 
-    # ── Day & Time (Dayparting) ───────────────────────────────────────────────
-
+    # ── Day & Time ────────────────────────────────────────────────────────────
     if daypart_matrix:
-        # daypart_matrix formato: {"MONDAY": [9, 10, 11, 18, 19], "TUESDAY": [...]}
-        # Horas en formato 0-23
         day_map = {
-            "MONDAY": "DAYOFWEEK_MONDAY",
-            "TUESDAY": "DAYOFWEEK_TUESDAY",
+            "MONDAY":    "DAYOFWEEK_MONDAY",
+            "TUESDAY":   "DAYOFWEEK_TUESDAY",
             "WEDNESDAY": "DAYOFWEEK_WEDNESDAY",
-            "THURSDAY": "DAYOFWEEK_THURSDAY",
-            "FRIDAY": "DAYOFWEEK_FRIDAY",
-            "SATURDAY": "DAYOFWEEK_SATURDAY",
-            "SUNDAY": "DAYOFWEEK_SUNDAY",
+            "THURSDAY":  "DAYOFWEEK_THURSDAY",
+            "FRIDAY":    "DAYOFWEEK_FRIDAY",
+            "SATURDAY":  "DAYOFWEEK_SATURDAY",
+            "SUNDAY":    "DAYOFWEEK_SUNDAY",
         }
         dayparts = []
         for day, hours in daypart_matrix.items():
@@ -484,8 +485,7 @@ def build_targeting_settings(
                 },
             })
 
-    # ── Technology ───────────────────────────────────────────────────────────
-
+    # ── Technology ────────────────────────────────────────────────────────────
     if device_types:
         for device in device_types:
             mapped = DEVICE_TYPES.get(device.upper())
@@ -497,27 +497,17 @@ def build_targeting_settings(
 
     if operating_systems:
         for os_name in operating_systems:
-            mapped = OS_TYPES.get(os_name.upper())
-            if mapped:
-                targeting.append({
-                    "targetingType": "TARGETING_TYPE_OPERATING_SYSTEM",
-                    "operatingSystemDetails": {
-                        "displayName": os_name,
-                        "negative": False,
-                    },
-                })
+            targeting.append({
+                "targetingType": "TARGETING_TYPE_OPERATING_SYSTEM",
+                "operatingSystemDetails": {"displayName": os_name, "negative": False},
+            })
 
-    if browsers:
+    if browsers and not _is_youtube(li_type):
         for browser in browsers:
-            mapped = BROWSERS.get(browser.upper())
-            if mapped:
-                targeting.append({
-                    "targetingType": "TARGETING_TYPE_BROWSER",
-                    "browserDetails": {
-                        "displayName": browser,
-                        "negative": False,
-                    },
-                })
+            targeting.append({
+                "targetingType": "TARGETING_TYPE_BROWSER",
+                "browserDetails": {"displayName": browser, "negative": False},
+            })
 
     if connection_speeds:
         for speed in connection_speeds:
@@ -531,33 +521,92 @@ def build_targeting_settings(
     return targeting
 
 
+def build_bid_strategy(
+    li_type: str,
+    bid_strategy: str,
+    bid_eur: float | None,
+    bid_max_eur: float | None,
+    target_cpa_eur: float | None,
+    target_cpv_eur: float | None,
+) -> dict:
+    """
+    Construye la bid strategy segun el tipo de LI.
+
+    Display/Video: FIXED (CPM), MAXIMIZE, TARGET_CPA
+    YouTube: TARGET_CPV (Cost Per View), TARGET_CPM, MAXIMIZE
+    """
+    if _is_youtube(li_type):
+        if bid_strategy.upper() == "TARGET_CPV" and target_cpv_eur:
+            return {
+                "performanceGoalAutoBid": {
+                    "performanceGoalType": "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPV",
+                    "performanceGoalAmountMicros": str(_eur_to_micros(target_cpv_eur)),
+                }
+            }
+        elif bid_strategy.upper() == "TARGET_CPM" and bid_eur:
+            return {
+                "performanceGoalAutoBid": {
+                    "performanceGoalType": "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPM",
+                    "performanceGoalAmountMicros": str(_eur_to_micros(bid_eur)),
+                }
+            }
+        else:
+            # YouTube default: maximize views
+            strategy = {
+                "performanceGoalType": "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPV"
+            }
+            if bid_max_eur:
+                strategy["maxAverageCpmBidAmountMicros"] = str(_eur_to_micros(bid_max_eur))
+            return {"maximizeSpendAutoBid": strategy}
+
+    else:
+        # Display / Video
+        if bid_strategy.upper() == "FIXED" and bid_eur:
+            return {"fixedBid": {"bidAmountMicros": str(_eur_to_micros(bid_eur))}}
+        elif bid_strategy.upper() == "TARGET_CPA" and target_cpa_eur:
+            return {
+                "performanceGoalAutoBid": {
+                    "performanceGoalType": "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA",
+                    "performanceGoalAmountMicros": str(_eur_to_micros(target_cpa_eur)),
+                }
+            }
+        else:
+            strategy = {
+                "performanceGoalType": "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA"
+            }
+            if bid_max_eur:
+                strategy["maxAverageCpmBidAmountMicros"] = str(_eur_to_micros(bid_max_eur))
+            return {"maximizeSpendAutoBid": strategy}
+
+
 def build_li_body(
     advertiser_id: str,
     campaign_id: str,
     io_id: str,
     name: str,
+    li_type: str,
     budget_eur: float,
     start_date: str,
     end_date: str,
-    bid_strategy: str,
-    bid_eur: float | None,
-    bid_max_eur: float | None,
-    target_cpa_eur: float | None,
+    bid_strategy_body: dict,
     frequency_cap: int | None,
     frequency_cap_unit: str | None,
-    creative_ids: list[str],
-    targeting: list[dict],
+    creative_ids: list,
     audience_expansion: bool,
+    youtube_target_frequency: int | None,
 ) -> dict:
-    """
-    Construye el body completo para lineItems.create.
-    """
+    """Construye el body completo del Line Item."""
+
+    li_type_mapped = LINE_ITEM_TYPES.get(li_type.upper())
+    if not li_type_mapped:
+        raise ValueError(f"line_item_type '{li_type}' no valido. Opciones: {list(LINE_ITEM_TYPES)}")
+
     body = {
         "advertiserId": advertiser_id,
         "campaignId": campaign_id,
         "insertionOrderId": io_id,
         "displayName": name,
-        "lineItemType": "LINE_ITEM_TYPE_DISPLAY_DEFAULT",
+        "lineItemType": li_type_mapped,
         "entityStatus": "ENTITY_STATUS_DRAFT",
         "flight": {
             "flightDateType": "LINE_ITEM_FLIGHT_DATE_TYPE_CUSTOM",
@@ -575,35 +624,16 @@ def build_li_body(
             "pacingPeriod": "PACING_PERIOD_DAILY",
             "pacingType": "PACING_TYPE_EVEN",
         },
+        "bidStrategy": bid_strategy_body,
         "targetingExpansion": {
-            "targetingExpansionLevel": "TARGETING_EXPANSION_LEVEL_NO_EXPANSION"
-            if not audience_expansion
-            else "TARGETING_EXPANSION_LEVEL_LEAST_EXPANSION",
+            "targetingExpansionLevel": "TARGETING_EXPANSION_LEVEL_LEAST_EXPANSION"
+            if audience_expansion
+            else "TARGETING_EXPANSION_LEVEL_NO_EXPANSION",
             "excludeFirstPartyAudience": not audience_expansion,
         },
     }
 
-    # Bid strategy
-    if bid_strategy.upper() == "FIXED" and bid_eur:
-        body["bidStrategy"] = {
-            "fixedBid": {
-                "bidAmountMicros": str(_eur_to_micros(bid_eur)),
-            }
-        }
-    elif bid_strategy.upper() == "MAXIMIZE":
-        strategy = {"performanceGoalType": "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA"}
-        if bid_max_eur:
-            strategy["maxAverageCpmBidAmountMicros"] = str(_eur_to_micros(bid_max_eur))
-        body["bidStrategy"] = {"maximizeSpendAutoBid": strategy}
-    elif bid_strategy.upper() == "TARGET_CPA" and target_cpa_eur:
-        body["bidStrategy"] = {
-            "performanceGoalAutoBid": {
-                "performanceGoalType": "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA",
-                "performanceGoalAmountMicros": str(_eur_to_micros(target_cpa_eur)),
-            }
-        }
-
-    # Frequency cap a nivel LI
+    # Frequency cap
     if frequency_cap and frequency_cap_unit:
         unit_mapped = FREQUENCY_CAP_UNITS.get(frequency_cap_unit.upper())
         if unit_mapped:
@@ -615,11 +645,20 @@ def build_li_body(
     else:
         body["frequencyCap"] = {"unlimited": True}
 
-    # Creatividades asignadas
+    # YouTube: target frequency (impactos objetivo por usuario)
+    if _is_youtube(li_type) and youtube_target_frequency:
+        body["youtubeAndPartnersSettings"] = {
+            "targetFrequency": {
+                "targetCount": youtube_target_frequency,
+                "timeUnit": "TIME_UNIT_WEEKS",
+            }
+        }
+
+    # Creatividades
     if creative_ids:
         body["creativeIds"] = creative_ids
 
-    return body, targeting
+    return body
 
 
 def create_line_item(
@@ -627,60 +666,65 @@ def create_line_item(
     campaign_id: str,
     io_id: str,
     name: str,
-    budget_eur: float,
-    start_date: str,
-    end_date: str,
+    li_type: str = "DISPLAY",
+    budget_eur: float = 0,
+    start_date: str = None,
+    end_date: str = None,
     bid_strategy: str = "FIXED",
     bid_eur: float | None = None,
     bid_max_eur: float | None = None,
     target_cpa_eur: float | None = None,
+    target_cpv_eur: float | None = None,
     frequency_cap: int | None = None,
     frequency_cap_unit: str | None = None,
-    creative_ids: list[str] = None,
+    creative_ids: list = None,
     audience_expansion: bool = False,
-    # Brand Safety
-    content_labels_exclude: list[str] | None = None,
-    brand_safety_exclude: list[str] | None = None,
-    sensitive_categories_exclude: list[str] | None = None,
-    # Content
-    keyword_includes: list[str] | None = None,
-    keyword_excludes: list[str] | None = None,
-    iab_categories: list[str] | None = None,
+    youtube_target_frequency: int | None = None,
+    content_labels_exclude: list | None = None,
+    brand_safety_exclude: list | None = None,
+    sensitive_categories_exclude: list | None = None,
+    keyword_includes: list | None = None,
+    keyword_excludes: list | None = None,
+    iab_categories: list | None = None,
     environment: str | None = None,
     viewability_target: str | None = None,
-    positions: list[str] | None = None,
-    # Audience
-    audience_list_ids: list[str] | None = None,
-    audience_inmarket: list[str] | None = None,
-    audience_affinity: list[str] | None = None,
-    genders: list[str] | None = None,
-    age_ranges: list[str] | None = None,
-    parental_status: list[str] | None = None,
-    # Geography
-    geo_regions: list[str] | None = None,
-    geo_cities: list[str] | None = None,
-    geo_zip_codes: list[str] | None = None,
-    geo_exclude: list[str] | None = None,
-    language_codes: list[str] | None = None,
-    # Dayparting
+    positions: list | None = None,
+    audience_list_ids: list | None = None,
+    audience_inmarket: list | None = None,
+    audience_affinity: list | None = None,
+    genders: list | None = None,
+    age_ranges: list | None = None,
+    parental_status: list | None = None,
+    geo_regions: list | None = None,
+    geo_cities: list | None = None,
+    geo_zip_codes: list | None = None,
+    geo_exclude: list | None = None,
+    language_codes: list | None = None,
     daypart_matrix: dict | None = None,
-    # Technology
-    device_types: list[str] | None = None,
-    operating_systems: list[str] | None = None,
-    browsers: list[str] | None = None,
-    connection_speeds: list[str] | None = None,
+    device_types: list | None = None,
+    operating_systems: list | None = None,
+    browsers: list | None = None,
+    connection_speeds: list | None = None,
+    youtube_content_categories: list | None = None,
+    youtube_channel_ids: list | None = None,
+    youtube_video_ids: list | None = None,
     dry_run: bool = False,
 ) -> dict:
-    """
-    Crea un Line Item de Display en DV360 con targeting completo.
+    """Crea un Line Item en DV360 con soporte para Display, Video y YouTube."""
 
-    El LI se crea siempre en DRAFT para revision.
-    Usar activate_line_item.py para activarlo tras revision.
-    """
     if creative_ids is None:
         creative_ids = []
 
     advertiser_id = get_advertiser_id(client_id)
+
+    bid_strategy_body = build_bid_strategy(
+        li_type=li_type,
+        bid_strategy=bid_strategy,
+        bid_eur=bid_eur,
+        bid_max_eur=bid_max_eur,
+        target_cpa_eur=target_cpa_eur,
+        target_cpv_eur=target_cpv_eur,
+    )
 
     targeting = build_targeting_settings(
         content_labels=content_labels_exclude,
@@ -709,32 +753,34 @@ def create_line_item(
         operating_systems=operating_systems,
         browsers=browsers,
         connection_speeds=connection_speeds,
+        youtube_content_categories=youtube_content_categories,
+        youtube_channel_ids=youtube_channel_ids,
+        youtube_video_ids=youtube_video_ids,
+        li_type=li_type,
     )
 
-    body, targeting_list = build_li_body(
+    body = build_li_body(
         advertiser_id=advertiser_id,
         campaign_id=campaign_id,
         io_id=io_id,
         name=name,
+        li_type=li_type,
         budget_eur=budget_eur,
         start_date=start_date,
         end_date=end_date,
-        bid_strategy=bid_strategy,
-        bid_eur=bid_eur,
-        bid_max_eur=bid_max_eur,
-        target_cpa_eur=target_cpa_eur,
+        bid_strategy_body=bid_strategy_body,
         frequency_cap=frequency_cap,
         frequency_cap_unit=frequency_cap_unit,
         creative_ids=creative_ids,
-        targeting=targeting,
         audience_expansion=audience_expansion,
+        youtube_target_frequency=youtube_target_frequency,
     )
 
+    format_label = li_type.upper()
     action_msg = (
-        f"Crear Line Item '{name}' "
+        f"Crear Line Item [{format_label}] '{name}' "
         f"(IO {io_id}, budget {budget_eur} EUR, "
-        f"bid {bid_strategy} {bid_eur or target_cpa_eur or 'auto'} EUR, "
-        f"{len(targeting_list)} targeting options) "
+        f"bid {bid_strategy}, {len(targeting)} targeting options) "
         f"en advertiser {advertiser_id} cliente {client_id}. "
         "Se crea en DRAFT."
     )
@@ -747,17 +793,17 @@ def create_line_item(
             "status": "dry_run",
             "data": {
                 "advertiser_id": advertiser_id,
+                "li_type": li_type,
                 "body": body,
-                "targeting_options_count": len(targeting_list),
-                "targeting_options": targeting_list,
-                "note": "LI se crearia en DRAFT. Revisar body y targeting antes de ejecutar.",
+                "targeting_options_count": len(targeting),
+                "targeting_options": targeting,
+                "note": f"LI [{format_label}] se crearia en DRAFT. Revisar antes de ejecutar.",
             },
         }
 
     try:
         svc = build_writer_service(client_id=client_id)
 
-        # 1. Crear el Line Item
         li_result = (
             svc.advertisers()
             .lineItems()
@@ -766,32 +812,31 @@ def create_line_item(
         )
         li_id = li_result.get("lineItemId")
 
-        # 2. Asignar targeting options (llamada separada en v4)
         targeting_errors = []
-        if targeting_list:
-            for t_option in targeting_list:
-                try:
-                    svc.advertisers().lineItems().targetingOptions().create(
-                        advertiserId=advertiser_id,
-                        lineItemId=li_id,
-                        targetingType=t_option["targetingType"],
-                        body=t_option,
-                    ).execute()
-                except HttpError as te:
-                    targeting_errors.append({
-                        "targeting_type": t_option["targetingType"],
-                        "error": f"{te.resp.status}: {te.reason}",
-                    })
+        for t_option in targeting:
+            try:
+                svc.advertisers().lineItems().targetingOptions().create(
+                    advertiserId=advertiser_id,
+                    lineItemId=li_id,
+                    targetingType=t_option["targetingType"],
+                    body=t_option,
+                ).execute()
+            except HttpError as te:
+                targeting_errors.append({
+                    "targeting_type": t_option["targetingType"],
+                    "error": f"{te.resp.status}: {te.reason}",
+                })
 
         outcome = {
             "status": "ok" if not targeting_errors else "partial",
             "data": {
                 "line_item_id": li_id,
+                "li_type": li_type,
                 "campaign_id": li_result.get("campaignId"),
                 "io_id": li_result.get("insertionOrderId"),
                 "name": li_result.get("displayName"),
                 "entity_status": li_result.get("entityStatus"),
-                "targeting_options_applied": len(targeting_list) - len(targeting_errors),
+                "targeting_options_applied": len(targeting) - len(targeting_errors),
                 "targeting_errors": targeting_errors,
             },
         }
@@ -817,10 +862,10 @@ def create_line_item(
             "campaign_id": campaign_id,
             "io_id": io_id,
             "name": name,
+            "li_type": li_type,
             "budget_eur": budget_eur,
             "bid_strategy": bid_strategy,
-            "bid_eur": bid_eur,
-            "targeting_options": len(targeting_list),
+            "targeting_options": len(targeting),
             "advertiser_id": advertiser_id,
         },
         result=outcome,
@@ -829,171 +874,114 @@ def create_line_item(
 
     if outcome["status"] in ("ok", "partial"):
         li_id = outcome["data"]["line_item_id"]
-        print(f"\n✅ Line Item creado en DRAFT. line_item_id: {li_id}")
+        print(f"\n✅ Line Item [{format_label}] creado en DRAFT. line_item_id: {li_id}")
         if targeting_errors:
-            print(f"⚠️  {len(targeting_errors)} opciones de targeting fallaron. Revisar targeting_errors.")
-        print("Siguiente paso: asignar creatividades si no se hizo en la creacion.")
-        print(f"\nCuando este listo, activar el LI:")
-        print(
-            f"  python scripts/dv360/line_items/activate_line_item.py "
-            f"--client {client_id} --line-item-id {li_id}"
-        )
+            print(f"⚠️  {len(targeting_errors)} opciones de targeting fallaron.")
+        print(f"\nActivar cuando este listo:")
+        print(f"  python scripts/dv360/line_items/activate_line_item.py --client {client_id} --line-item-id {li_id}")
 
     return outcome
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Crea un Line Item de Display en DV360 con targeting completo.",
+        description="Crea un Line Item en DV360 (Display, Video, YouTube).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Bid strategies (--bid-strategy):
-  FIXED       Puja fija CPM (requiere --bid-eur)
-  MAXIMIZE    Maximizar conversiones/clicks (opcional --bid-max-eur como techo CPM)
-  TARGET_CPA  Puja automatica con CPA objetivo (requiere --target-cpa-eur)
+Tipos de Line Item (--li-type):
+  DISPLAY           Display estandar
+  VIDEO             Video instream/outstream
+  YOUTUBE           YouTube TrueView in-stream
+  YOUTUBE_BUMPER    YouTube Bumper 6s
+  YOUTUBE_NON_SKIP  YouTube Non-skippable 15s
+  YOUTUBE_VIEW      YouTube TrueView for reach
 
-Device types (--device-types):
-  DESKTOP MOBILE TABLET CONNECTED
-
-Environments (--environment):
-  DESKTOP_WEB MOBILE_WEB APP ALL
-
-Content labels a excluir (--content-labels-exclude):
-  G PG T MA
-
-Brand safety a excluir (--brand-safety-exclude):
-  ADULT WEAPONS VIOLENCE DRUGS HATE TRAGEDY TOBACCO
-
-Generos (--genders):
-  MALE FEMALE UNKNOWN
-
-Edades (--age-ranges):
-  18-24 25-34 35-44 45-54 55-64 65+
-
-Viewability (--viewability-target):
-  50 60 70 80  (porcentaje minimo predicho)
-
-Posiciones (--positions):
-  ATF BTF UNKNOWN
-
-Sistemas operativos (--operating-systems):
-  ANDROID IOS WINDOWS MACOS CHROMEOS
-
-Navegadores (--browsers):
-  CHROME SAFARI FIREFOX EDGE OPERA
-
-Conexion (--connection-speeds):
-  WIFI 4G 5G 3G ALL
-
-Daypart matrix (--daypart-matrix):
-  JSON con dias y horas (0-23):
-  '{"MONDAY":[9,10,11,17,18,19],"FRIDAY":[9,10,11]}'
+Bid strategies:
+  FIXED        CPM fijo (Display/Video, requiere --bid-eur)
+  MAXIMIZE     Maximizar conversiones (Display/Video, opcional --bid-max-eur)
+  TARGET_CPA   CPA objetivo (Display/Video, requiere --target-cpa-eur)
+  TARGET_CPV   CPV objetivo (YouTube, requiere --target-cpv-eur)
+  TARGET_CPM   CPM objetivo (YouTube, requiere --bid-eur)
 
 Ejemplos:
-  # LI basico con targeting geografico y de dispositivo
+  # Display con puja fija y targeting completo
   python scripts/dv360/line_items/create_line_item.py \\
-    --client vidal-vidal \\
-    --campaign-id 123456 \\
-    --io-id 789012 \\
-    --name "LI_Display_InMarket_Desktop_Madrid" \\
-    --budget-eur 1000 \\
-    --start-date 2026-07-01 \\
-    --end-date 2026-09-30 \\
-    --bid-strategy FIXED \\
-    --bid-eur 2.50 \\
-    --geo-regions "Madrid" \\
-    --device-types DESKTOP \\
-    --age-ranges 25-34 35-44 \\
-    --brand-safety-exclude ADULT VIOLENCE \\
-    --viewability-target 60 \\
+    --client vidal-vidal --campaign-id 123 --io-id 456 \\
+    --name "LI_Display_InMarket_Desktop" --li-type DISPLAY \\
+    --budget-eur 1000 --start-date 2026-07-01 --end-date 2026-09-30 \\
+    --bid-strategy FIXED --bid-eur 2.50 \\
+    --geo-regions "Spain" --device-types DESKTOP --age-ranges 25-34 35-44 \\
+    --brand-safety-exclude ADULT VIOLENCE --viewability-target 60 \\
     --dry-run
 
-  # LI con puja automatica y audience inmarket
+  # YouTube TrueView con CPV objetivo
   python scripts/dv360/line_items/create_line_item.py \\
-    --client vidal-vidal \\
-    --campaign-id 123456 \\
-    --io-id 789012 \\
-    --name "LI_Display_Maximize_InMarket_Joyeria" \\
-    --budget-eur 2000 \\
-    --start-date 2026-07-01 \\
-    --end-date 2026-09-30 \\
-    --bid-strategy MAXIMIZE \\
-    --bid-max-eur 5.0 \\
-    --geo-regions "Spain" \\
-    --audience-inmarket "Jewelry & Watches" \\
-    --genders FEMALE \\
-    --age-ranges 25-34 35-44 45-54 \\
-    --environment DESKTOP_WEB \\
-    --viewability-target 60 \\
-    --brand-safety-exclude ADULT VIOLENCE \\
-    --frequency-cap 5 \\
-    --frequency-cap-unit DAYS \\
+    --client vidal-vidal --campaign-id 123 --io-id 456 \\
+    --name "LI_YouTube_TrueView_Joyeria" --li-type YOUTUBE \\
+    --budget-eur 2000 --start-date 2026-07-01 --end-date 2026-09-30 \\
+    --bid-strategy TARGET_CPV --target-cpv-eur 0.05 \\
+    --geo-regions "Spain" --genders FEMALE --age-ranges 25-34 35-44 45-54 \\
+    --youtube-content-categories BEAUTY FASHION \\
+    --frequency-cap 3 --frequency-cap-unit WEEKS \\
+    --dry-run
+
+  # YouTube Bumper con CPM objetivo
+  python scripts/dv360/line_items/create_line_item.py \\
+    --client vidal-vidal --campaign-id 123 --io-id 456 \\
+    --name "LI_YouTube_Bumper_Awareness" --li-type YOUTUBE_BUMPER \\
+    --budget-eur 500 --start-date 2026-07-01 --end-date 2026-07-31 \\
+    --bid-strategy TARGET_CPM --bid-eur 8.0 \\
+    --geo-regions "Spain" --device-types MOBILE \\
     --dry-run
         """,
     )
-    # Identificacion
+
     parser.add_argument("--client", required=True)
     parser.add_argument("--campaign-id", required=True)
     parser.add_argument("--io-id", required=True)
     parser.add_argument("--name", required=True)
-
-    # Budget y fechas
+    parser.add_argument("--li-type", choices=list(LINE_ITEM_TYPES), default="DISPLAY")
     parser.add_argument("--budget-eur", required=True, type=float)
     parser.add_argument("--start-date", required=True)
     parser.add_argument("--end-date", required=True)
-
-    # Bid
-    parser.add_argument("--bid-strategy", choices=["FIXED", "MAXIMIZE", "TARGET_CPA"], default="FIXED")
-    parser.add_argument("--bid-eur", type=float, default=None, help="CPM fijo en EUR (para FIXED)")
-    parser.add_argument("--bid-max-eur", type=float, default=None, help="Techo CPM en EUR (para MAXIMIZE)")
-    parser.add_argument("--target-cpa-eur", type=float, default=None, help="CPA objetivo en EUR (para TARGET_CPA)")
-
-    # Frequency
+    parser.add_argument("--bid-strategy", choices=list(BID_STRATEGIES), default="FIXED")
+    parser.add_argument("--bid-eur", type=float, default=None)
+    parser.add_argument("--bid-max-eur", type=float, default=None)
+    parser.add_argument("--target-cpa-eur", type=float, default=None)
+    parser.add_argument("--target-cpv-eur", type=float, default=None)
     parser.add_argument("--frequency-cap", type=int, default=None)
-    parser.add_argument("--frequency-cap-unit", choices=["MINUTES","HOURS","DAYS","WEEKS","MONTHS"], default=None)
-
-    # Creatividades
-    parser.add_argument("--creative-ids", nargs="+", default=[], help="IDs de creatividades a asignar")
-    parser.add_argument("--audience-expansion", action="store_true", help="Activar Optimized Targeting (expansion de audiencia)")
-
-    # Brand Safety
-    parser.add_argument("--content-labels-exclude", nargs="+", choices=["G","PG","T","MA"], default=None)
+    parser.add_argument("--frequency-cap-unit", choices=list(FREQUENCY_CAP_UNITS), default=None)
+    parser.add_argument("--creative-ids", nargs="+", default=[])
+    parser.add_argument("--audience-expansion", action="store_true")
+    parser.add_argument("--youtube-target-frequency", type=int, default=None)
+    parser.add_argument("--content-labels-exclude", nargs="+", choices=list(CONTENT_LABELS), default=None)
     parser.add_argument("--brand-safety-exclude", nargs="+", choices=list(BRAND_SAFETY_CATEGORIES), default=None)
     parser.add_argument("--sensitive-categories-exclude", nargs="+", choices=list(SENSITIVE_CATEGORIES), default=None)
-
-    # Content
     parser.add_argument("--keyword-includes", nargs="+", default=None)
     parser.add_argument("--keyword-excludes", nargs="+", default=None)
-    parser.add_argument("--iab-categories", nargs="+", default=None, help="Categorias IAB (ej. 'Sports/Soccer')")
-    parser.add_argument("--environment", choices=["DESKTOP_WEB","MOBILE_WEB","APP","ALL"], default=None)
-    parser.add_argument("--viewability-target", choices=["50","60","70","80"], default=None)
-    parser.add_argument("--positions", nargs="+", choices=["ATF","BTF","UNKNOWN"], default=None)
-
-    # Audience
-    parser.add_argument("--audience-list-ids", nargs="+", default=None, help="IDs de listas first-party/remarketing")
-    parser.add_argument("--audience-inmarket", nargs="+", default=None, help="Audiencias In-Market de Google")
-    parser.add_argument("--audience-affinity", nargs="+", default=None, help="Audiencias de Afinidad de Google")
-    parser.add_argument("--genders", nargs="+", choices=["MALE","FEMALE","UNKNOWN"], default=None)
-    parser.add_argument("--age-ranges", nargs="+", choices=["18-24","25-34","35-44","45-54","55-64","65+"], default=None)
-    parser.add_argument("--parental-status", nargs="+", choices=["PARENT","NOT_PARENT","UNKNOWN"], default=None)
-
-    # Geography
-    parser.add_argument("--geo-regions", nargs="+", default=None, help="Regiones/paises (ej. 'Spain' 'Madrid')")
-    parser.add_argument("--geo-cities", nargs="+", default=None, help="Ciudades especificas")
-    parser.add_argument("--geo-zip-codes", nargs="+", default=None, help="Codigos postales")
-    parser.add_argument("--geo-exclude", nargs="+", default=None, help="Geografias a excluir")
-    parser.add_argument("--language-codes", nargs="+", default=None, help="Idiomas (ej. 'Spanish' 'English')")
-
-    # Dayparting
-    parser.add_argument("--daypart-matrix", type=str, default=None,
-                        help="JSON con dias y horas: '{\"MONDAY\":[9,10,11]}'")
-
-    # Technology
-    parser.add_argument("--device-types", nargs="+", choices=["DESKTOP","MOBILE","TABLET","CONNECTED"], default=None)
+    parser.add_argument("--iab-categories", nargs="+", default=None)
+    parser.add_argument("--environment", choices=list(ENVIRONMENTS), default=None)
+    parser.add_argument("--viewability-target", choices=list(VIEWABILITY_TARGETS), default=None)
+    parser.add_argument("--positions", nargs="+", choices=list(POSITION_TYPES), default=None)
+    parser.add_argument("--audience-list-ids", nargs="+", default=None)
+    parser.add_argument("--audience-inmarket", nargs="+", default=None)
+    parser.add_argument("--audience-affinity", nargs="+", default=None)
+    parser.add_argument("--genders", nargs="+", choices=list(GENDER_TYPES), default=None)
+    parser.add_argument("--age-ranges", nargs="+", choices=list(AGE_RANGES), default=None)
+    parser.add_argument("--parental-status", nargs="+", choices=list(PARENTAL_STATUS), default=None)
+    parser.add_argument("--geo-regions", nargs="+", default=None)
+    parser.add_argument("--geo-cities", nargs="+", default=None)
+    parser.add_argument("--geo-zip-codes", nargs="+", default=None)
+    parser.add_argument("--geo-exclude", nargs="+", default=None)
+    parser.add_argument("--language-codes", nargs="+", default=None)
+    parser.add_argument("--daypart-matrix", type=str, default=None)
+    parser.add_argument("--device-types", nargs="+", choices=list(DEVICE_TYPES), default=None)
     parser.add_argument("--operating-systems", nargs="+", choices=list(OS_TYPES), default=None)
     parser.add_argument("--browsers", nargs="+", choices=list(BROWSERS), default=None)
-    parser.add_argument("--connection-speeds", nargs="+", choices=["WIFI","4G","5G","3G","ALL"], default=None)
-
+    parser.add_argument("--connection-speeds", nargs="+", choices=list(CONNECTION_SPEEDS), default=None)
+    parser.add_argument("--youtube-content-categories", nargs="+", choices=list(YOUTUBE_CONTENT_CATEGORIES), default=None)
+    parser.add_argument("--youtube-channel-ids", nargs="+", default=None)
+    parser.add_argument("--youtube-video-ids", nargs="+", default=None)
     parser.add_argument("--dry-run", action="store_true")
 
     args = parser.parse_args()
@@ -1011,6 +999,7 @@ Ejemplos:
         campaign_id=args.campaign_id,
         io_id=args.io_id,
         name=args.name,
+        li_type=args.li_type,
         budget_eur=args.budget_eur,
         start_date=args.start_date,
         end_date=args.end_date,
@@ -1018,10 +1007,12 @@ Ejemplos:
         bid_eur=args.bid_eur,
         bid_max_eur=args.bid_max_eur,
         target_cpa_eur=args.target_cpa_eur,
+        target_cpv_eur=args.target_cpv_eur,
         frequency_cap=args.frequency_cap,
         frequency_cap_unit=args.frequency_cap_unit,
         creative_ids=args.creative_ids,
         audience_expansion=args.audience_expansion,
+        youtube_target_frequency=args.youtube_target_frequency,
         content_labels_exclude=args.content_labels_exclude,
         brand_safety_exclude=args.brand_safety_exclude,
         sensitive_categories_exclude=args.sensitive_categories_exclude,
@@ -1047,6 +1038,9 @@ Ejemplos:
         operating_systems=args.operating_systems,
         browsers=args.browsers,
         connection_speeds=args.connection_speeds,
+        youtube_content_categories=args.youtube_content_categories,
+        youtube_channel_ids=args.youtube_channel_ids,
+        youtube_video_ids=args.youtube_video_ids,
         dry_run=args.dry_run,
     )
 
