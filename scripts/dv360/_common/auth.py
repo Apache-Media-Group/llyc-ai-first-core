@@ -20,7 +20,7 @@ import googleapiclient.discovery as discovery
 
 WRITER_SA = "llyc-ops-writer-sa"
 CORE_PROJECT = "llyc-ai-first-core"
-SECRET_NAME = "DV360_WRITER_SERVICE_ACCOUNT_KEY"
+SECRET_NAME = "DV360_OPS_WRITER_SA_KEY"
 
 SCOPES = [
     "https://www.googleapis.com/auth/display-video",
@@ -40,7 +40,7 @@ def build_writer_service(client_id: str | None = None) -> Any:
     """
     Construye el cliente DV360 API v4 con la SA de escritura (DEC_084).
 
-    Lee DV360_WRITER_SERVICE_ACCOUNT_KEY desde Secret Manager de llyc-ai-first-core.
+    Lee DV360_OPS_WRITER_SA_KEY desde Secret Manager de llyc-ai-first-core.
     Esta SA tiene permisos write sobre DV360 — nunca se monta en el runtime del agente.
 
     Args:
