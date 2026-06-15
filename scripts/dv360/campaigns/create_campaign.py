@@ -1,39 +1,9 @@
 """
 scripts/dv360/campaigns/create_campaign.py
-Crea una Campaña en DV360 con configuración completa.
-
-Jerarquia DV360: Campaign → Insertion Order → Line Item → Creatives
-
-Uso:
-    # Dry-run primero (obligatorio antes de ejecutar en produccion)
-    python scripts/dv360/campaigns/create_campaign.py \
-        --client vidal-vidal \
-        --name "ES_PROD_Display_Conversion_Q2_2026" \
-        --goal CAMPAIGN_GOAL_TYPE_DRIVE_ACTION \
-        --kpi CPA \
-        --kpi-value 15.0 \
-        --start-date 2026-07-01 \
-        --end-date 2026-09-30 \
-        --frequency-cap 5 \
-        --frequency-cap-unit MONTHS \
-        --dry-run
-
-    # Ejecucion real tras confirmar dry-run
-    python scripts/dv360/campaigns/create_campaign.py \
-        --client vidal-vidal \
-        --name "ES_PROD_Display_Conversion_Q2_2026" \
-        --goal CAMPAIGN_GOAL_TYPE_DRIVE_ACTION \
-        --kpi CPA \
-        --kpi-value 15.0 \
-        --start-date 2026-07-01 \
-        --end-date 2026-09-30 \
-        --frequency-cap 5 \
-        --frequency-cap-unit MONTHS
+Crea una Campana en DV360 con configuracion completa.
+API v4 — valores validados contra la API real.
 
 SA: llyc-ops-writer-sa (DEC_084). NUNCA llyc-agents-sa.
-
-Referencia API:
-    https://developers.google.com/display-video/api/reference/rest/v4/advertisers.campaigns/create
 """
 
 import argparse
@@ -52,21 +22,21 @@ from scripts.dv360._common.audit import log_action, confirm_action
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 log = logging.getLogger(__name__)
 
-
-# ── Valores validos ────────────────────────────────────────────────────────────
-
+# Valores validados contra DV360 API v4
 CAMPAIGN_GOAL_TYPES = {
-    "AWARENESS":     "CAMPAIGN_GOAL_TYPE_RAISE_AWARENESS",
-    "CONSIDERATION": "CAMPAIGN_GOAL_TYPE_DRIVE_CONSIDERATION",
-    "ACTION":        "CAMPAIGN_GOAL_TYPE_DRIVE_ACTION",
+    "AWARENESS":     "CAMPAIGN_GOAL_TYPE_BRAND_AWARENESS",
+    "CONSIDERATION": "CAMPAIGN_GOAL_TYPE_ONLINE_ACTION",
+    "ACTION":        "CAMPAIGN_GOAL_TYPE_ONLINE_ACTION",
+    "REACH":         "CAMPAIGN_GOAL_TYPE_BRAND_AWARENESS",
 }
 
 KPI_TYPES = {
-    "CPA":    "KPI_TYPE_CPA",
-    "CPC":    "KPI_TYPE_CPC",
-    "CTR":    "KPI_TYPE_CTR",
-    "VCPM":   "KPI_TYPE_VCPM",
-    "VIEWABILITY": "KPI_TYPE_VIEWABILITY",
+    "CPA":         "PERFORMANCE_GOAL_TYPE_CPA",
+    "CPC":         "PERFORMANCE_GOAL_TYPE_CPC",
+    "CTR":         "PERFORMANCE_GOAL_TYPE_CTR",
+    "VCPM":        "PERFORMANCE_GOAL_TYPE_VCPM",
+    "VIEWABILITY": "PERFORMANCE_GOAL_TYPE_VIEWABLE_CPM",
+    "CPM":         "PERFORMANCE_GOAL_TYPE_CPM",
 }
 
 FREQUENCY_CAP_UNITS = {
@@ -77,23 +47,10 @@ FREQUENCY_CAP_UNITS = {
     "MONTHS":  "TIME_UNIT_MONTHS",
 }
 
-CREATIVE_TYPES = {
-    "DISPLAY": "CREATIVE_TYPE_STANDARD",
-    "VIDEO":   "CREATIVE_TYPE_VIDEO",
-    "AUDIO":   "CREATIVE_TYPE_AUDIO",
-}
-
 
 def _parse_date(date_str: str) -> dict:
-    """Convierte YYYY-MM-DD al formato de fecha de la API DV360."""
     parts = date_str.split("-")
-    if len(parts) != 3:
-        raise ValueError(f"Fecha invalida: {date_str}. Formato esperado: YYYY-MM-DD")
-    return {
-        "year": int(parts[0]),
-        "month": int(parts[1]),
-        "day": int(parts[2]),
-    }
+    return {"year": int(parts[0]), "month": int(parts[1]), "day": int(parts[2])}
 
 
 def build_campaign_body(
@@ -102,31 +59,11 @@ def build_campaign_body(
     goal: str,
     kpi: str,
     kpi_value: float | None,
-    creative_types: list[str],
     start_date: str,
     end_date: str,
     frequency_cap: int | None,
     frequency_cap_unit: str | None,
-    frequency_cap_max_impressions: int | None,
-    budget_optimization: bool,
 ) -> dict:
-    """
-    Construye el body de la request para campaigns.create.
-
-    Args:
-        advertiser_id: ID del advertiser DV360
-        name: nombre de la campaña (usar nomenclatura estandarizada)
-        goal: tipo de objetivo — AWARENESS | CONSIDERATION | ACTION
-        kpi: KPI principal — CPA | CPC | CTR | VCPM | VIEWABILITY
-        kpi_value: valor numerico del KPI (ej. 15.0 para CPA 15 EUR). None si no aplica.
-        creative_types: lista de tipos de creatividad — ["DISPLAY"] | ["DISPLAY", "VIDEO"]
-        start_date: fecha inicio YYYY-MM-DD
-        end_date: fecha fin YYYY-MM-DD
-        frequency_cap: numero maximo de impresiones por usuario en el periodo
-        frequency_cap_unit: unidad de tiempo — MINUTES | HOURS | DAYS | WEEKS | MONTHS
-        frequency_cap_max_impressions: alias de frequency_cap (API usa maxImpressions)
-        budget_optimization: True = el algoritmo distribuye budget entre IOs automaticamente
-    """
     goal_type = CAMPAIGN_GOAL_TYPES.get(goal.upper())
     if not goal_type:
         raise ValueError(f"goal '{goal}' no valido. Opciones: {list(CAMPAIGN_GOAL_TYPES)}")
@@ -135,16 +72,10 @@ def build_campaign_body(
     if not kpi_type:
         raise ValueError(f"kpi '{kpi}' no valido. Opciones: {list(KPI_TYPES)}")
 
-    creative_type_list = []
-    for ct in creative_types:
-        mapped = CREATIVE_TYPES.get(ct.upper())
-        if not mapped:
-            raise ValueError(f"creative_type '{ct}' no valido. Opciones: {list(CREATIVE_TYPES)}")
-        creative_type_list.append(mapped)
-
     body = {
         "advertiserId": advertiser_id,
         "displayName": name,
+        "entityStatus": "ENTITY_STATUS_PAUSED",
         "campaignGoal": {
             "campaignGoalType": goal_type,
             "performanceGoal": {
@@ -152,52 +83,36 @@ def build_campaign_body(
             },
         },
         "campaignFlight": {
-            "plannedSpendAmountMicros": None,  # Opcional — presupuesto total planificado
             "plannedDates": {
                 "startDate": _parse_date(start_date),
                 "endDate": _parse_date(end_date),
             },
         },
-        "creativeTypes": creative_type_list,
     }
 
-    # KPI value — algunos KPIs (CTR, VIEWABILITY) no tienen valor numerico
+    # KPI value en micros
     if kpi_value is not None:
-        if kpi.upper() in ("CPA", "CPC"):
-            # CPA y CPC se expresan en micros (EUR * 1_000_000)
-            body["campaignGoal"]["performanceGoal"]["performanceGoalAmountMicros"] = str(
-                int(kpi_value * 1_000_000)
-            )
-        elif kpi.upper() == "VCPM":
+        if kpi.upper() in ("CPA", "CPC", "VCPM", "CPM"):
             body["campaignGoal"]["performanceGoal"]["performanceGoalAmountMicros"] = str(
                 int(kpi_value * 1_000_000)
             )
         elif kpi.upper() in ("CTR", "VIEWABILITY"):
-            # CTR y Viewability son porcentajes (0-100)
             body["campaignGoal"]["performanceGoal"]["performanceGoalPercentageMicros"] = str(
-                int(kpi_value * 10_000)  # % * 10_000 = micros de porcentaje
+                int(kpi_value * 10_000)
             )
 
-    # Frequency cap a nivel campaña
+    # Frequency cap
     if frequency_cap and frequency_cap_unit:
         unit_mapped = FREQUENCY_CAP_UNITS.get(frequency_cap_unit.upper())
         if not unit_mapped:
-            raise ValueError(
-                f"frequency_cap_unit '{frequency_cap_unit}' no valido. "
-                f"Opciones: {list(FREQUENCY_CAP_UNITS)}"
-            )
+            raise ValueError(f"frequency_cap_unit '{frequency_cap_unit}' no valido.")
         body["frequencyCap"] = {
             "maxImpressions": frequency_cap,
             "timeUnit": unit_mapped,
-            "timeUnitCount": 1,  # "cada 1 semana", "cada 1 mes"
+            "timeUnitCount": 1,
         }
     else:
-        # Sin frequency cap a nivel campaña (se gestiona a nivel IO/LI)
         body["frequencyCap"] = {"unlimited": True}
-
-    # Budget optimization (distribucion automatica entre IOs)
-    body["campaignBudgets"] = []  # Se añaden presupuestos al crear/actualizar IOs
-    # La optimizacion de budget se controla desde la IO, no desde la campaña en v4
 
     return body
 
@@ -208,34 +123,13 @@ def create_campaign(
     goal: str,
     kpi: str,
     kpi_value: float | None = None,
-    creative_types: list[str] = None,
     start_date: str = None,
     end_date: str = None,
     frequency_cap: int | None = None,
     frequency_cap_unit: str | None = None,
-    budget_optimization: bool = False,
     dry_run: bool = False,
 ) -> dict:
-    """
-    Crea una Campaña en DV360.
-
-    Args:
-        client_id: ID del cliente (ej. 'vidal-vidal')
-        name: nombre de la campaña. Usar nomenclatura: ES_PROD_{tipo}_{objetivo}_{periodo}
-        goal: objetivo — AWARENESS | CONSIDERATION | ACTION
-        kpi: KPI principal — CPA | CPC | CTR | VCPM | VIEWABILITY
-        kpi_value: valor numerico del KPI (EUR para CPA/CPC, % para CTR/VIEWABILITY)
-        creative_types: tipos de creatividad — ["DISPLAY"] por defecto
-        start_date: fecha inicio YYYY-MM-DD
-        end_date: fecha fin YYYY-MM-DD
-        frequency_cap: max impresiones por usuario en el periodo (ej. 5)
-        frequency_cap_unit: MINUTES | HOURS | DAYS | WEEKS | MONTHS
-        budget_optimization: distribucion automatica de budget entre IOs
-        dry_run: si True, muestra la accion sin ejecutarla
-    """
-    if creative_types is None:
-        creative_types = ["DISPLAY"]
-
+    """Crea una Campana en DV360."""
     advertiser_id = get_advertiser_id(client_id)
 
     body = build_campaign_body(
@@ -244,18 +138,15 @@ def create_campaign(
         goal=goal,
         kpi=kpi,
         kpi_value=kpi_value,
-        creative_types=creative_types,
         start_date=start_date,
         end_date=end_date,
         frequency_cap=frequency_cap,
         frequency_cap_unit=frequency_cap_unit,
-        frequency_cap_max_impressions=frequency_cap,
-        budget_optimization=budget_optimization,
     )
 
     action_msg = (
-        f"Crear Campaña '{name}' "
-        f"(goal={goal}, kpi={kpi}, {start_date} → {end_date}) "
+        f"Crear Campana '{name}' "
+        f"(goal={goal}, kpi={kpi}, {start_date} -> {end_date}) "
         f"en advertiser {advertiser_id} cliente {client_id}"
     )
 
@@ -314,11 +205,8 @@ def create_campaign(
             "goal": goal,
             "kpi": kpi,
             "kpi_value": kpi_value,
-            "creative_types": creative_types,
             "start_date": start_date,
             "end_date": end_date,
-            "frequency_cap": frequency_cap,
-            "frequency_cap_unit": frequency_cap_unit,
             "advertiser_id": advertiser_id,
         },
         result=outcome,
@@ -326,12 +214,12 @@ def create_campaign(
     )
 
     if outcome["status"] == "ok":
-        print(f"\n✅ Campaña creada. campaign_id: {outcome['data']['campaign_id']}")
-        print("Siguiente paso: crear Insertion Order con este campaign_id.")
+        campaign_id = outcome["data"]["campaign_id"]
+        print(f"\n✅ Campana creada. campaign_id: {campaign_id}")
+        print(f"Siguiente paso:")
         print(
             f"  python scripts/dv360/insertion_orders/create_io.py "
-            f"--client {client_id} "
-            f"--campaign-id {outcome['data']['campaign_id']} ..."
+            f"--client {client_id} --campaign-id {campaign_id} ..."
         )
 
     return outcome
@@ -339,56 +227,42 @@ def create_campaign(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Crea una Campaña en DV360.",
+        description="Crea una Campana en DV360.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Objetivos (--goal):
-  AWARENESS       Reconocimiento de marca
-  CONSIDERATION   Consideracion
-  ACTION          Conversion / ventas
+  AWARENESS     Reconocimiento de marca
+  CONSIDERATION Consideracion
+  ACTION        Conversion / ventas
+  REACH         Alcance
 
 KPIs (--kpi):
-  CPA             Coste por Adquisicion (requiere --kpi-value en EUR)
-  CPC             Coste por Clic (requiere --kpi-value en EUR)
-  CTR             Ratio de Clics (requiere --kpi-value en %)
-  VCPM            CPM visible (requiere --kpi-value en EUR)
-  VIEWABILITY     % de visibilidad (requiere --kpi-value en %)
-
-Tipos de creatividad (--creative-types):
-  DISPLAY         Display estandar (por defecto)
-  VIDEO           Video
-  AUDIO           Audio
-
-Frecuencia (--frequency-cap-unit):
-  MINUTES HOURS DAYS WEEKS MONTHS
+  CPA    Coste por Adquisicion (--kpi-value en EUR)
+  CPC    Coste por Clic (--kpi-value en EUR)
+  CTR    Ratio de Clics (--kpi-value en %)
+  VCPM   CPM visible (--kpi-value en EUR)
+  CPM    CPM objetivo (--kpi-value en EUR)
+  VIEWABILITY Visibilidad (--kpi-value en %)
 
 Ejemplos:
-  # Campaña de conversion con CPA objetivo 15 EUR, max 5 impactos/mes
   python scripts/dv360/campaigns/create_campaign.py \\
-    --client vidal-vidal \\
-    --name "ES_PROD_Display_Conversion_Q3_2026" \\
-    --goal ACTION \\
-    --kpi CPA \\
-    --kpi-value 15.0 \\
-    --start-date 2026-07-01 \\
-    --end-date 2026-09-30 \\
-    --frequency-cap 5 \\
-    --frequency-cap-unit MONTHS \\
+    --client test \\
+    --name "TEST_Display_Q3_2026" \\
+    --goal ACTION --kpi CPA --kpi-value 15.0 \\
+    --start-date 2026-07-01 --end-date 2026-09-30 \\
     --dry-run
         """,
     )
-    parser.add_argument("--client", required=True, help="ID del cliente (ej. vidal-vidal)")
-    parser.add_argument("--name", required=True, help="Nombre de la campaña. Nomenclatura: ES_PROD_{tipo}_{objetivo}_{periodo}")
-    parser.add_argument("--goal", required=True, choices=["AWARENESS", "CONSIDERATION", "ACTION"], help="Objetivo de campaña")
-    parser.add_argument("--kpi", required=True, choices=["CPA", "CPC", "CTR", "VCPM", "VIEWABILITY"], help="KPI principal")
-    parser.add_argument("--kpi-value", type=float, default=None, help="Valor numerico del KPI (EUR para CPA/CPC, %% para CTR/VIEWABILITY)")
-    parser.add_argument("--creative-types", nargs="+", default=["DISPLAY"], choices=["DISPLAY", "VIDEO", "AUDIO"], help="Tipos de creatividad (defecto: DISPLAY)")
-    parser.add_argument("--start-date", required=True, help="Fecha inicio YYYY-MM-DD")
-    parser.add_argument("--end-date", required=True, help="Fecha fin YYYY-MM-DD")
-    parser.add_argument("--frequency-cap", type=int, default=None, help="Max impresiones por usuario en el periodo")
-    parser.add_argument("--frequency-cap-unit", choices=["MINUTES", "HOURS", "DAYS", "WEEKS", "MONTHS"], default=None, help="Unidad de tiempo del frequency cap")
-    parser.add_argument("--budget-optimization", action="store_true", help="Activar optimizacion automatica de budget entre IOs")
-    parser.add_argument("--dry-run", action="store_true", help="Simula la accion sin ejecutarla")
+    parser.add_argument("--client", required=True)
+    parser.add_argument("--name", required=True)
+    parser.add_argument("--goal", required=True, choices=list(CAMPAIGN_GOAL_TYPES))
+    parser.add_argument("--kpi", required=True, choices=list(KPI_TYPES))
+    parser.add_argument("--kpi-value", type=float, default=None)
+    parser.add_argument("--start-date", required=True)
+    parser.add_argument("--end-date", required=True)
+    parser.add_argument("--frequency-cap", type=int, default=None)
+    parser.add_argument("--frequency-cap-unit", choices=list(FREQUENCY_CAP_UNITS), default=None)
+    parser.add_argument("--dry-run", action="store_true")
 
     args = parser.parse_args()
 
@@ -398,12 +272,10 @@ Ejemplos:
         goal=args.goal,
         kpi=args.kpi,
         kpi_value=args.kpi_value,
-        creative_types=args.creative_types,
         start_date=args.start_date,
         end_date=args.end_date,
         frequency_cap=args.frequency_cap,
         frequency_cap_unit=args.frequency_cap_unit,
-        budget_optimization=args.budget_optimization,
         dry_run=args.dry_run,
     )
 
