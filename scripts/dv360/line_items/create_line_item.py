@@ -815,7 +815,7 @@ def create_line_item(
         targeting_errors = []
         for t_option in targeting:
             try:
-                svc.advertisers().lineItems().targetingOptions().create(
+                svc.advertisers().lineItems().assignedTargetingOptions().create(
                     advertiserId=advertiser_id,
                     lineItemId=li_id,
                     targetingType=t_option["targetingType"],
