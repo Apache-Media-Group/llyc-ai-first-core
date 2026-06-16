@@ -357,7 +357,7 @@ def build_targeting_settings(
         for cat in iab_categories:
             targeting.append({
                 "targetingType": "TARGETING_TYPE_CATEGORY",
-                "categoryDetails": {"displayName": cat, "negative": False},
+                "categoryDetails": {"targetingOptionId": cat},
             })
 
     if environment and not _is_youtube(li_type):
@@ -443,7 +443,7 @@ def build_targeting_settings(
                 "targetingType": "TARGETING_TYPE_AUDIENCE_GROUP",
                 "audienceGroupDetails": {
                     "includedGoogleAudienceGroup": {
-                        "settings": [{"targetingOptionId": audience, "negative": False}]
+                        "settings": [{"googleAudienceId": audience}]
                     }
                 },
             })
@@ -454,7 +454,7 @@ def build_targeting_settings(
                 "targetingType": "TARGETING_TYPE_AUDIENCE_GROUP",
                 "audienceGroupDetails": {
                     "includedGoogleAudienceGroup": {
-                        "settings": [{"targetingOptionId": audience, "negative": False}]
+                        "settings": [{"googleAudienceId": audience}]
                     }
                 },
             })
