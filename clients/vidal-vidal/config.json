@@ -317,6 +317,8 @@
     },
     "dv360": {
       "enabled": false,
+      "advertiser_id": "8251184879",
+      "partner_id": "5748134",
       "_nota": "Plataforma operativa para lectura vía dv360-mcp-server en Cloud Run (Decisión 037). Fuera del catálogo de agentes Tool Use en Sprint 1 (Decisiones 057, 064) — se accede desde Claude.ai vía conector MCP. Se incorpora al catálogo de agentes en Sprint 2+ tras resolver get_campaign_metrics."
     },
     "shopify": {
