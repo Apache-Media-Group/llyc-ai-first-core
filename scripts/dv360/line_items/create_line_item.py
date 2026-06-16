@@ -602,12 +602,12 @@ def build_li_body(
         raise ValueError(f"line_item_type '{li_type}' no valido. Opciones: {list(LINE_ITEM_TYPES)}")
 
     body = {
-        "advertiserId": advertiser_id,
         "campaignId": campaign_id,
         "insertionOrderId": io_id,
         "displayName": name,
         "lineItemType": li_type_mapped,
         "entityStatus": "ENTITY_STATUS_DRAFT",
+        "containsEuPoliticalAds": "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
         "flight": {
             "flightDateType": "LINE_ITEM_FLIGHT_DATE_TYPE_CUSTOM",
             "dateRange": {
@@ -623,13 +623,15 @@ def build_li_body(
         "pacing": {
             "pacingPeriod": "PACING_PERIOD_DAILY",
             "pacingType": "PACING_TYPE_EVEN",
+            "dailyMaxMicros": str(_eur_to_micros(budget_eur)),
         },
         "bidStrategy": bid_strategy_body,
+        "partnerRevenueModel": {
+            "markupType": "PARTNER_REVENUE_MODEL_MARKUP_TYPE_TOTAL_MEDIA_COST_MARKUP",
+            "markupAmount": "0",
+        },
         "targetingExpansion": {
-            "targetingExpansionLevel": "TARGETING_EXPANSION_LEVEL_LEAST_EXPANSION"
-            if audience_expansion
-            else "TARGETING_EXPANSION_LEVEL_NO_EXPANSION",
-            "excludeFirstPartyAudience": not audience_expansion,
+            "enableOptimizedTargeting": audience_expansion,
         },
     }
 
