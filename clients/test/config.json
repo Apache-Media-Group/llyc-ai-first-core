@@ -1,0 +1,17 @@
+{
+  "client": {
+    "id": "test",
+    "name": "TEST_AGENTE_IA"
+  },
+  "platforms": {
+    "dv360": {
+      "enabled": true,
+      "advertiser_id": "8108930762",
+      "_nota": "Advertiser de sandbox para test de escritura DV360. NO es cliente real."
+    }
+  },
+  "gcp": {
+    "project_id": "llyc-ai-first-core",
+    "secret_manager_project": "llyc-ai-first-core"
+  }
+}
