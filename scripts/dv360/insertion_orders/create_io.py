@@ -68,6 +68,14 @@ def _parse_date(date_str: str) -> dict:
     parts = date_str.split("-")
     return {"year": int(parts[0]), "month": int(parts[1]), "day": int(parts[2])}
 
+KPI_TYPES_PERCENTAGE = {"VIEWABILITY", "CTR", "BRAND_LIFT"}
+
+def _build_kpi(kpi_type: str, kpi_value: str) -> dict:
+    kpi_type_mapped = f"KPI_TYPE_{kpi_type.upper()}"
+    if kpi_type.upper() in KPI_TYPES_PERCENTAGE:
+        return {"kpiType": kpi_type_mapped, "kpiPercentageMicros": kpi_value}
+    else:
+        return {"kpiType": kpi_type_mapped, "kpiAmountMicros": kpi_value}
 
 def build_io_body(
     advertiser_id: str,
@@ -85,6 +93,8 @@ def build_io_body(
     budget_segments: list | None,
     optimization_objective: str = "CONVERSIONS",
     automation_type: str = "NONE",
+    kpi_type: str = "VIEWABILITY",
+    kpi_value: str = "700000",
 ) -> dict:
     pacing_type = PACING_TYPES.get(pacing.upper())
     if not pacing_type:
@@ -102,10 +112,7 @@ def build_io_body(
         "displayName": name,
         "entityStatus": "ENTITY_STATUS_DRAFT",
         "optimizationObjective": opt_obj_mapped,
-        "kpi": {
-            "kpiType": "KPI_TYPE_VIEWABILITY",
-            "kpiPercentageMicros": "700000",
-        },
+        "kpi": _build_kpi(kpi_type, kpi_value),
         "pacing": {
             "pacingPeriod": pacing_period_type,
             "pacingType": pacing_type,
@@ -186,6 +193,8 @@ def create_io(
     budget_segments: list | None = None,
     optimization_objective: str = "CONVERSIONS",
     automation_type: str = "NONE",
+    kpi_type: str = "VIEWABILITY",
+    kpi_value: str = "700000",
     dry_run: bool = False,
 ) -> dict:
     """Crea un Insertion Order en DV360. Se crea siempre en PAUSED."""
@@ -207,6 +216,8 @@ def create_io(
         budget_segments=budget_segments,
         optimization_objective=optimization_objective,
         automation_type=automation_type,
+        kpi_type=kpi_type,
+        kpi_value=kpi_value,
     )
 
     action_msg = (
@@ -309,6 +320,8 @@ def main() -> None:
     parser.add_argument("--optimization-objective", choices=list(OPTIMIZATION_OBJECTIVES), default="CONVERSIONS", help="Objetivo de optimizacion del IO (defecto: CONVERSIONS)")
     parser.add_argument("--automation-type", choices=list(AUTOMATION_TYPES), default="NONE", help="Tipo de automatizacion: NONE | BUDGET (automate bid+budget) | BID")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--kpi-type", choices=["VIEWABILITY", "CTR", "CPC", "CPA", "CPM", "CPIAVC", "BRAND_LIFT"], default="VIEWABILITY", help="Tipo de KPI del IO")
+    parser.add_argument("--kpi-value", default="700000", help="Valor del KPI en micros o porcentaje")
 
     args = parser.parse_args()
 
@@ -336,6 +349,8 @@ def main() -> None:
         budget_segments=budget_segments,
         optimization_objective=getattr(args, "optimization_objective", "CONVERSIONS"),
         automation_type=getattr(args, "automation_type", "NONE"),
+        kpi_type=getattr(args, "kpi_type", "VIEWABILITY"),
+        kpi_value=getattr(args, "kpi_value", "700000"),
         dry_run=args.dry_run,
     )
 

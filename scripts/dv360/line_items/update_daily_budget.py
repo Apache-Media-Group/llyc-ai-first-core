@@ -75,9 +75,9 @@ def update_daily_budget(
     current_budget_eur = None
     if not skip_guardrail:
         try:
-            svc_read = build_writer_service(client_id=client_id)
+            svc = build_writer_service(client_id=client_id)
             li = (
-                svc_read.advertisers()
+                svc.advertisers()
                 .lineItems()
                 .get(advertiserId=advertiser_id, lineItemId=line_item_id)
                 .execute()
