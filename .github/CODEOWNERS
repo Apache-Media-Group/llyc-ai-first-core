@@ -1,4 +1,6 @@
 # Code owners — llyc-ai-first-core
-# Inicial. Se actualiza con handles del team AI-First cuando IT confirme altas.
+# Catch-all: lead (ambas cuentas) + Alberto → cualquiera satisface el review, Max nunca bloqueado
+*           @massimilianoturinetto-lluc @admin-tech-llyc @albertogonzalez89
 
-* @admin-tech-llyc
+# Infra / CI-CD (deploy a Cloud Functions) — añade a Sergio
+/.github/   @sergioalonso-llyc @massimilianoturinetto-lluc @admin-tech-llyc
