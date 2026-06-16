@@ -57,24 +57,24 @@ BID_STRATEGIES = {
 # ── Targeting maps ────────────────────────────────────────────────────────────
 
 DEVICE_TYPES = {
-    "DESKTOP":   "DEVICE_TYPE_DESKTOP",
+    "DESKTOP":   "DEVICE_TYPE_COMPUTER",
     "MOBILE":    "DEVICE_TYPE_SMART_PHONE",
     "TABLET":    "DEVICE_TYPE_TABLET",
     "CONNECTED": "DEVICE_TYPE_CONNECTED_TV",
 }
 
 ENVIRONMENTS = {
-    "DESKTOP_WEB": "ENVIRONMENT_TYPE_BROWSER",
-    "MOBILE_WEB":  "ENVIRONMENT_TYPE_BROWSER",
-    "APP":         "ENVIRONMENT_TYPE_APP",
-    "ALL":         "ENVIRONMENT_TYPE_ALL",
+    "DESKTOP_WEB": "ENVIRONMENT_WEB_OPTIMIZED",
+    "MOBILE_WEB":  "ENVIRONMENT_WEB_NOT_OPTIMIZED",
+    "APP":         "ENVIRONMENT_APP",
+    "ALL":         "ENVIRONMENT_WEB_OPTIMIZED",
 }
 
 CONTENT_LABELS = {
-    "G":  "CONTENT_RATING_TIER_G",
-    "PG": "CONTENT_RATING_TIER_PG",
-    "T":  "CONTENT_RATING_TIER_T",
-    "MA": "CONTENT_RATING_TIER_MA",
+    "G":  "CONTENT_RATING_TIER_GENERAL",
+    "PG": "CONTENT_RATING_TIER_PARENTAL_GUIDANCE",
+    "T":  "CONTENT_RATING_TIER_TEENS",
+    "MA": "CONTENT_RATING_TIER_MATURE",
 }
 
 GENDER_TYPES = {
@@ -114,9 +114,9 @@ FREQUENCY_CAP_UNITS = {
 }
 
 POSITION_TYPES = {
-    "ATF":     "POSITION_ABOVE_THE_FOLD",
-    "BTF":     "POSITION_BELOW_THE_FOLD",
-    "UNKNOWN": "POSITION_UNKNOWN",
+    "ATF":     "ON_SCREEN_POSITION_ABOVE_THE_FOLD",
+    "BTF":     "ON_SCREEN_POSITION_BELOW_THE_FOLD",
+    "UNKNOWN": "ON_SCREEN_POSITION_UNKNOWN",
 }
 
 BROWSERS = {
@@ -157,13 +157,13 @@ SENSITIVE_CATEGORIES = {
 }
 
 BRAND_SAFETY_CATEGORIES = {
-    "ADULT":    "BRAND_SAFETY_ADULT",
-    "WEAPONS":  "BRAND_SAFETY_ARMS",
-    "VIOLENCE": "BRAND_SAFETY_CRIME_VIOLENCE",
-    "DRUGS":    "BRAND_SAFETY_DRUGS",
-    "HATE":     "BRAND_SAFETY_HATE_SPEECH",
-    "TRAGEDY":  "BRAND_SAFETY_TRAGEDY",
-    "TOBACCO":  "BRAND_SAFETY_TOBACCO",
+    "ADULT":    "SENSITIVE_CATEGORY_ADULT",
+    "WEAPONS":  "SENSITIVE_CATEGORY_WEAPONS",
+    "VIOLENCE": "SENSITIVE_CATEGORY_VIOLENCE",
+    "DRUGS":    "SENSITIVE_CATEGORY_DRUGS",
+    "HATE":     "SENSITIVE_CATEGORY_DEROGATORY",
+    "TRAGEDY":  "SENSITIVE_CATEGORY_TRAGEDY",
+    "TOBACCO":  "SENSITIVE_CATEGORY_TOBACCO",
 }
 
 # YouTube: tipos de contenido donde mostrar el anuncio
@@ -190,7 +190,86 @@ def _parse_date(date_str: str) -> dict:
 def _is_youtube(li_type: str) -> bool:
     return li_type.upper().startswith("YOUTUBE")
 
-
+GEO_IDS = {
+    # ── Países ────────────────────────────────────────────────────────────────
+    "ES": "2724",    # España
+    "PT": "2620",    # Portugal
+    "FR": "2250",    # Francia
+    "DE": "2276",    # Alemania
+    "IT": "2380",    # Italia
+    "GB": "2826",    # Reino Unido
+    "NL": "2528",    # Países Bajos
+    "BE": "2056",    # Bélgica
+    "CH": "2756",    # Suiza
+    "AT": "2040",    # Austria
+    "PL": "2616",    # Polonia
+    "SE": "2752",    # Suecia
+    "NO": "2578",    # Noruega
+    "DK": "2208",    # Dinamarca
+    "FI": "2246",    # Finlandia
+    "US": "2840",    # Estados Unidos
+    "MX": "2484",    # México
+    "AR": "2032",    # Argentina
+    "CO": "2170",    # Colombia
+    "CL": "2152",    # Chile
+    "PE": "2604",    # Perú
+    "EC": "2218",    # Ecuador
+    "VE": "2862",    # Venezuela
+    "BR": "2076",    # Brasil
+    "PA": "2591",    # Panamá
+    "CR": "2188",    # Costa Rica
+    "DO": "2214",    # República Dominicana
+    "GT": "2320",    # Guatemala
+    "HN": "2340",    # Honduras
+    "UY": "2858",    # Uruguay
+    "PY": "2600",    # Paraguay
+    "BO": "2068",    # Bolivia
+    # ── Regiones España ───────────────────────────────────────────────────────
+    "MADRID":        "20140",
+    "CATALUNA":      "20133",
+    "ANDALUCIA":     "20131",
+    "VALENCIA":      "20146",
+    "PAIS_VASCO":    "20148",
+    "GALICIA":       "20136",
+    "CASTILLA_LEON": "20134",
+    "CASTILLA_LM":   "20135",
+    "ARAGON":        "20132",
+    "MURCIA":        "20141",
+    "EXTREMADURA":   "20137",
+    "ASTURIAS":      "20149",
+    "NAVARRA":       "20142",
+    "CANTABRIA":     "20150",
+    "LA_RIOJA":      "20139",
+    "BALEARES":      "20151",
+    "CANARIAS":      "20144",
+    "CEUTA":         "20152",
+    "MELILLA":       "20153",
+    # ── Ciudades España ───────────────────────────────────────────────────────
+    "MADRID_CITY":       "1005430",
+    "BARCELONA_CITY":    "1005431",
+    "VALENCIA_CITY":     "1005432",
+    "SEVILLA_CITY":      "1005433",
+    "ZARAGOZA_CITY":     "1005434",
+    "MALAGA_CITY":       "1005435",
+    "BILBAO_CITY":       "1005436",
+}
+LANGUAGE_IDS = {
+    "es": "1003",
+    "en": "1000",
+    "fr": "1002",
+    "de": "1001",
+    "it": "1004",
+    "pt": "1014",
+    "ca": "1003",
+    "eu": "1003",
+    "gl": "1003",
+    "nl": "1010",
+    "pl": "1030",
+    "ru": "1031",
+    "ar": "1019",
+    "zh": "1017",
+    "ja": "1005",
+}
 def build_targeting_settings(
     content_labels: list | None,
     brand_safety_categories: list | None,
@@ -410,49 +489,43 @@ def build_targeting_settings(
     # ── Geography ─────────────────────────────────────────────────────────────
     if geo_regions:
         for region in geo_regions:
-            targeting.append({
-                "targetingType": "TARGETING_TYPE_GEO_REGION",
-                "geoRegionDetails": {
-                    "displayName": region,
-                    "geoRegionType": "GEO_REGION_TYPE_REGION",
-                    "negative": False,
-                },
-            })
-
+            geo_id = GEO_IDS.get(region.upper(), "")
+            if geo_id:
+                targeting.append({
+                    "targetingType": "TARGETING_TYPE_GEO_REGION",
+                    "geoRegionDetails": {"targetingOptionId": geo_id, "negative": False},
+                })
     if geo_cities:
         for city in geo_cities:
-            targeting.append({
-                "targetingType": "TARGETING_TYPE_GEO_REGION",
-                "geoRegionDetails": {
-                    "displayName": city,
-                    "geoRegionType": "GEO_REGION_TYPE_CITY",
-                    "negative": False,
-                },
-            })
-
+            geo_id = GEO_IDS.get(city.upper(), "")
+            if geo_id:
+                targeting.append({
+                    "targetingType": "TARGETING_TYPE_GEO_REGION",
+                    "geoRegionDetails": {"targetingOptionId": geo_id, "negative": False},
+                })
     if geo_zip_codes:
         for zip_code in geo_zip_codes:
-            targeting.append({
-                "targetingType": "TARGETING_TYPE_GEO_REGION",
-                "geoRegionDetails": {
-                    "displayName": zip_code,
-                    "geoRegionType": "GEO_REGION_TYPE_POSTAL_CODE",
-                    "negative": False,
-                },
-            })
-
+            geo_id = GEO_IDS.get(zip_code.upper(), "")
+            if geo_id:
+                targeting.append({
+                    "targetingType": "TARGETING_TYPE_GEO_REGION",
+                    "geoRegionDetails": {"targetingOptionId": geo_id, "negative": False},
+                })
     if geo_exclude:
         for region in geo_exclude:
-            targeting.append({
-                "targetingType": "TARGETING_TYPE_GEO_REGION",
-                "geoRegionDetails": {"displayName": region, "negative": True},
-            })
-
+            geo_id = GEO_IDS.get(region.upper(), "")
+            if geo_id:
+                targeting.append({
+                    "targetingType": "TARGETING_TYPE_GEO_REGION",
+                    "geoRegionDetails": {"targetingOptionId": geo_id, "negative": True},
+                })
     if language_codes:
         for lang in language_codes:
             targeting.append({
                 "targetingType": "TARGETING_TYPE_LANGUAGE",
-                "languageDetails": {"displayName": lang, "negative": False},
+                "languageDetails": {
+                    "targetingOptionId": LANGUAGE_IDS.get(lang.lower(), ""),
+                },
             })
 
     # ── Day & Time ────────────────────────────────────────────────────────────
@@ -817,7 +890,7 @@ def create_line_item(
         targeting_errors = []
         for t_option in targeting:
             try:
-                svc.advertisers().lineItems().assignedTargetingOptions().create(
+                svc.advertisers().lineItems().targetingTypes().assignedTargetingOptions().create(
                     advertiserId=advertiser_id,
                     lineItemId=li_id,
                     targetingType=t_option["targetingType"],
