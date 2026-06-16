@@ -276,6 +276,8 @@ def build_targeting_settings(
     sensitive_categories: list | None,
     keyword_includes: list | None,
     keyword_excludes: list | None,
+    url_includes: list | None,
+    url_excludes: list | None,
     iab_categories: list | None,
     environment: str | None,
     viewability_target: str | None,
@@ -351,6 +353,18 @@ def build_targeting_settings(
             targeting.append({
                 "targetingType": "TARGETING_TYPE_KEYWORD",
                 "keywordDetails": {"keyword": kw, "negative": True},
+            })
+    if url_includes:
+        for url in url_includes:
+            targeting.append({
+                "targetingType": "TARGETING_TYPE_URL",
+                "urlDetails": {"url": url, "negative": False},
+            })
+    if url_excludes:
+        for url in url_excludes:
+            targeting.append({
+                "targetingType": "TARGETING_TYPE_URL",
+                "urlDetails": {"url": url, "negative": True},
             })
 
     if iab_categories:
@@ -760,6 +774,8 @@ def create_line_item(
     sensitive_categories_exclude: list | None = None,
     keyword_includes: list | None = None,
     keyword_excludes: list | None = None,
+    url_includes: list | None = None,
+    url_excludes: list | None = None,
     iab_categories: list | None = None,
     environment: str | None = None,
     viewability_target: str | None = None,
@@ -807,6 +823,8 @@ def create_line_item(
         sensitive_categories=sensitive_categories_exclude,
         keyword_includes=keyword_includes,
         keyword_excludes=keyword_excludes,
+        url_includes=url_includes,
+        url_excludes=url_excludes,
         iab_categories=iab_categories,
         environment=environment,
         viewability_target=viewability_target,
@@ -1034,6 +1052,8 @@ Ejemplos:
     parser.add_argument("--sensitive-categories-exclude", nargs="+", choices=list(SENSITIVE_CATEGORIES), default=None)
     parser.add_argument("--keyword-includes", nargs="+", default=None)
     parser.add_argument("--keyword-excludes", nargs="+", default=None)
+    parser.add_argument("--url-includes", nargs="+", default=None, help="URLs a incluir en targeting")
+    parser.add_argument("--url-excludes", nargs="+", default=None, help="URLs a excluir del targeting")
     parser.add_argument("--iab-categories", nargs="+", default=None)
     parser.add_argument("--environment", choices=list(ENVIRONMENTS), default=None)
     parser.add_argument("--viewability-target", choices=list(VIEWABILITY_TARGETS), default=None)
@@ -1093,6 +1113,8 @@ Ejemplos:
         sensitive_categories_exclude=args.sensitive_categories_exclude,
         keyword_includes=args.keyword_includes,
         keyword_excludes=args.keyword_excludes,
+        url_includes=args.url_includes,
+        url_excludes=args.url_excludes,
         iab_categories=args.iab_categories,
         environment=args.environment,
         viewability_target=args.viewability_target,
