@@ -54,7 +54,7 @@ from operational_inputs import (  # DEC_075
 )
 from orchestrator import orchestrate_l3  # T4 L3
 from output_registry import OUTPUT_REGISTRY  # T2 L3
-from output_assembler import assemble  # T3 L3
+from output_assembler import assemble, overwrite_budget_pacer  # T3 L3 / T10 budget-pacer
 from narrative import build_metrics_block, merge_prose  # T5 L3
 
 # ─── BOOTSTRAP ────────────────────────────────────────────────────────────────
@@ -1464,6 +1464,31 @@ def agent_executor(request):
                     }
                 )
             )
+
+            # T10: budget-pacer sigue en loop, pero el ejecutor GARANTIZA sus numeros
+            # deterministas (spend/revenue por plataforma, roas_blended, budget_plan/floor)
+            # sobreescribiendo el output del LLM desde tool_result + workbook. El juicio
+            # (pacing/rentability status+detail, alerts, summary, period, projection) intacto.
+            if agent_name == "budget-pacer":
+                enabled_paid = [
+                    p for p in ("meta", "google_ads") if p in enabled_platforms
+                ]
+                output = overwrite_budget_pacer(
+                    output,
+                    captured_tool_results,
+                    oi,
+                    datetime.strptime(analysis_date, "%Y-%m-%d").date(),
+                    enabled_paid,
+                )
+                log.info(
+                    json.dumps(
+                        {
+                            "event": "budget_pacer_overwrite_applied",
+                            "client_id": client_id,
+                            "agent": agent_name,
+                        }
+                    )
+                )
 
         # generated_at lo inyecta el executor con el timestamp real de ejecución.
         # El modelo no tiene reloj: si se le pide, inventa una hora plausible
