@@ -52,6 +52,10 @@ from operational_inputs import (  # DEC_075
     to_prompt_block,
     reference_used,
 )
+from orchestrator import orchestrate_l3  # T4 L3
+from output_registry import OUTPUT_REGISTRY  # T2 L3
+from output_assembler import assemble  # T3 L3
+from narrative import build_metrics_block, merge_prose  # T5 L3
 
 # ─── BOOTSTRAP ────────────────────────────────────────────────────────────────
 # CRÍTICO: no usar logging.basicConfig en Cloud Functions Gen 2.
@@ -1193,6 +1197,103 @@ def _derive_analysis_status(legacy_status: str) -> str:
 
 
 @functions_framework.http
+def _request_prose(anthropic_client, system_prompt, metrics_block, client_id, agent_name):
+    """Una sola llamada al LLM (sin tools): recibe el BLOQUE DE MÉTRICAS y
+    devuelve SOLO el JSON de prosa. Degrada a {} si no parsea — los números
+    deterministas se mantienen intactos (garantía L3)."""
+    user_message = (
+        f"{metrics_block}\n\n"
+        "Redacta el JSON de prosa según tu contrato de salida. "
+        "Devuelve SOLO el JSON, sin texto alrededor."
+    )
+    response = anthropic_client.messages.create(
+        model=MODEL,
+        max_tokens=MAX_TOKENS,
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_message}],
+    )
+    text = "".join(
+        b.text for b in response.content if getattr(b, "type", None) == "text"
+    ).strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text[:4].lower() == "json":
+            text = text[4:]
+        text = text.strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        i, j = text.find("{"), text.rfind("}")
+        if i != -1 and j != -1 and j > i:
+            try:
+                return json.loads(text[i : j + 1])
+            except json.JSONDecodeError:
+                pass
+    log.error(
+        json.dumps(
+            {
+                "event": "prose_parse_failed",
+                "client_id": client_id,
+                "agent": agent_name,
+                "raw_preview": text[:300],
+            }
+        )
+    )
+    return {}
+
+
+def run_perf_monitor_l3(
+    anthropic_client,
+    system_prompt,
+    handler,
+    config,
+    oi,
+    analysis_date,
+    enabled_paid,
+    client_id,
+    agent_name,
+):
+    """Ruta L3 determinista de perf-monitor (DEC >=084).
+
+    El ejecutor orquesta los tools y computa TODOS los números; el LLM solo
+    redacta la prosa. El número final lo fija el ensamblador, nunca la
+    transcripción del LLM (garantía §1, blindada en merge_prose).
+    """
+    analysis_date_obj = datetime.strptime(analysis_date, "%Y-%m-%d").date()
+    spec = OUTPUT_REGISTRY[agent_name]
+    results = orchestrate_l3(spec, handler, config, analysis_date_obj, enabled_paid)
+    deterministic = assemble(agent_name, results, oi, analysis_date_obj, enabled_paid)
+
+    # client: el oi real no expone client_id -> se fija desde config (consistente
+    # con el client_name del email, config["client"]["name"]).
+    deterministic["client"] = config["client"]["name"]
+    # snapshot de auditoría de la fuente de tolerancias/floor (invariante §7.7).
+    deterministic["reference_kpis_used"] = reference_used(oi)
+
+    metrics_block = build_metrics_block(deterministic)
+    if oi.trace.get("fallback_used"):
+        metrics_block = (
+            "AVISO: tolerancias/floor en FALLBACK de config (workbook no "
+            "disponible). Decláralo en el summary.\n\n" + metrics_block
+        )
+
+    prose = _request_prose(
+        anthropic_client, system_prompt, metrics_block, client_id, agent_name
+    )
+    log.info(
+        json.dumps(
+            {
+                "event": "l3_prose_merged",
+                "client_id": client_id,
+                "agent": agent_name,
+                "prose_keys": sorted(prose.keys()),
+                "alerts_count": len(deterministic.get("alerts", [])),
+            }
+        )
+    )
+    return merge_prose(deterministic, prose)
+
+
 def agent_executor(request):
     """
     Entry point HTTP de la Cloud Function. Dispatcher genérico.
@@ -1325,28 +1426,44 @@ def agent_executor(request):
         user_message = build_user_message(
             agent_name, config, analysis_date, run_profile
         )
-        output, captured_tool_results = run_agent(
-            anthropic_client,
-            system_prompt,
-            tools,
-            user_message,
-            handler,
-            client_id,
-            agent_name,
-        )
-        # T1: results estructurados disponibles tras la ejecución (consumo T2/T3).
-        # Log solo conteo + nombres de tools, nunca el contenido.
-        log.info(
-            json.dumps(
-                {
-                    "event": "tool_results_captured",
-                    "client_id": client_id,
-                    "agent": agent_name,
-                    "count": len(captured_tool_results),
-                    "tools": [c["tool"] for c in captured_tool_results],
-                }
+        if agent_name == "performance-monitor":
+            enabled_paid = [
+                p for p in ("meta", "google_ads") if p in enabled_platforms
+            ]
+            output = run_perf_monitor_l3(
+                anthropic_client,
+                system_prompt,
+                handler,
+                config,
+                oi,
+                analysis_date,
+                enabled_paid,
+                client_id,
+                agent_name,
             )
-        )
+        else:
+            output, captured_tool_results = run_agent(
+                anthropic_client,
+                system_prompt,
+                tools,
+                user_message,
+                handler,
+                client_id,
+                agent_name,
+            )
+            # T1: results estructurados disponibles tras la ejecución (consumo T2/T3).
+            # Log solo conteo + nombres de tools, nunca el contenido.
+            log.info(
+                json.dumps(
+                    {
+                        "event": "tool_results_captured",
+                        "client_id": client_id,
+                        "agent": agent_name,
+                        "count": len(captured_tool_results),
+                        "tools": [c["tool"] for c in captured_tool_results],
+                    }
+                )
+            )
 
         # generated_at lo inyecta el executor con el timestamp real de ejecución.
         # El modelo no tiene reloj: si se le pide, inventa una hora plausible
