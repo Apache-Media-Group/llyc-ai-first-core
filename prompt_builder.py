@@ -73,7 +73,6 @@ Zona horaria: {client.get('timezone', 'Europe/Madrid')}
 
 ## Output
 - Carpeta destino en Drive: {agent_cfg['output_folder']}
-- Schedule: {agent_cfg['schedule']}
 
 ## Notificaciones
 - Canal: {notifications_cfg.get('canal', 'email')}
