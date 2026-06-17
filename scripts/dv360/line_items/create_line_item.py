@@ -550,13 +550,14 @@ def build_targeting_settings(
     # ── Day & Time ────────────────────────────────────────────────────────────
     if daypart_matrix:
         day_map = {
-            "MONDAY":    "DAYOFWEEK_MONDAY",
-            "TUESDAY":   "DAYOFWEEK_TUESDAY",
-            "WEDNESDAY": "DAYOFWEEK_WEDNESDAY",
-            "THURSDAY":  "DAYOFWEEK_THURSDAY",
-            "FRIDAY":    "DAYOFWEEK_FRIDAY",
-            "SATURDAY":  "DAYOFWEEK_SATURDAY",
-            "SUNDAY":    "DAYOFWEEK_SUNDAY",
+            "MONDAY":    "MONDAY",
+            "TUESDAY":   "TUESDAY",
+            "WEDNESDAY": "WEDNESDAY",
+            "THURSDAY":  "THURSDAY",
+            "FRIDAY":    "FRIDAY",
+            "SATURDAY":  "SATURDAY",
+            "SUNDAY":    "SUNDAY",
+    
         }
         dayparts = []
         for day, hours in daypart_matrix.items():
@@ -568,15 +569,16 @@ def build_targeting_settings(
                         "startHour": hour,
                         "endHour": hour + 1,
                     })
-        if dayparts:
+        for dp in dayparts:
             targeting.append({
-                "targetingType": "TARGETING_TYPE_DAYPART",
-                "dayPartDetails": {
-                    "dayParts": dayparts,
+                "targetingType": "TARGETING_TYPE_DAY_AND_TIME",
+                "dayAndTimeDetails": {
+                    "dayOfWeek": dp["dayOfWeek"],
+                    "startHour": dp["startHour"],
+                    "endHour": dp["endHour"],
                     "timeZoneResolution": "TIME_ZONE_RESOLUTION_END_USER",
                 },
             })
-
     # ── Technology ────────────────────────────────────────────────────────────
     if device_types:
         for device in device_types:
