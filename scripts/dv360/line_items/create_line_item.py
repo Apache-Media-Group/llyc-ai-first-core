@@ -443,12 +443,11 @@ def build_targeting_settings(
         targeting.append({
             "targetingType": "TARGETING_TYPE_AUDIENCE_GROUP",
             "audienceGroupDetails": {
-                "includedFirstAndThirdPartyAudienceGroups": [
+                "includedFirstPartyAndPartnerAudienceGroups": [
                     {
-                        "firstAndThirdPartyAudiences": [
+                        "settings": [
                             {
-                                "firstAndThirdPartyAudienceId": aid,
-                                "recency": "AUDIENCE_RECENCY_NO_LIMIT",
+                                "firstPartyAndPartnerAudienceId": aid,
                             }
                             for aid in audience_list_ids
                         ]
