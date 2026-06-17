@@ -113,6 +113,12 @@ FREQUENCY_CAP_UNITS = {
     "MONTHS":  "TIME_UNIT_MONTHS",
 }
 
+POSITION_IDS = {
+    "ATF":     "21",
+    "BTF":     "22",
+    "UNKNOWN": "23",
+}
+
 POSITION_TYPES = {
     "ATF":     "ON_SCREEN_POSITION_ABOVE_THE_FOLD",
     "BTF":     "ON_SCREEN_POSITION_BELOW_THE_FOLD",
@@ -396,7 +402,7 @@ def build_targeting_settings(
             if mapped:
                 targeting.append({
                     "targetingType": "TARGETING_TYPE_ON_SCREEN_POSITION",
-                    "onScreenPositionDetails": {"onScreenPosition": mapped},
+                    "onScreenPositionDetails": {"targetingOptionId": POSITION_IDS.get(pos.upper(), "")},
                 })
 
     # ── YouTube-specific content ──────────────────────────────────────────────
