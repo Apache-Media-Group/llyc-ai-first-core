@@ -2,7 +2,7 @@
 # CAMPAIGN INTELLIGENCE API — Cloud Functions Gen 2
 # Proyecto core: llyc-ai-first-core
 # Lectura cross-project hacia proyectos de cliente
-# SA: llyc-agents-sa@llyc-ai-first-core.iam.gserviceaccount.com
+# SA: dashboards-sa@llyc-ai-first-core.iam.gserviceaccount.com
 # ================================================================
 # Endpoints (HTTP trigger, path routing via query param ?action=):
 #   GET  ?action=ping                → health check
@@ -68,8 +68,12 @@ def get_anthropic_client():
         return _anthropic_client
 
     import anthropic
-    # Secret naming: anthropic-key-{tenant_id}
-    secret_name = f"projects/{CORE_PROJECT}/secrets/anthropic-key-{TENANT_ID}/versions/latest"
+    # Secret naming: anthropic-api-key-campaign_intelligence-{tenant_id}
+    # Secret lives in CLIENT project (llyc-ai-lcdc), not core — DEC_058
+    # Secret lives in client project per DEC_058
+    # Convention: anthropic-api-key-campaign_intelligence-{tenant_id}
+    CLIENT_SECRET_PROJECT = os.getenv("CLIENT_SECRET_PROJECT", CORE_PROJECT)
+    secret_name = f"projects/{CLIENT_SECRET_PROJECT}/secrets/anthropic-api-key-campaign_intelligence-{TENANT_ID}/versions/latest"
     try:
         response = sm_client.access_secret_version(name=secret_name)
         api_key = response.payload.data.decode("utf-8").strip()
