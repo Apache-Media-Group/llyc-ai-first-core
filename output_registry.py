@@ -70,7 +70,6 @@ def prose() -> Prose:
 #   sum(glob)                Σ sobre el glob de campos paid
 #   delta_pct_vs(x, base)    (x - base) / base * 100
 #   band_vs_floor(v, floor)  por_encima / en_torno / por_debajo
-#   projection_lineal(spend) spend / pace_fraction (pace del analysis_date; budget-pacer)
 #   execution_status         helper DEC_072 (data completeness)
 #   execution_status_detail  qué fuente(s) faltan
 #   analysis_status          >=1 alerta disparada -> ALERTA
@@ -153,8 +152,6 @@ OUTPUT_REGISTRY: dict[str, dict[str, object]] = {
         "actuals_mtd.spend_eur":                   derived("sum", "actuals_mtd.spend_by_platform.*paid*"),
         "actuals_mtd.revenue_eur":                 raw("get_shopify_orders_period", "mtd", "data.revenue_eur"),
         "actuals_mtd.roas_blended":                derived("ratio", "actuals_mtd.revenue_eur", "actuals_mtd.spend_eur"),
-        # pacing: proyeccion lineal (aritmetica pura; pace_fraction del executor via analysis_date)
-        "pacing.projected_month_spend_eur":        derived("projection_lineal", "actuals_mtd.spend_eur"),
         # rentability: solo numeros (status/meets_blended_floor/detail los deja el LLM)
         "rentability.roas_blended_mtd":            derived("alias", "actuals_mtd.roas_blended"),
         "rentability.roas_blended_floor":          raw("budget", "cuenta", "roas_blended_floor"),
