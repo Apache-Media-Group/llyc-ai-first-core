@@ -129,16 +129,13 @@
   </div>
 </div>
 
-<div style="margin-bottom:22px;">
-  <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">Rentabilidad</div>
-  <div style="font-size:13px; color:#333; line-height:1.55;">
-    {% if rentability.status == "N/A" %}
-    <span style="color:#888;">No evaluable.</span>
-    {% else %}
-    <strong>ROAS blended MTD:</strong> {% if rentability.roas_blended_mtd is not none %}{{ fmt.number(rentability.roas_blended_mtd, 2) }}x{% else %}—{% endif %} · <strong>Floor:</strong> {% if rentability.roas_blended_floor is not none %}{{ fmt.number(rentability.roas_blended_floor, 2) }}x{% else %}—{% endif %}{% if rentability.meets_blended_floor is not none %} · {% if rentability.meets_blended_floor %}<span style="color:#1b6a3a; font-weight:600;">cumple el floor</span>{% else %}<span style="color:#a30000; font-weight:600;">por debajo del floor</span>{% endif %}{% endif %}
-    {% endif %}
-    {% if rentability.detail %}<br><span style="color:#666; font-size:12px;">{{ rentability.detail }}</span>{% endif %}
-  </div>
+<div style="margin-bottom:22px; font-size:12px; color:#888; line-height:1.5;">
+  {% if rentability.status == "N/A" %}
+  Rentabilidad: no evaluable.
+  {% else %}
+  Rentabilidad &middot; ROAS blended MTD {% if rentability.roas_blended_mtd is not none %}{{ fmt.number(rentability.roas_blended_mtd, 2) }}x{% else %}&mdash;{% endif %} &middot; floor {% if rentability.roas_blended_floor is not none %}{{ fmt.number(rentability.roas_blended_floor, 2) }}x{% else %}&mdash;{% endif %}{% if rentability.meets_blended_floor is not none %} &middot; {% if rentability.meets_blended_floor %}cumple el floor{% else %}por debajo del floor{% endif %}{% endif %}.
+  {% endif %}
+  {% if rentability.detail %} {{ rentability.detail }}{% endif %}
 </div>
 {% endif %}
 
