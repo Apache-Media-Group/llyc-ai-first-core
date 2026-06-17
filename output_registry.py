@@ -70,6 +70,7 @@ def prose() -> Prose:
 #   sum(glob)                Σ sobre el glob de campos paid
 #   delta_pct_vs(x, base)    (x - base) / base * 100
 #   band_vs_floor(v, floor)  por_encima / en_torno / por_debajo
+#   projection_lineal(spend) spend / pace_fraction (pace del analysis_date; budget-pacer)
 #   execution_status         helper DEC_072 (data completeness)
 #   execution_status_detail  qué fuente(s) faltan
 #   analysis_status          >=1 alerta disparada -> ALERTA
@@ -140,5 +141,32 @@ OUTPUT_REGISTRY: dict[str, dict[str, object]] = {
         "roas_blended_floor":           raw("budget", "cuenta", "roas_blended_floor"),
         "roas_blended_band":            derived("band_vs_floor", "roas_blended_mtd", "roas_blended_floor"),
         "roas_blended_recommendation":  prose(),
+    },
+    # budget-pacer: NO L3 (sigue en loop). El ejecutor solo SOBREESCRIBE estos
+    # numeros deterministas en el output del LLM (overwrite-si-existe). El juicio
+    # (pacing.status, deviation, meets_floor, analysis_status, alerts, summary)
+    # se queda con el LLM. Perfil por presencia: monthly no llama tools de hoy,
+    # intraday no emite budget_plan.
+    "budget-pacer": {
+        # actuals MTD (monthly_pacing) — por plataforma paid (expandir {paid})
+        "actuals_mtd.spend_by_platform.{paid}":    raw("get_{paid}_spend_month", "mtd", "data.spend_month_eur"),
+        "actuals_mtd.spend_eur":                   derived("sum", "actuals_mtd.spend_by_platform.*paid*"),
+        "actuals_mtd.revenue_eur":                 raw("get_shopify_orders_period", "mtd", "data.revenue_eur"),
+        "actuals_mtd.roas_blended":                derived("ratio", "actuals_mtd.revenue_eur", "actuals_mtd.spend_eur"),
+        # pacing: proyeccion lineal (aritmetica pura; pace_fraction del executor via analysis_date)
+        "pacing.projected_month_spend_eur":        derived("projection_lineal", "actuals_mtd.spend_eur"),
+        # rentability: solo numeros (status/meets_blended_floor/detail los deja el LLM)
+        "rentability.roas_blended_mtd":            derived("alias", "actuals_mtd.roas_blended"),
+        "rentability.roas_blended_floor":          raw("budget", "cuenta", "roas_blended_floor"),
+        # budget_plan: workbook via oi (pseudo-fuente budget) — mata la transcripcion del bloque inyectado
+        "budget_plan.base_eur":                    raw("budget", "cuenta", "base_eur"),
+        "budget_plan.incremental_max_eur":         raw("budget", "cuenta", "incremental_max_eur"),
+        "budget_plan.total_max_eur":               raw("budget", "cuenta", "total_max_eur"),
+        "budget_plan.roas_floor_base":             raw("budget", "cuenta", "roas_floor_base"),
+        "budget_plan.roas_floor_incremental":      raw("budget", "cuenta", "roas_floor_incremental"),
+        "budget_plan.roas_blended_floor":          raw("budget", "cuenta", "roas_blended_floor"),
+        # intraday_guardrail — por plataforma paid
+        "intraday.spend_today_by_platform.{paid}": raw("get_{paid}_spend_today", "today", "data.spend_today_eur"),
+        "intraday.spend_today_eur":                derived("sum", "intraday.spend_today_by_platform.*paid*"),
     },
 }
