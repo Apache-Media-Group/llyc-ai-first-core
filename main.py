@@ -772,6 +772,7 @@ def run_agent(
 
     t0 = time.monotonic()
     messages = [{"role": "user", "content": user_message}]
+    captured_tool_results: list[dict] = []
     final_response = None
     iterations = 0
     total_input_tokens = 0
@@ -829,6 +830,11 @@ def run_agent(
                 )
                 try:
                     result = tool_handler(block.name, block.input)
+                    # T1: captura {tool, input, result}; result dict nativo para
+                    # que el ensamblador (T3) lo lea sin re-parsear. Solo en memoria.
+                    captured_tool_results.append(
+                        {"tool": block.name, "input": block.input, "result": result}
+                    )
                     tool_results.append(
                         {
                             "type": "tool_result",
@@ -848,13 +854,15 @@ def run_agent(
                             }
                         )
                     )
+                    error_result = {"status": "error", "message": str(e)}
+                    captured_tool_results.append(
+                        {"tool": block.name, "input": block.input, "result": error_result}
+                    )
                     tool_results.append(
                         {
                             "type": "tool_result",
                             "tool_use_id": block.id,
-                            "content": json.dumps(
-                                {"status": "error", "message": str(e)}
-                            ),
+                            "content": json.dumps(error_result),
                             "is_error": True,
                         }
                     )
@@ -894,7 +902,7 @@ def run_agent(
             "client": client_id,
             "status_global": "ERROR",
             "summary": f"Agente alcanzó MAX_AGENT_ITERATIONS={MAX_AGENT_ITERATIONS} sin cerrar turno.",
-        }
+        }, captured_tool_results
 
     # Extraer texto del final_response
     output_text = "".join(
@@ -918,13 +926,13 @@ def run_agent(
 
     # Parsear el output como JSON estructurado
     try:
-        return json.loads(output_text)
+        return json.loads(output_text), captured_tool_results
     except json.JSONDecodeError:
         # Fallback 1: extraer JSON de un bloque ```json ... ``` si Claude lo envolvió
         match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", output_text, re.DOTALL)
         if match:
             try:
-                return json.loads(match.group(1))
+                return json.loads(match.group(1)), captured_tool_results
             except json.JSONDecodeError:
                 pass
 
@@ -947,7 +955,7 @@ def run_agent(
             if isinstance(obj, dict) and end > best_span:
                 best_obj, best_span = obj, end
         if best_obj is not None:
-            return best_obj
+            return best_obj, captured_tool_results
 
         log.error(
             json.dumps(
@@ -965,7 +973,7 @@ def run_agent(
             "status_global": "ERROR",
             "summary": "Output del agente no es JSON válido.",
             "raw_output": output_text,
-        }
+        }, captured_tool_results
 
 
 # ─── OUTPUT WRITING ──────────────────────────────────────────────────────────
@@ -1317,7 +1325,7 @@ def agent_executor(request):
         user_message = build_user_message(
             agent_name, config, analysis_date, run_profile
         )
-        output = run_agent(
+        output, captured_tool_results = run_agent(
             anthropic_client,
             system_prompt,
             tools,
@@ -1325,6 +1333,19 @@ def agent_executor(request):
             handler,
             client_id,
             agent_name,
+        )
+        # T1: results estructurados disponibles tras la ejecución (consumo T2/T3).
+        # Log solo conteo + nombres de tools, nunca el contenido.
+        log.info(
+            json.dumps(
+                {
+                    "event": "tool_results_captured",
+                    "client_id": client_id,
+                    "agent": agent_name,
+                    "count": len(captured_tool_results),
+                    "tools": [c["tool"] for c in captured_tool_results],
+                }
+            )
         )
 
         # generated_at lo inyecta el executor con el timestamp real de ejecución.
