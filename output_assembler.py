@@ -153,8 +153,7 @@ class Assembler:
             return _pct_change(self.value(ops[0]), self.value(ops[1]))
         if op == "sum":
             glob = spec.operands[0]
-            field = glob.replace("platforms.*paid*.", "")
-            vals = [self.value(f"platforms.{p}.{field}") for p in self.paid]
+            vals = [self.value(glob.replace("*paid*", p)) for p in self.paid]
             vals = [v for v in vals if isinstance(v, (int, float))]
             return round(sum(vals), 2) if vals else None
         if op == "const_empty":
@@ -284,3 +283,57 @@ def _set_nested(out: dict, dotted: str, value: Any):
     for part in parts[:-1]:
         cur = cur.setdefault(part, {})
     cur[parts[-1]] = value
+
+
+# ─── T10: overwrite determinista de budget-pacer (NO L3; sigue en loop) ───────
+
+
+def _index_captured_budget_pacer(captured: list) -> dict:
+    """Lista [{tool, input, result}] -> {(tool, window): result} para budget-pacer.
+    Ventana intrinseca por tool: *_spend_month -> mtd, *_spend_today -> today,
+    get_shopify_orders_period -> mtd (budget-pacer monthly llama Shopify una vez).
+    Tool set acotado (DEC_059) -> una llamada por tool/perfil, sin ambiguedad."""
+    idx: dict = {}
+    for c in captured:
+        tool = c.get("tool", "")
+        if tool.endswith("_spend_month"):
+            win = "mtd"
+        elif tool.endswith("_spend_today"):
+            win = "today"
+        elif tool == "get_shopify_orders_period":
+            win = "mtd"
+        else:
+            continue
+        idx[(tool, win)] = c.get("result")
+    return idx
+
+
+def _overwrite_existing(target: dict, source: dict) -> dict:
+    """Sobreescribe en target los leaf que existen en source. Solo claves YA
+    presentes en target (preserva contrato; NO anade claves nuevas). Recursivo en
+    dicts. Un leaf None de source SI sobreescribe (fuente fallida -> el numero del
+    LLM no debe quedarse). Perfil por presencia: campos ausentes en el output del
+    LLM (p.ej. intraday en monthly) no se tocan."""
+    if not isinstance(target, dict) or not isinstance(source, dict):
+        return target
+    for k, sv in source.items():
+        if k not in target:
+            continue
+        tv = target[k]
+        if isinstance(sv, dict) and isinstance(tv, dict):
+            _overwrite_existing(tv, sv)
+        else:
+            target[k] = sv
+    return target
+
+
+def overwrite_budget_pacer(output, captured, oi, analysis_date, enabled_paid) -> dict:
+    """T10: garantiza los numeros deterministas de budget-pacer sin sacarlo del loop.
+    Indexa la lista capturada por (tool, ventana intrinseca), computa los campos del
+    registry 'budget-pacer' con assemble(), y SOBREESCRIBE en el output del LLM solo
+    las claves ya presentes. El juicio del LLM (pacing.status/deviation/detail,
+    rentability.status/meets/detail, analysis_status, alerts, summary, period,
+    projection) queda intacto. Perfil por presencia (monthly/intraday)."""
+    idx = _index_captured_budget_pacer(captured)
+    det = assemble("budget-pacer", idx, oi, analysis_date, enabled_paid)
+    return _overwrite_existing(output, det)
