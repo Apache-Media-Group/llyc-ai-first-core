@@ -117,7 +117,7 @@ OUTPUT_REGISTRY: dict[str, dict[str, object]] = {
         # ── Shopify (ground truth DEC_048; no dispara alerta) ────────────────
         "platforms.shopify.status":        derived("source_status", "shopify"),
         "platforms.shopify.revenue_eur":   raw("get_shopify_orders_period", "yesterday", "data.revenue_eur"),
-        "platforms.shopify.orders_count":  raw("get_shopify_orders_period", "yesterday", "data.orders"),
+        "platforms.shopify.orders_count":  raw("get_shopify_orders_period", "yesterday", "data.orders_count"),
         "platforms.shopify.aov_eur":       derived("ratio", "platforms.shopify.revenue_eur", "platforms.shopify.orders_count"),
         "platforms.shopify.alert_detail":  derived("const_empty"),
         "platforms.shopify.error_detail":  derived("tool_error_message", "shopify"),

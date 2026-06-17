@@ -188,7 +188,9 @@ class Assembler:
 
     def _tool_error(self, plat):
         r = self.results.get((self._tool_for_platform(plat), "yesterday"))
-        return r.get("message", "") if _is_error(r) and isinstance(r, dict) else ""
+        if _is_error(r) and isinstance(r, dict):
+            return (r.get("error") or {}).get("message", "")
+        return ""
 
     def _tol(self, metrica, plat):
         return self.oi.kpi(metrica, TOL_PARAM, platform=plat)

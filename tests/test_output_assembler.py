@@ -28,7 +28,7 @@ def base_results():
         ("get_google_ads_performance", "7d"):        _ok(spend_eur=350, revenue_eur=1680, roas=4.8, conversions=35),
         ("get_google_ads_performance", "mtd"):       _ok(spend_eur=1000),
         ("get_ga4_performance", "yesterday"): _ok(sessions=1000, transactions=11, revenue_eur=300),
-        ("get_shopify_orders_period", "yesterday"): _ok(revenue_eur=480, orders=12),
+        ("get_shopify_orders_period", "yesterday"): _ok(revenue_eur=480, orders_count=12),
         ("get_shopify_orders_period", "mtd"):       _ok(revenue_eur=5000),
     }
 
@@ -109,7 +109,8 @@ def test_alerta_cpa_subida_supera_tolerancia():
 
 def test_shopify_error_partial_y_triangulacion_na():
     r = base_results()
-    r[("get_shopify_orders_period", "yesterday")] = {"status": "error", "message": "Shopify 503"}
+    r[("get_shopify_orders_period", "yesterday")] = {"status": "error", "platform": "shopify",
+                                                      "error": {"code": "HTTP_503", "message": "Shopify 503"}}
     o = A.assemble("performance-monitor", r, FakeOI(KPIS), DATE, PAID)
     assert o["execution_status"] == "PARTIAL"
     assert "shopify" in o["execution_status_detail"]
