@@ -185,8 +185,8 @@ def get_google_ads_spend_today(
         query = """
             SELECT metrics.cost_micros
             FROM campaign
-            WHERE campaign.status = 'ENABLED'
-              AND segments.date DURING TODAY
+            WHERE segments.date DURING TODAY
+              AND metrics.cost_micros > 0
         """
 
         response = ga_service.search_stream(customer_id=str(customer_id), query=query)
