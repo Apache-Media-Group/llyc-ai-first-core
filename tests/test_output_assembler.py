@@ -4,15 +4,17 @@ import output_assembler as A
 
 class FakeOI:
     client_id = "vidal-vidal"
-    def __init__(self, kpis):
-        self._k = kpis  # {(metrica,parametro): valor}
+    def __init__(self, kpis, blended_floor=3.0):
+        self._k = kpis
+        self._floor = blended_floor
     def kpi(self, metrica, parametro, platform=None, periodo=None):
         return self._k.get((metrica, parametro))
+    def budget_for(self, platform=None):
+        return {"roas_blended_floor": self._floor}
 
 
 KPIS = {("roas", "tolerancia_desviacion_pct"): 15,
-        ("cpa", "tolerancia_desviacion_pct"): 20,
-        ("roas", "dinamico_minimo"): 3.0}
+        ("cpa", "tolerancia_desviacion_pct"): 20}
 
 
 def _ok(**data):
@@ -63,18 +65,26 @@ def test_sum_y_deltas():
     assert o["revenue_triangulation"]["delta_ga4_vs_shopify_pct"] == -37.5
 
 
-def test_roas_blended_y_banda():
-    o = run()
+def test_roas_blended_floor_desde_budget_tab():
+    o = A.assemble("performance-monitor", base_results(),
+                   FakeOI(KPIS, blended_floor=4.65), DATE, PAID)
     assert o["roas_blended_mtd"] == 1.67
-    assert o["roas_blended_floor"] == 3.0
+    assert o["roas_blended_floor"] == 4.65
     assert o["roas_blended_band"] == "por_debajo"
 
 
 def test_banda_None_si_floor_ausente():
-    k = {kk: vv for kk, vv in KPIS.items() if kk != ("roas", "dinamico_minimo")}
-    o = run(kpis=k)
+    o = A.assemble("performance-monitor", base_results(),
+                   FakeOI(KPIS, blended_floor=None), DATE, PAID)
     assert o["roas_blended_floor"] is None
     assert o["roas_blended_band"] is None
+
+
+def test_banda_en_torno_y_por_encima():
+    o = A.assemble("performance-monitor", base_results(), FakeOI(KPIS, blended_floor=1.60), DATE, PAID)
+    assert o["roas_blended_band"] == "en_torno"
+    o2 = A.assemble("performance-monitor", base_results(), FakeOI(KPIS, blended_floor=1.0), DATE, PAID)
+    assert o2["roas_blended_band"] == "por_encima"
 
 
 def test_alerta_roas_caida_supera_tolerancia():
@@ -109,8 +119,7 @@ def test_alerta_cpa_subida_supera_tolerancia():
 
 def test_shopify_error_partial_y_triangulacion_na():
     r = base_results()
-    r[("get_shopify_orders_period", "yesterday")] = {"status": "error", "platform": "shopify",
-                                                      "error": {"code": "HTTP_503", "message": "Shopify 503"}}
+    r[("get_shopify_orders_period", "yesterday")] = {"status": "error", "error": {"code": "API_ERROR", "message": "Shopify 503"}}
     o = A.assemble("performance-monitor", r, FakeOI(KPIS), DATE, PAID)
     assert o["execution_status"] == "PARTIAL"
     assert "shopify" in o["execution_status_detail"]

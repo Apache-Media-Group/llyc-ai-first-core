@@ -137,7 +137,7 @@ OUTPUT_REGISTRY: dict[str, dict[str, object]] = {
         "platforms.{paid}._spend_mtd":  raw("get_{paid}_performance", "mtd", "data.spend_eur"),
         "_paid_spend_mtd_total":        derived("sum", "platforms.*paid*._spend_mtd"),
         "roas_blended_mtd":             derived("ratio", "_shopify_revenue_mtd", "_paid_spend_mtd_total"),
-        "roas_blended_floor":           raw("workbook", "cuenta", "roas.dinamico_minimo"),
+        "roas_blended_floor":           raw("budget", "cuenta", "roas_blended_floor"),
         "roas_blended_band":            derived("band_vs_floor", "roas_blended_mtd", "roas_blended_floor"),
         "roas_blended_recommendation":  prose(),
     },

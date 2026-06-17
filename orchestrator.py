@@ -24,10 +24,10 @@ from output_assembler import resolve_window
 
 def _plan(spec: dict, enabled_paid: list[str]) -> set[tuple[str, str]]:
     """Pares (tool, window) distintos que el registry necesita leer.
-    Expande {paid} sobre las paid activas; ignora el pseudo-tool 'workbook'."""
+    Expande {paid} sobre las paid activas; ignora los pseudo-tools 'workbook'/'budget' (lecturas de oi, no tools)."""
     pairs: set[tuple[str, str]] = set()
     for s in spec.values():
-        if isinstance(s, Raw) and s.tool != "workbook":
+        if isinstance(s, Raw) and s.tool not in ("workbook", "budget"):
             if "{paid}" in s.tool:
                 for p in enabled_paid:
                     pairs.add((s.tool.replace("{paid}", p), s.window))

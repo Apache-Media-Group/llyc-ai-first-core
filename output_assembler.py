@@ -126,6 +126,11 @@ class Assembler:
             metrica, parametro = spec.path.split(".")
             level = None if spec.window in ("cuenta", "n/a", "") else spec.window
             return self.oi.kpi(metrica, parametro, platform=level)
+        if spec.tool == "budget":
+            # floor blended ponderado del tab budget (mes en curso), DEC_061/062.
+            # oi.budget_for devuelve el bloque por nivel; None en fallback -> banda null.
+            blk = self.oi.budget_for(spec.window)
+            return (blk or {}).get(spec.path)
         tool = self._expand(spec.tool, paid)
         result = self.results.get((tool, spec.window))
         if _is_error(result):

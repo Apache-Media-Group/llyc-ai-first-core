@@ -7,8 +7,9 @@ class FakeOI:
     client_id = "vidal-vidal"
     def kpi(self, m, p, platform=None, periodo=None):
         return {("roas", "tolerancia_desviacion_pct"): 15,
-                ("cpa", "tolerancia_desviacion_pct"): 20,
-                ("roas", "dinamico_minimo"): 3.0}.get((m, p))
+                ("cpa", "tolerancia_desviacion_pct"): 20}.get((m, p))
+    def budget_for(self, platform=None):
+        return {"roas_blended_floor": 3.0}
 
 
 def _ok(**d):
