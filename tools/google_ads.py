@@ -92,8 +92,8 @@ def get_google_ads_performance(
                 metrics.clicks,
                 metrics.ctr
             FROM campaign
-            WHERE campaign.status = 'ENABLED'
-              AND segments.date BETWEEN '{date_start}' AND '{date_end}'
+            WHERE segments.date BETWEEN '{date_start}' AND '{date_end}'
+              AND metrics.cost_micros > 0
             ORDER BY metrics.cost_micros DESC
         """
 
@@ -227,8 +227,8 @@ def get_google_ads_spend_month(
         query = """
             SELECT metrics.cost_micros
             FROM campaign
-            WHERE campaign.status = 'ENABLED'
-              AND segments.date DURING THIS_MONTH
+            WHERE segments.date DURING THIS_MONTH
+              AND metrics.cost_micros > 0
         """
 
         response = ga_service.search_stream(customer_id=str(customer_id), query=query)
