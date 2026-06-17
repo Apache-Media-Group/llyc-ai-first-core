@@ -63,6 +63,36 @@
 </div>
 {% endif %}
 
+{% if roas_blended_mtd is not none %}
+<div style="margin-bottom:22px;">
+  <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">ROAS blended MTD</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse; font-size:13px;">
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5;">ROAS blended <span style="color:#888; font-size:11px;">(revenue Shopify MTD / &Sigma; inversi&oacute;n paid MTD)</span></td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5; font-weight:600;">{{ fmt.number(roas_blended_mtd) }}</td>
+    </tr>
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #f3f3f5;">Floor blended ponderado <span style="color:#888; font-size:11px;">(m&iacute;n. que justifica el gasto, DEC_061/062)</span></td>
+      <td align="right" style="padding:10px; border-bottom:1px solid #f3f3f5;">{% if roas_blended_floor is not none %}{{ fmt.number(roas_blended_floor) }}{% else %}<span style="color:#888;">n/d</span>{% endif %}</td>
+    </tr>
+    <tr>
+      <td style="padding:10px;">Banda</td>
+      <td align="right" style="padding:10px;">
+        {% if roas_blended_band == "por_debajo" %}<span style="color:#a30000; font-weight:600;">Por debajo del floor</span>
+        {% elif roas_blended_band == "en_torno" %}<span style="color:#9a6b00; font-weight:600;">En torno al floor</span>
+        {% elif roas_blended_band == "por_encima" %}<span style="color:#1a7a1a; font-weight:600;">Por encima del floor</span>
+        {% else %}<span style="color:#888;">No evaluable</span>{% endif %}
+      </td>
+    </tr>
+  </table>
+  {% if roas_blended_recommendation %}
+  <div style="padding:10px 12px; background-color:#f7f7f9; border-left:3px solid #1a1a1a; border-radius:4px; margin-top:10px; font-size:13px; color:#333;">
+    {{ roas_blended_recommendation }}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
 {% if platforms %}
 <div style="margin-bottom:22px;">
   <div style="font-size:11px; color:#888; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:8px;">Plataformas</div>
