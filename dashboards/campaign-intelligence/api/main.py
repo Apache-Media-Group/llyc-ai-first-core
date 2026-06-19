@@ -17,7 +17,7 @@ import json
 import re
 import hashlib
 import functions_framework
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from google.cloud import bigquery, secretmanager
 import google.cloud.logging
 import logging
@@ -28,16 +28,21 @@ google.cloud.logging.Client().setup_logging()
 log = logging.getLogger(__name__)
 
 # ── CONFIG ────────────────────────────────────────────────────────
-# Proyecto core — infraestructura compartida
+# Proyecto core — infraestructura compartida. Los jobs de BQ se facturan aquí.
 CORE_PROJECT = "llyc-ai-first-core"
 
-# Proyecto del cliente — lectura cross-project desde el core
-# Se configura por cliente en la variable de entorno GCP_CLIENT_PROJECT
-CLIENT_PROJECT = os.getenv("GCP_CLIENT_PROJECT", "llyc-prj-lcdlc-datamart")
-BQ_DATASET     = os.getenv("BQ_DATASET", "ODS")
-TENANT_ID      = os.getenv("TENANT_ID", "lacasadelascarcasas")
+# Fail-loud si faltan env vars obligatorias — mejor error claro que default roto
+for _var in ["GCP_CLIENT_PROJECT", "TENANT_ID", "CLIENT_SECRET_PROJECT"]:
+    if not os.getenv(_var):
+        raise RuntimeError(f"Missing required env var: {_var}")
 
-# Plataformas disponibles
+# Proyecto del cliente — lectura cross-project desde el core
+CLIENT_PROJECT        = os.getenv("GCP_CLIENT_PROJECT")
+BQ_DATASET            = os.getenv("BQ_DATASET", "ODS")
+TENANT_ID             = os.getenv("TENANT_ID")
+CLIENT_SECRET_PROJECT = os.getenv("CLIENT_SECRET_PROJECT")
+
+# Plataformas disponibles — pueden filtrarse vía config.json del cliente
 PLATFORMS = ["Spotify", "TikTok", "YouTube", "Meta", "Amazon", "DOOH", "WeMass"]
 
 TABLE_MAP = {
@@ -51,8 +56,8 @@ TABLE_MAP = {
 }
 
 # ── CLIENTS ───────────────────────────────────────────────────────
-# BQ client usa las credenciales de la SA del core (llyc-agents-sa)
-# que tiene roles de lectura cross-project en los proyectos de cliente
+# BQ client corre en CORE_PROJECT usando dashboards-sa (--service-account del deploy)
+# Los jobs se facturan en core; la lectura cross-project va al datamart del cliente
 bq_client = bigquery.Client(project=CORE_PROJECT)
 sm_client = secretmanager.SecretManagerServiceClient()
 
@@ -62,19 +67,58 @@ _insights_cache = {"hash": None, "insights": None}
 _anthropic_client = None
 
 
+# ── CLIENT CONFIG ─────────────────────────────────────────────────
+def get_client_config() -> dict:
+    """
+    Lee clients/{TENANT_ID}/config.json en runtime.
+    El bloque dashboard define datasources, windows y drive_folder_id.
+    """
+    config_path = os.path.join(
+        os.path.dirname(__file__), "..", "..", "clients", TENANT_ID, "config.json"
+    )
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        log.warning(f"config.json not found for tenant {TENANT_ID} — using defaults")
+        return {}
+    except Exception as e:
+        log.error(f"Error reading config.json for {TENANT_ID}: {e}")
+        return {}
+
+
+def get_dashboard_config() -> dict:
+    """Devuelve el bloque dashboard del config del cliente."""
+    cfg = get_client_config()
+    return cfg.get("dashboard", {
+        "enabled": True,
+        "datasources": [p.lower() for p in PLATFORMS],
+        "windows": {"default_days": 30, "comparison_days": 7}
+    })
+
+
+def get_active_platforms() -> list:
+    """Devuelve las plataformas activas según config.json del cliente."""
+    dash_cfg = get_dashboard_config()
+    datasources = [s.lower() for s in dash_cfg.get("datasources", PLATFORMS)]
+    return [p for p in PLATFORMS if p.lower() in datasources]
+
+
+# ── ANTHROPIC ─────────────────────────────────────────────────────
 def get_anthropic_client():
-    """Inicializa el cliente de Anthropic leyendo la key de Secret Manager."""
+    """Inicializa el cliente de Anthropic leyendo la key de Secret Manager.
+    Secret naming: anthropic-api-key-campaign_intelligence-{TENANT_ID}
+    Secret vive en CLIENT_SECRET_PROJECT (proyecto del cliente) — DEC_058.
+    """
     global _anthropic_client
     if _anthropic_client:
         return _anthropic_client
 
     import anthropic
-    # Secret naming: anthropic-api-key-campaign_intelligence-{tenant_id}
-    # Secret lives in CLIENT project (llyc-ai-lcdc), not core — DEC_058
-    # Secret lives in client project per DEC_058
-    # Convention: anthropic-api-key-campaign_intelligence-{tenant_id}
-    CLIENT_SECRET_PROJECT = os.getenv("CLIENT_SECRET_PROJECT", CORE_PROJECT)
-    secret_name = f"projects/{CLIENT_SECRET_PROJECT}/secrets/anthropic-api-key-campaign_intelligence-{TENANT_ID}/versions/latest"
+    secret_name = (
+        f"projects/{CLIENT_SECRET_PROJECT}/secrets/"
+        f"anthropic-api-key-campaign_intelligence-{TENANT_ID}/versions/latest"
+    )
     try:
         response = sm_client.access_secret_version(name=secret_name)
         api_key = response.payload.data.decode("utf-8").strip()
@@ -90,8 +134,8 @@ def get_anthropic_client():
 def query_platform(platform: str) -> dict:
     """
     Lee una tabla nativa de BQ del proyecto del cliente.
-    Lectura cross-project: el job de BQ corre en CLIENT_PROJECT
-    usando las credenciales de llyc-agents-sa del core.
+    Job de BQ corre en CORE_PROJECT (dashboards-sa).
+    Lectura cross-project hacia CLIENT_PROJECT.
     """
     table = TABLE_MAP.get(platform)
     if not table:
@@ -113,7 +157,7 @@ def query_platform(platform: str) -> dict:
 
         headers = list(rows[0].keys())
         data_rows = [
-            [v.isoformat() if isinstance(v, (datetime, __import__("datetime").date)) else v for v in row.values()]
+            [v.isoformat() if isinstance(v, (datetime, date)) else v for v in row.values()]
             for row in rows
         ]
 
@@ -130,28 +174,23 @@ def query_platform(platform: str) -> dict:
 def get_system_prompt(extra: str = "") -> str:
     """
     System prompt con guardarraíles.
-    El contexto del cliente se lee del env CLIENT_CONTEXT (JSON).
+    Contexto del cliente desde config.json vía get_client_config().
     """
-    ctx_raw = os.getenv("CLIENT_CONTEXT", "{}")
-    try:
-        ctx = json.loads(ctx_raw)
-    except Exception:
-        ctx = {}
+    cfg = get_client_config()
+    client = cfg.get("client", {})
 
-    client_name  = ctx.get("clientName", TENANT_ID)
-    sector       = ctx.get("sector", "")
-    objective    = ctx.get("objective", "")
-    kpis         = ctx.get("kpis", [])
-    benchmarks   = ctx.get("benchmarks", "")
-    extra_instr  = ctx.get("extraInstructions", "")
+    client_name = client.get("name", TENANT_ID)
+    sector      = client.get("sector", "").replace("_", " ")
+    currency    = client.get("currency", "EUR")
+
+    dash_cfg    = cfg.get("dashboard", {})
+    datasources = dash_cfg.get("datasources", [])
 
     client_block = "\n".join(filter(None, [
-        f"Cliente: {client_name}"                        if client_name  else "",
-        f"Sector: {sector}"                              if sector       else "",
-        f"Objetivo: {objective}"                         if objective    else "",
-        f"KPIs prioritarios: {', '.join(kpis)}"         if kpis         else "",
-        f"Benchmarks: {benchmarks}"                      if benchmarks   else "",
-        f"Instrucciones adicionales: {extra_instr}"      if extra_instr  else "",
+        f"Cliente: {client_name}"                           if client_name  else "",
+        f"Sector: {sector}"                                 if sector       else "",
+        f"Moneda: {currency}",
+        f"Plataformas activas: {', '.join(datasources)}"   if datasources  else "",
     ]))
 
     return f"""Eres un analista experto en campañas de medios pagados que trabaja para LLYC.
@@ -214,14 +253,16 @@ def dashboard_api(request):
 
     # ── DATA ──────────────────────────────────────────────────────
     if action == "data":
+        active_platforms = get_active_platforms()
+
         platform = request.args.get("platform")
         if platform:
-            if platform not in PLATFORMS:
+            if platform not in active_platforms:
                 return json_response({"error": f"Platform '{platform}' not supported"}, 404)
             return json_response(query_platform(platform))
 
         result = {}
-        for p in PLATFORMS:
+        for p in active_platforms:
             result[p] = query_platform(p)
 
         return json_response({

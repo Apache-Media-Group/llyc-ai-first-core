@@ -22,7 +22,7 @@ steps:
       - --memory=512MB
       - --timeout=120s
       - --service-account=dashboards-sa@llyc-ai-first-core.iam.gserviceaccount.com
-      - --set-env-vars=GCP_CLIENT_PROJECT=llyc-prj-lcdlc-datamart,BQ_DATASET=ODS,TENANT_ID=lacasadelascarcasas,CLIENT_SECRET_PROJECT=llyc-ai-lcdc
+      - --set-env-vars=GCP_CLIENT_PROJECT=llyc-prj-lcdlc-datamart,BQ_DATASET=ODS,TENANT_ID=lcdc,CLIENT_SECRET_PROJECT=llyc-ai-lcdc
 
 # Solo se activa cuando hay cambios en dashboards/**
 # El trigger del agent-executor usa includedFiles: ['**'] excepto dashboards/
