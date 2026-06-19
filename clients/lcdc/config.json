@@ -11,20 +11,14 @@
   "dashboard": {
     "enabled": true,
     "datasources": ["spotify", "tiktok", "youtube", "meta", "amazon", "dooh", "wemass"],
-    "drive_folder_id": "PENDIENTE",
+    "drive_folder_id": "15LL7GuofBA2NrRYSIuwvoeciXmFC7ZFf",
     "windows": {
       "default_days": 30,
       "comparison_days": 7
     }
   },
-  "gcp": {
-    "project_id": "llyc-ai-lcdc",
-    "region": "europe-west1",
-    "secret_manager_project": "llyc-ai-lcdc",
-    "secret_manager_core_project": "llyc-ai-first-core"
-  },
   "_metadata": {
-    "version": "1.0",
+    "version": "1.1",
     "fecha_creacion": "2026-06-19",
     "creado_por": "Sergio Alonso",
     "decisiones_referencia": [
