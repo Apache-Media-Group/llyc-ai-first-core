@@ -52,7 +52,7 @@ TABLE_MAP = {
 # ── CLIENTS ───────────────────────────────────────────────────────
 # BQ client usa las credenciales de la SA del core (llyc-agents-sa)
 # que tiene roles de lectura cross-project en los proyectos de cliente
-bq_client = bigquery.Client(project=CLIENT_PROJECT)
+bq_client = bigquery.Client(project=CORE_PROJECT)
 sm_client = secretmanager.SecretManagerServiceClient()
 
 # Caché en memoria de insights (por instancia)
