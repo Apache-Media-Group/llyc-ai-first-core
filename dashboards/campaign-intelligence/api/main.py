@@ -281,7 +281,12 @@ Responde SOLO con JSON válido sin markdown:
                 system=system,
                 messages=[{"role": "user", "content": f"Datos de campaña:\n{summary}"}]
             )
-            text = re.sub(r"```(?:json)?\s*|\s*```", "", response.content[0].text).strip()
+            text = response.content[0].text
+            # Extraer solo el bloque JSON — busca el primer { y el último }
+            start = text.find('{')
+            end = text.rfind('}') + 1
+            if start >= 0 and end > start:
+                text = text[start:end]
             parsed = json.loads(text)
 
             if cache_key:
