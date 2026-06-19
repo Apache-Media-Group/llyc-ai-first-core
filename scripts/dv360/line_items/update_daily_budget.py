@@ -49,6 +49,7 @@ def update_daily_budget(
     budget_eur: float,
     skip_guardrail: bool = False,
     dry_run: bool = False,
+    reason: str | None = None,
 ) -> dict:
     """
     Actualiza el presupuesto diario de un Line Item.
@@ -103,7 +104,14 @@ def update_daily_budget(
                         },
                     }
         except Exception as e:
-            log.warning(f"No se pudo leer presupuesto actual para guardrail: {e}. Continuando sin validacion.")
+            return {
+                "status": "error",
+                "error": (
+                    f"No se pudo leer presupuesto actual para aplicar guardrail: {e}. "
+                    "Operacion abortada por seguridad. Usa --skip-guardrail con --reason para sobreescribir."
+                ),
+                "data": {},
+            }
 
     budget_micros = _eur_to_micros(budget_eur)
 
@@ -179,6 +187,7 @@ def update_daily_budget(
             "budget_micros": budget_micros,
             "previous_budget_eur": current_budget_eur,
             "skip_guardrail": skip_guardrail,
+            "reason": reason,
         },
         result=outcome,
         dry_run=dry_run,
@@ -200,8 +209,13 @@ def main() -> None:
         help=f"Omite el guardrail de variacion maxima ({_MAX_VARIATION_PCT}%)"
     )
     parser.add_argument("--dry-run", action="store_true", help="Simula la accion sin ejecutarla")
+    parser.add_argument("--reason", type=str, default=None, help="Justificacion obligatoria si se usa --skip-guardrail")
 
     args = parser.parse_args()
+
+    if args.skip_guardrail and not args.reason:
+        print("ERROR: --reason es obligatorio cuando se usa --skip-guardrail.")
+        sys.exit(1)
 
     result = update_daily_budget(
         client_id=args.client,
@@ -209,6 +223,7 @@ def main() -> None:
         budget_eur=args.budget_eur,
         skip_guardrail=args.skip_guardrail,
         dry_run=args.dry_run,
+        reason=getattr(args, "reason", None),
     )
 
     print(json.dumps(result, indent=2, ensure_ascii=False))

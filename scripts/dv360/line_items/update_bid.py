@@ -46,6 +46,7 @@ def update_bid(
     bid_eur: float,
     max_bid_eur: float = _CHECK_BUDGET_GUARD_EUR,
     dry_run: bool = False,
+    reason: str | None = None,
 ) -> dict:
     """
     Actualiza la puja fija de un Line Item.
@@ -56,6 +57,7 @@ def update_bid(
         bid_eur: nueva puja en EUR
         max_bid_eur: guardrail maximo (defecto 50 EUR)
         dry_run: si True, muestra la accion sin ejecutarla
+        reason: justificacion del override del guardrail (obligatorio si max_bid_eur > defecto)
     """
     if bid_eur <= 0:
         return {
@@ -148,6 +150,7 @@ def update_bid(
             "bid_eur": bid_eur,
             "bid_micros": bid_micros,
             "guardrail_max_eur": max_bid_eur,
+            "reason": reason,
         },
         result=outcome,
         dry_run=dry_run,
@@ -169,8 +172,12 @@ def main() -> None:
         help=f"Guardrail maximo en EUR (defecto {_CHECK_BUDGET_GUARD_EUR})"
     )
     parser.add_argument("--dry-run", action="store_true", help="Simula la accion sin ejecutarla")
+    parser.add_argument("--reason", type=str, default=None, help="Justificacion obligatoria si se sobreescribe el guardrail con --max-bid")
 
     args = parser.parse_args()
+    if args.max_bid != _CHECK_BUDGET_GUARD_EUR and not args.reason:
+        print("ERROR: --reason es obligatorio cuando se sobreescribe el guardrail con --max-bid.")
+        sys.exit(1)
 
     result = update_bid(
         client_id=args.client,
@@ -178,6 +185,7 @@ def main() -> None:
         bid_eur=args.bid_eur,
         max_bid_eur=args.max_bid,
         dry_run=args.dry_run,
+        reason=getattr(args, "reason", None),
     )
 
     print(json.dumps(result, indent=2, ensure_ascii=False))
