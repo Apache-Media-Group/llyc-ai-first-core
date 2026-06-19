@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campaign Intelligence — LLYC</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* LLYC Brand */
+  --llyc-red:#F54963;--llyc-navy:#0A263B;--llyc-teal:#36A7B7;--llyc-cream:#FDF9F5;
+  /* Dark theme base (LLYC navy family) */
+  --bg:#081522;--s1:#0d1f2d;--s2:#122436;--border:rgba(54,167,183,0.12);--border2:rgba(54,167,183,0.25);
+  /* Brand accents */
+  --accent:#F54963;--accent2:#f97b2e;--accent3:#36A7B7;
+  /* Text */
+  --text:#F0F4F8;--muted:#5a7a8a;--muted2:#8aaabb;
+  /* Platform colors */
+  --spotify:#1db954;--tiktok:#ff0050;--youtube:#ff0000;--meta:#0082fb;--amazon:#ff9900;--dooh:#00d4aa;--wemass:#c084fc}
+*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Montserrat',sans-serif;font-size:14px}
+.app{display:flex;flex-direction:column;height:100vh}
+.main{display:grid;grid-template-columns:1fr 360px;flex:1;overflow:hidden;min-height:0}
+
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:1px solid var(--border);border-top:3px solid var(--llyc-red);background:rgba(8,21,34,0.98);position:relative;z-index:50;flex-shrink:0;gap:12px}
+.logo{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:800;letter-spacing:-0.5px;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--llyc-red);animation:breathe 2.5s ease-in-out infinite;flex-shrink:0}
+@keyframes breathe{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.35;transform:scale(0.6)}}
+.header-center{flex:1;display:flex;justify-content:center}
+.proxy-url-wrap{display:flex;align-items:center;gap:8px;background:var(--s1);border:1px solid var(--border);border-radius:4px;padding:5px 10px;max-width:500px;width:100%}
+.proxy-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.8px;white-space:nowrap;text-transform:uppercase}
+#proxyInput{background:transparent;border:none;color:var(--muted2);font-family:'DM Mono',monospace;font-size:11px;outline:none;flex:1;min-width:0}
+#proxyInput::placeholder{color:var(--muted)}
+.btn-connect{background:var(--llyc-red);color:#fff;border:none;padding:4px 12px;border-radius:2px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;letter-spacing:0.6px;cursor:pointer;white-space:nowrap;transition:all 0.15s;text-transform:uppercase}
+.btn-connect:hover{background:var(--llyc-teal);color:#fff}
+.header-right{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.update-info{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);white-space:nowrap}
+.btn-refresh{background:transparent;color:var(--muted2);border:1px solid var(--border);padding:5px 12px;border-radius:3px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;cursor:pointer;transition:all 0.15s;text-transform:uppercase}
+.btn-refresh:hover{border-color:var(--llyc-teal);color:var(--llyc-teal)}.btn-refresh:disabled{opacity:0.3;cursor:not-allowed}
+
+/* DASHBOARD */
+.dashboard{overflow-y:auto;display:flex;flex-direction:column}
+.tabs-wrap{padding:14px 28px 0;background:var(--bg);position:sticky;top:0;z-index:10;border-bottom:1px solid var(--border)}
+.tabs{display:flex;gap:3px;flex-wrap:wrap;padding-bottom:12px}
+.tab{padding:6px 14px;border-radius:3px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all 0.15s}
+.tab:hover{color:var(--text);border-color:var(--border2)}
+.tab.active{color:#000;border-color:transparent}
+.tab.active[data-p="OVERVIEW"]{background:var(--llyc-red)}.tab.active[data-p="Spotify"]{background:var(--spotify)}.tab.active[data-p="TikTok"]{background:var(--tiktok)}.tab.active[data-p="YouTube"]{background:var(--youtube)}.tab.active[data-p="Meta"]{background:var(--meta)}.tab.active[data-p="Amazon"]{background:var(--amazon)}.tab.active[data-p="DOOH"]{background:var(--dooh)}.tab.active[data-p="WeMass"]{background:var(--wemass)}
+
+/* FILTERS BAR */
+.filters-bar{display:flex;align-items:center;gap:8px;padding:10px 28px;background:var(--bg);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.filter-group{display:flex;align-items:center;gap:6px}
+.filter-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.8px;text-transform:uppercase;white-space:nowrap}
+.filter-select{background:var(--s1);border:1px solid var(--border);color:var(--muted2);padding:5px 10px;border-radius:3px;font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer;transition:border-color 0.15s;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a5a75'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:24px}
+.filter-select:focus{border-color:var(--border2);color:var(--text)}
+.filter-date{background:var(--s1);border:1px solid var(--border);color:var(--muted2);padding:5px 10px;border-radius:3px;font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer;transition:border-color 0.15s}
+.filter-date:focus{border-color:var(--border2);color:var(--text)}
+.filter-date::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:pointer}
+.filter-sep{width:1px;height:16px;background:var(--border);margin:0 4px}
+.filter-clear{background:transparent;border:1px solid var(--border);color:var(--muted);padding:5px 10px;border-radius:3px;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;transition:all 0.15s;letter-spacing:0.5px}
+.filter-clear:hover{border-color:var(--accent2);color:var(--accent2)}
+.filter-count{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-left:auto;white-space:nowrap}
+
+/* CONTENT */
+.dash-inner{padding:20px 28px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:22px}
+.kpi{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:16px 18px;transition:border-color 0.2s,transform 0.15s}
+.kpi:hover{border-color:var(--llyc-teal);transform:translateY(-1px)}
+.kpi-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px}
+.kpi-value{font-family:'Montserrat',sans-serif;font-size:26px;font-weight:800;line-height:1;margin-bottom:5px}
+.kpi-sub{font-size:11px;color:var(--muted2)}
+.sec-title{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:12px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.platform-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-bottom:22px}
+.platform-card{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:14px 16px;cursor:pointer;transition:all 0.15s;display:flex;flex-direction:column;gap:8px}
+.platform-card:hover{border-color:var(--border2);transform:translateY(-1px)}
+.pcard-top{display:flex;align-items:center;justify-content:space-between}
+.pname{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px}
+.pdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.prows{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)}
+.pmetrics{font-size:11px;color:var(--muted2);line-height:1.5}
+.insights-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-bottom:22px}
+.ins-card{background:var(--s1);border:1px solid var(--border);border-left:3px solid var(--muted);border-radius:0 6px 6px 0;padding:14px 16px}
+.ins-card.pos{border-left-color:var(--llyc-teal)}.ins-card.warn{border-left-color:var(--llyc-red)}.ins-card.info{border-left-color:var(--llyc-teal)}
+.ins-tag{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:7px}
+.ins-text{font-size:12px;line-height:1.65;color:var(--muted2)}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;margin-bottom:22px;border:1px solid var(--border);border-radius:6px}
+table{width:100%;border-collapse:collapse}
+thead th{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--s1)}
+thead th.sortable{cursor:pointer;user-select:none}
+thead th.sortable:hover{color:var(--text)}
+thead th.sort-asc::after{content:' ↑'}
+thead th.sort-desc::after{content:' ↓'}
+tbody td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.02);font-size:12px;white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:rgba(255,255,255,0.02)}
+.num{font-family:'DM Mono',monospace}
+.date-cell{font-family:'DM Mono',monospace;color:var(--muted2)}
+
+/* LOADING / ERROR */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 40px;gap:14px;flex:1}
+.spinner{width:26px;height:26px;border:2px solid var(--border);border-top-color:var(--llyc-red);border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
+.notice{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:28px 32px;margin:28px;max-width:560px}
+.notice h2{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800;margin-bottom:16px}
+.notice ol{padding-left:20px;display:flex;flex-direction:column;gap:12px}
+.notice li{font-size:13px;color:var(--muted2);line-height:1.6}
+.notice code{font-family:'DM Mono',monospace;font-size:11px;background:var(--s2);padding:2px 7px;border-radius:3px;color:var(--text)}
+.notice strong{color:var(--text)}
+.error-box{background:rgba(255,92,53,0.06);border:1px solid rgba(255,92,53,0.2);border-radius:6px;padding:14px 18px;margin-bottom:16px}
+.error-box p{color:var(--accent2);font-size:13px;line-height:1.7}
+
+/* CHAT */
+.chat-panel{border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--s1);overflow:hidden}
+.chat-head{padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.chat-head-title{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;margin-bottom:2px}
+.chat-head-sub{font-size:11px;color:var(--muted)}
+.chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:0}
+.msg{max-width:88%}.msg.user{align-self:flex-end}.msg.bot{align-self:flex-start}
+.bubble{padding:10px 13px;border-radius:10px;font-size:13px;line-height:1.6}
+.msg.user .bubble{background:var(--llyc-red);color:#fff;border-radius:10px 10px 2px 10px}
+.msg.bot .bubble{background:var(--s2);border:1px solid var(--border);border-radius:10px 10px 10px 2px;color:var(--muted2)}
+.thinking{color:var(--muted);font-style:italic;font-size:12px}
+.quick-qs{padding:0 14px 10px;display:flex;flex-direction:column;gap:5px;flex-shrink:0}
+.qq{background:transparent;border:1px solid var(--border);color:var(--muted);padding:7px 12px;border-radius:4px;font-size:11px;cursor:pointer;text-align:left;font-family:'Montserrat',sans-serif;transition:all 0.15s}
+.qq:hover{border-color:var(--llyc-red);color:var(--llyc-red)}
+.chat-input-row{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+textarea.ci{flex:1;background:var(--s2);border:1px solid var(--border);color:var(--text);padding:9px 13px;border-radius:6px;font-family:'Montserrat',sans-serif;font-size:13px;resize:none;outline:none;height:38px;line-height:1.4;transition:border-color 0.15s}
+textarea.ci:focus{border-color:var(--border2)}
+.btn-send{background:var(--llyc-red);color:#fff;border:none;padding:0 16px;border-radius:6px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.15s}
+.btn-send:hover{background:var(--llyc-teal)}.btn-send:disabled{opacity:0.35;cursor:not-allowed}
+::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--llyc-teal);opacity:0.4;border-radius:2px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo"><div class="logo-dot"></div>Campaign<span style="color:var(--llyc-red);font-weight:300"> Intelligence</span></div>
+    <div class="header-center">
+      <div class="proxy-url-wrap">
+        <span class="proxy-label">Proxy URL</span>
+        <span style="font-family:'Montserrat',sans-serif;font-size:9px;color:var(--muted);letter-spacing:0.5px" id="dataStatus">Cargando...</span>
+        <!-- URL preconfigurada en PROXY_URL_CONFIG -->
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="update-info" id="updateInfo">Sin conectar</span>
+      <button class="btn-refresh" id="btnRefresh" onclick="loadAll(true)" disabled>↻ Refresh</button>
+    </div>
+  </header>
+  <div class="main">
+    <div class="dashboard" id="dashboard">
+      <div class="notice">
+        <h2>⚡ Setup</h2>
+        <ol>
+          <li>Abre el Google Sheet → <code>Extensions</code> → <code>Apps Script</code></li>
+          <li>Pega el código de <code>Code.gs</code>. Añade tu Anthropic API Key en la línea 4.</li>
+          <li><code>Deploy</code> → <code>New deployment</code> → Web app → Execute as: <strong>Me</strong> → Who has access: <strong>Anyone</strong> → Deploy</li>
+          <li>Copia la Web App URL y pégala arriba → <strong>Conectar</strong></li>
+        </ol>
+      </div>
+    </div>
+    <div class="chat-panel">
+      <div class="chat-head">
+        <div class="chat-head-title">AI Analyst</div>
+        <div class="chat-head-sub" id="chatSub">Esperando conexión...</div>
+      </div>
+      <div class="chat-msgs" id="chatMsgs">
+        <div class="msg bot"><div class="bubble">Hola 👋 Conecta el proxy para empezar a analizar tus campañas en tiempo real.</div></div>
+      </div>
+      <div class="quick-qs" id="quickQs">
+        <button class="qq" onclick="sq('¿Qué plataforma tiene mejor rendimiento?')">¿Qué plataforma rinde mejor?</button>
+        <button class="qq" onclick="sq('¿Cómo está el CPM por plataforma?')">CPM por plataforma</button>
+        <button class="qq" onclick="sq('¿Qué recomendarías optimizar urgentemente?')">¿Qué optimizar primero?</button>
+        <button class="qq" onclick="sq('Dame un resumen ejecutivo de todas las campañas')">Resumen ejecutivo</button>
+      </div>
+      <div class="chat-input-row">
+        <textarea class="ci" id="ci" placeholder="Pregunta sobre la data..." onkeydown="ck(event)" disabled></textarea>
+        <button class="btn-send" id="btnSend" onclick="sc()" disabled>→</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const PLATFORMS=['Spotify','TikTok','YouTube','Meta','Amazon','DOOH','WeMass'];
+const PCOLORS={Spotify:'#1db954',TikTok:'#ff0050',YouTube:'#ff0000',Meta:'#0082fb',Amazon:'#ff9900',DOOH:'#00d4aa',WeMass:'#c084fc'};
+
+let proxyUrl='',allData={},currentTab='OVERVIEW',chatHistory=[],insightsDone=false,insightsCache='';
+let _lastDocModifiedTime='';
+
+// Active filters per platform
+let filters = {}; // { platform: { dateFrom, dateTo, campaign, ad } }
+// Column index cache per platform
+let colIdx = {}; // { platform: { date, campaign, ad } }
+// Sort state per platform
+let sortState = {}; // { platform: { col, dir } }
+
+// ── CONNECTION ─────────────────────────────────────────────────────
+function connect(){
+  const url=document.getElementById('proxyInput').value.trim();
+  if(!url){alert('Pega la Web App URL primero');return;}
+  proxyUrl=url;localStorage.setItem('campaignProxyUrl',url);
+  document.getElementById('btnRefresh').disabled=false;loadAll();
+}
+window.onload=()=>{
+  const saved=localStorage.getItem('campaignProxyUrl');
+  if(saved){proxyUrl=saved;document.getElementById('proxyInput').value=saved;document.getElementById('btnRefresh').disabled=false;loadAll();}
+};
+
+// ── FETCH ──────────────────────────────────────────────────────────
+async function gasGet(params){
+  const url=new URL(proxyUrl);
+  Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,typeof v==='object'?JSON.stringify(v):String(v)));
+  const r=await fetch(url.toString());
+  if(!r.ok)throw new Error(`HTTP ${r.status}`);
+  const text=await r.text();
+  try{return JSON.parse(text);}catch{throw new Error('Respuesta inválida del Apps Script');}
+}
+async function gasPost(body){
+  const r=await fetch(proxyUrl,{method:'POST',body:JSON.stringify(body)});
+  if(!r.ok)throw new Error(`HTTP ${r.status}`);
+  const text=await r.text();
+  try{return JSON.parse(text);}catch{throw new Error('Respuesta inválida del Apps Script');}
+}
+
+// ── LOAD ───────────────────────────────────────────────────────────
+// ── CLIENT CONTEXT ────────────────────────────────────────────────
+// Applied dynamically from the Drive Doc read by Apps Script.
+// Updates the dashboard header and chat quick questions.
+function applyClientContext(ctx) {
+  // Client name in header
+  if(ctx.clientName && ctx.clientName !== 'Cliente') {
+    const logo = document.getElementById('clientLogo');
+    const nameEl = document.getElementById('clientName');
+    if(nameEl) { nameEl.textContent = ctx.clientName; nameEl.style.display = 'block'; }
+    if(logo && !logo.src) {
+      // No logo — show name as text next to report label
+      const hDiv = document.getElementById('hDiv');
+      if(hDiv) hDiv.style.display = 'block';
+    }
+  }
+  // Dynamic quick questions from Doc
+  if(ctx.quickQuestions && ctx.quickQuestions.length > 0) {
+    const qqEl = document.getElementById('quickQs');
+    if(qqEl) {
+      qqEl.innerHTML = ctx.quickQuestions.slice(0,4).map(q =>
+        `<button class="qq" onclick="sq('${q.replace(/'/g, "\'")}')">${q}</button>`
+      ).join('');
+    }
+  }
+}
+
+async function loadAll(forceRefresh=false){
+  if(!proxyUrl)return;
+  document.getElementById('btnRefresh').disabled=true;
+  document.getElementById('dataStatus').textContent='Actualizando...';
+  const prevFetchedAt=window._lastFetchedAt||'';
+
+  // Show loading only on first load, not on refresh attempts
+  if(!prevFetchedAt) showLoading('Cargando datos...');
+  allData={};filters={};colIdx={};sortState={};
+
+  try{
+    const res=await gasGet({action:'data'});
+    if(res.error)throw new Error(res.error);
+    const loaded=[];
+    PLATFORMS.forEach(p=>{
+      if(res.data[p]&&!res.data[p].error&&res.data[p].rows?.length>0){
+        allData[p]=res.data[p];
+        colIdx[p]=detectColumns(res.data[p].headers);
+        filters[p]={dateFrom:'',dateTo:'',campaign:'',ad:''};
+        sortState[p]={col:-1,dir:'asc'};
+        loaded.push(p);
+      }
+    });
+    const newFetchedAt = res.fetchedAt;
+    const dataChanged = newFetchedAt !== prevFetchedAt;
+    window._lastFetchedAt = newFetchedAt;
+
+    const t=new Date(newFetchedAt).toLocaleTimeString('es-ES');
+    document.getElementById('updateInfo').textContent=`↻ ${t} · ${loaded.length} plataformas`;
+
+    // Smart refresh: if data hasn't changed, skip re-render and notify user
+    if(!dataChanged && prevFetchedAt && forceRefresh){
+      document.getElementById('btnRefresh').disabled=false;
+      document.getElementById('dataStatus').textContent='Sin cambios';
+      showToast('No hay nuevos cambios en los datos');
+      return;
+    }
+    document.getElementById('dataStatus').textContent=dataChanged?'Datos actualizados':'';
+    document.getElementById('chatSub').textContent=`${loaded.length} plataformas · datos en vivo`;
+    document.getElementById('ci').disabled=false;
+    document.getElementById('btnSend').disabled=false;
+    currentTab='OVERVIEW';render();
+    if(loaded.length>0){
+      // Invalidate insights cache if context Doc changed
+      if(docChanged) insightsCache = '';
+      setTimeout(()=>genInsights(newFetchedAt),300);
+      setTimeout(()=>addMsg('bot',`✓ <strong>${loaded.join(', ')}</strong> cargadas. ¿Qué quieres analizar?`),500);
+    }
+  }catch(err){
+    showError(`Error: ${err.message}<br><small>Verifica que el Apps Script esté desplegado como Web App con acceso "Anyone".</small>`);
+    document.getElementById('updateInfo').textContent='Error de conexión';
+  }
+  document.getElementById('btnRefresh').disabled=false;
+}
+
+// ── COLUMN DETECTION ───────────────────────────────────────────────
+function detectColumns(headers){
+  const h=headers.map(x=>(x||'').toLowerCase());
+  return {
+    date:  h.findIndex(x=>/(^date$|^fecha$|day|^dt$)/.test(x)),
+    campaign: h.findIndex(x=>/(campaign|campaña|camp_name|campaign_name)/.test(x)),
+    ad:    h.findIndex(x=>/(^ad$|^ad_name$|anuncio|adname|creative|ad_set|adset|grupo)/.test(x))
+  };
+}
+
+// ── DATE DETECTION ─────────────────────────────────────────────────
+// Formats: dd/mm/yyyy, yyyy-mm-dd, mm/dd/yyyy, d.m.yyyy, timestamp numbers
+const DATE_RE = /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$|^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/;
+
+function isDateValue(v, hdr){
+  if(v===null||v===undefined||v==='')return false;
+  const s=String(v).trim();
+  // Header hint
+  const hl=(hdr||'').toLowerCase();
+  if(/(date|fecha|day|^dt$)/.test(hl))return true;
+  // Pattern match
+  return DATE_RE.test(s);
+}
+
+function parseDate(v){
+  const s=String(v).trim();
+  // yyyy-mm-dd
+  let m=s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if(m)return new Date(+m[1],+m[2]-1,+m[3]);
+  // dd/mm/yyyy or dd.mm.yyyy
+  m=s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if(m)return new Date(+m[3],+m[2]-1,+m[1]);
+  return null;
+}
+
+function formatDate(v){
+  const d=parseDate(v);
+  if(!d)return String(v);
+  return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
+// ── FILTER LOGIC ───────────────────────────────────────────────────
+function getFilteredRows(platform){
+  const d=allData[platform];
+  const f=filters[platform]||{};
+  const ci=colIdx[platform]||{};
+  if(!d)return[];
+
+  return d.rows.filter(row=>{
+    // Date filter
+    if((f.dateFrom||f.dateTo)&&ci.date>=0){
+      const rawDate=row[ci.date];
+      const d=parseDate(rawDate);
+      if(!d)return true; // can't parse, let it through
+      if(f.dateFrom){const from=parseDate(f.dateFrom);if(from&&d<from)return false;}
+      if(f.dateTo){const to=parseDate(f.dateTo);if(to&&d>to)return false;}
+    }
+    // Campaign filter
+    if(f.campaign&&ci.campaign>=0){
+      const v=String(row[ci.campaign]||'').toLowerCase();
+      if(!v.includes(f.campaign.toLowerCase()))return false;
+    }
+    // Ad filter
+    if(f.ad&&ci.ad>=0){
+      const v=String(row[ci.ad]||'').toLowerCase();
+      if(!v.includes(f.ad.toLowerCase()))return false;
+    }
+    return true;
+  });
+}
+
+function getSortedRows(rows, platform){
+  const s=sortState[platform];
+  if(!s||s.col<0)return rows;
+  const col=s.col;
+  return [...rows].sort((a,b)=>{
+    const av=a[col]??'', bv=b[col]??'';
+    const an=num(av), bn=num(bv);
+    let cmp;
+    if(!isNaN(an)&&!isNaN(bn))cmp=an-bn;
+    else cmp=String(av).localeCompare(String(bv),'es');
+    return s.dir==='asc'?cmp:-cmp;
+  });
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────
+function showLoading(txt){document.getElementById('dashboard').innerHTML=`<div class="loading"><div class="spinner"></div><div class="loading-txt">${txt}</div></div>`;}
+function showError(msg){document.getElementById('dashboard').innerHTML=`<div class="dash-inner"><div class="error-box"><p>⚠️ ${msg}</p></div></div>`;}
+
+function render(){
+  if(!Object.keys(allData).length){showError('No hay datos.');return;}
+  const content=currentTab==='OVERVIEW'?renderOverview():renderPlatform(currentTab);
+  const filtersBar=currentTab!=='OVERVIEW'?renderFiltersBar(currentTab):'';
+  document.getElementById('dashboard').innerHTML=`
+    <div class="tabs-wrap"><div class="tabs">${buildTabs()}</div></div>
+    ${filtersBar}
+    <div class="dash-inner">${content}</div>`;
+}
+function buildTabs(){
+  let h=`<button class="tab ${currentTab==='OVERVIEW'?'active':''}" data-p="OVERVIEW" onclick="switchTab('OVERVIEW')">Overview</button>`;
+  PLATFORMS.forEach(p=>{if(allData[p])h+=`<button class="tab ${currentTab===p?'active':''}" data-p="${p}" onclick="switchTab('${p}')">${p}</button>`;});
+  return h;
+}
+function switchTab(p){currentTab=p;render();if(p==='OVERVIEW'&&!insightsDone&&!insightsCache)genInsights();}
+
+// ── FILTERS BAR ────────────────────────────────────────────────────
+function renderFiltersBar(p){
+  const ci=colIdx[p]||{};
+  const f=filters[p]||{};
+  const d=allData[p];
+  if(!d)return'';
+
+  // Build unique campaign options
+  let campOpts='<option value="">Todas las campañas</option>';
+  if(ci.campaign>=0){
+    const uniq=[...new Set(d.rows.map(r=>String(r[ci.campaign]||'')).filter(Boolean))].sort();
+    uniq.forEach(c=>campOpts+=`<option value="${esc(c)}" ${f.campaign===c?'selected':''}>${esc(c)}</option>`);
+  }
+
+  // Build unique ad options
+  let adOpts='<option value="">Todos los ads</option>';
+  if(ci.ad>=0){
+    const uniq=[...new Set(d.rows.map(r=>String(r[ci.ad]||'')).filter(Boolean))].sort();
+    uniq.forEach(a=>adOpts+=`<option value="${esc(a)}" ${f.ad===a?'selected':''}>${esc(a)}</option>`);
+  }
+
+  const hasFilters=f.dateFrom||f.dateTo||f.campaign||f.ad;
+  const filtered=getFilteredRows(p);
+  const total=d.rows.length;
+
+  let html=`<div class="filters-bar">`;
+
+  // Date range — only if date column detected
+  if(ci.date>=0){
+    html+=`<div class="filter-group">
+      <span class="filter-label">Desde</span>
+      <input type="date" class="filter-date" value="${f.dateFrom||''}" onchange="setFilter('${p}','dateFrom',this.value)">
+      <span class="filter-label">Hasta</span>
+      <input type="date" class="filter-date" value="${f.dateTo||''}" onchange="setFilter('${p}','dateTo',this.value)">
+    </div>
+    <div class="filter-sep"></div>`;
+  }
+
+  // Campaign — only if column detected
+  if(ci.campaign>=0){
+    html+=`<div class="filter-group">
+      <span class="filter-label">Campaña</span>
+      <select class="filter-select" onchange="setFilter('${p}','campaign',this.value)">${campOpts}</select>
+    </div>
+    <div class="filter-sep"></div>`;
+  }
+
+  // Ad — only if column detected
+  if(ci.ad>=0){
+    html+=`<div class="filter-group">
+      <span class="filter-label">Ad</span>
+      <select class="filter-select" onchange="setFilter('${p}','ad',this.value)">${adOpts}</select>
+    </div>`;
+  }
+
+  if(hasFilters){
+    html+=`<div class="filter-sep"></div>
+    <button class="filter-clear" onclick="clearFilters('${p}')">✕ Limpiar filtros</button>`;
+  }
+
+  html+=`<span class="filter-count">${filtered.length.toLocaleString('es-ES')} / ${total.toLocaleString('es-ES')} filas</span>`;
+  html+=`</div>`;
+  return html;
+}
+
+function setFilter(platform, key, value){
+  if(!filters[platform])filters[platform]={dateFrom:'',dateTo:'',campaign:'',ad:''};
+  filters[platform][key]=value;
+  render();
+}
+function clearFilters(platform){
+  filters[platform]={dateFrom:'',dateTo:'',campaign:'',ad:''};
+  render();
+}
+
+// ── OVERVIEW ───────────────────────────────────────────────────────
+function renderOverview(){
+  let h='';
+  const kpis=aggKPIs();
+  if(kpis.length){h+='<div class="kpi-grid">';kpis.forEach(k=>h+=`<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub||''}</div></div>`);h+='</div>';}
+  h+='<div class="sec-title">Plataformas activas</div><div class="platform-grid">';
+  PLATFORMS.forEach(p=>{
+    if(!allData[p])return;
+    const col=PCOLORS[p]||'#888';
+    const metrics=detectMetrics(allData[p].headers).slice(0,4).join(' · ')||'—';
+    h+=`<div class="platform-card" onclick="switchTab('${p}')"><div class="pcard-top"><div class="pname"><div class="pdot" style="background:${col}"></div>${p}</div><div class="prows">${allData[p].rows.length.toLocaleString('es-ES')} filas</div></div><div class="pmetrics">${metrics}</div></div>`;
+  });
+  h+='</div><div class="sec-title">Insights IA</div>';
+  h+=`<div class="insights-grid" id="insightsGrid">${insightsCache||'<div class="ins-card info" style="grid-column:1/-1"><div class="ins-tag">⟳ Analizando</div><div class="ins-text">Generando insights con IA...</div></div>'}</div>`;
+  return h;
+}
+
+function aggKPIs(){
+  let imp=0,clk=0,spend=0,reach=0,views=0,hI=false,hC=false,hS=false,hR=false,hV=false;
+  for(const[,d]of Object.entries(allData)){
+    const H=d.headers.map(x=>(x||'').toLowerCase());
+    const fi=keys=>H.findIndex(x=>keys.some(k=>x.includes(k)));
+    const iI=fi(['impres']),iC=fi(['click']),iS=fi(['spend','cost','inver','importe']),iR=fi(['reach','alcance']),iV=fi(['view','reproduc']);
+    d.rows.forEach(r=>{
+      if(iI>=0&&r[iI]){imp+=num(r[iI]);hI=true;}if(iC>=0&&r[iC]){clk+=num(r[iC]);hC=true;}
+      if(iS>=0&&r[iS]){spend+=num(r[iS]);hS=true;}if(iR>=0&&r[iR]){reach+=num(r[iR]);hR=true;}
+      if(iV>=0&&r[iV]){views+=num(r[iV]);hV=true;}
+    });
+  }
+  const k=[];
+  if(hI)k.push({label:'Impresiones',value:fNum(imp),sub:'todas las plataformas'});
+  if(hC)k.push({label:'Clics',value:fNum(clk),sub:hI?`CTR ${pct(clk,imp)}`:''});
+  if(hS)k.push({label:'Inversión',value:fCur(spend),sub:hI?`CPM ${fCur((spend/imp)*1000)}`:''});
+  if(hR)k.push({label:'Alcance',value:fNum(reach),sub:hI?`Freq. ${(imp/reach).toFixed(1)}x`:''});
+  if(hV)k.push({label:'Reproducciones',value:fNum(views)});
+  k.push({label:'Plataformas',value:String(Object.keys(allData).length),sub:'con datos activos'});
+  return k;
+}
+
+// ── PLATFORM ───────────────────────────────────────────────────────
+function renderPlatform(p){
+  if(!allData[p])return`<div class="error-box"><p>Sin datos para ${p}</p></div>`;
+  const d=allData[p];const col=PCOLORS[p]||'#c8ff00';let h='';
+  const filteredRows=getFilteredRows(p);
+  const kpis=numKPIs(d,filteredRows);
+  if(kpis.length){
+    h+='<div class="kpi-grid">';
+    kpis.forEach(k=>h+=`<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value" style="color:${col}">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`);
+    h+='</div>';
+  }
+  h+=`<div class="sec-title">${p} · ${filteredRows.length.toLocaleString('es-ES')} filas</div>`;
+  h+=renderTable(d,filteredRows,p,200);
+  return h;
+}
+
+function numKPIs(d, rows){
+  const useRows = rows || d.rows;
+  const kpis=[];
+  d.headers.forEach((hdr,idx)=>{
+    // Skip date/text columns
+    if(isDateValue(useRows[0]?.[idx], hdr))return;
+    const vals=useRows.map(r=>num(r[idx])).filter(v=>!isNaN(v)&&v!==0&&isFinite(v));
+    if(vals.length<Math.max(useRows.length*0.25,1))return;
+    const total=vals.reduce((a,b)=>a+b,0);const hl=(hdr||'').toLowerCase();
+    const isCur=/(spend|cost|€|importe|inver|budget)/.test(hl);
+    const isRate=/(ctr|rate|%|ratio)/.test(hl);
+    const isAvg=/(cpm|cpc|cpa|medio|avg)/.test(hl);
+    const value=isRate?`${(total/vals.length).toFixed(2)}%`:isAvg?fCur(total/vals.length):isCur?fCur(total):fNum(total);
+    kpis.push({label:hdr,value,sub:`${vals.length} registros`});
+  });
+  return kpis.slice(0,8);
+}
+
+function renderTable(d, rows, platform, maxRows=200){
+  const sorted=getSortedRows(rows,platform);
+  const visible=sorted.slice(0,maxRows);
+  if(!visible.length)return'<p style="color:var(--muted);padding:12px 0">Sin resultados para los filtros aplicados.</p>';
+
+  const ss=sortState[platform]||{col:-1,dir:'asc'};
+  let h='<div class="table-wrap"><table><thead><tr>';
+  d.headers.forEach((hdr,i)=>{
+    const cls=ss.col===i?`sortable sort-${ss.dir}`:'sortable';
+    h+=`<th class="${cls}" onclick="toggleSort('${platform}',${i})">${esc(hdr)||'—'}</th>`;
+  });
+  h+='</tr></thead><tbody>';
+
+  visible.forEach(row=>{
+    h+='<tr>';
+    d.headers.forEach((hdr,i)=>{
+      const v=row[i]??'';
+      const isDate=isDateValue(v,hdr);
+      const n=isDate?NaN:num(v);
+      const isN=!isDate&&!isNaN(n)&&String(v)!=='';
+      if(isDate){
+        h+=`<td class="date-cell">${formatDate(v)}</td>`;
+      } else if(isN){
+        h+=`<td class="num">${fCell(v,hdr)}</td>`;
+      } else {
+        h+=`<td>${String(v)===''?'<span style="color:var(--muted)">—</span>':esc(String(v))}</td>`;
+      }
+    });
+    h+='</tr>';
+  });
+
+  h+='</tbody></table></div>';
+  if(sorted.length>maxRows)h+=`<p style="color:var(--muted);font-size:10px;font-family:'DM Mono',monospace;margin-top:8px">Mostrando ${maxRows} de ${sorted.length} filas</p>`;
+  return h;
+}
+
+function toggleSort(platform, colIndex){
+  const s=sortState[platform]||{col:-1,dir:'asc'};
+  if(s.col===colIndex){
+    sortState[platform]={col:colIndex,dir:s.dir==='asc'?'desc':'asc'};
+  } else {
+    sortState[platform]={col:colIndex,dir:'desc'};
+  }
+  render();
+}
+
+// ── INSIGHTS ───────────────────────────────────────────────────────
+async function genInsights(fetchedAt=''){
+  if(insightsDone)return;insightsDone=true;
+  const grid=document.getElementById('insightsGrid');if(!grid)return;
+  try{
+    const res=await gasPost({action:'insights',summary:buildSummary(),fetchedAt});
+    const g2=document.getElementById('insightsGrid');if(!g2)return;
+    if(res.insights?.length){
+      const html=res.insights.map(ins=>`<div class="ins-card ${ins.type==='positive'?'pos':ins.type==='warning'?'warn':'info'}"><div class="ins-tag">${ins.type==='positive'?'↑':ins.type==='warning'?'⚠':'→'} ${esc(ins.tag)}</div><div class="ins-text">${esc(ins.text)}</div></div>`).join('');g2.innerHTML=html;insightsCache=html;
+    }else{g2.innerHTML=`<div class="ins-card info"><div class="ins-tag">→ Listo</div><div class="ins-text">Usa el chat para análisis personalizados.</div></div>`;}
+  }catch(e){
+    const g2=document.getElementById('insightsGrid');
+    if(g2)g2.innerHTML=`<div class="ins-card info"><div class="ins-tag">→ Info</div><div class="ins-text">Datos cargados. Usa el chat para análisis.</div></div>`;
+  }
+}
+
+// ── CHAT ───────────────────────────────────────────────────────────
+function sq(q){document.getElementById('ci').value=q;sc();}
+function ck(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sc();}}
+async function sc(){
+  if(!proxyUrl)return;
+  const inp=document.getElementById('ci');const q=inp.value.trim();if(!q)return;
+  inp.value='';document.getElementById('btnSend').disabled=true;
+  document.getElementById('quickQs').style.display='none';
+  addMsg('user',esc(q));
+  const thinking=addMsg('bot','<span class="thinking">Analizando datos...</span>');
+  chatHistory.push({role:'user',content:q});
+  try{
+    // System prompt is built server-side (getSystemPrompt() in Code.gs)
+    // which includes the client context from the Drive Doc.
+    // We only pass the data summary here — the server handles the rest.
+    const systemPrompt = null; // null → server uses its own getSystemPrompt()
+    // Pass data summary as a separate field so server can merge with its context
+    const chatBody = {action:'chat', messages:chatHistory.slice(-12), dataSummary:buildSummary()};
+    if(systemPrompt) chatBody.system = systemPrompt;
+    const res=await gasPost(chatBody);
+    if(res.error)throw new Error(res.error);
+    const reply=res.reply||'Sin respuesta.';
+    thinking.querySelector('.bubble').innerHTML=reply.replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+    chatHistory.push({role:'assistant',content:reply});
+  }catch(e){
+    thinking.querySelector('.bubble').innerHTML=`<span style="color:var(--accent2)">Error: ${e.message}</span>`;
+  }
+  document.getElementById('btnSend').disabled=false;
+  document.getElementById('chatMsgs').scrollTop=99999;
+}
+function addMsg(role,html){
+  const div=document.createElement('div');div.className=`msg ${role==='user'?'user':'bot'}`;
+  div.innerHTML=`<div class="bubble">${html}</div>`;
+  document.getElementById('chatMsgs').appendChild(div);document.getElementById('chatMsgs').scrollTop=99999;return div;
+}
+
+// ── HELPERS ────────────────────────────────────────────────────────
+function buildSummary(){
+  let s='';
+  for(const[p,d]of Object.entries(allData)){
+    const filtered=getFilteredRows(p);
+    s+=`\n## ${p} (${filtered.length} filas${filtered.length!==d.rows.length?' con filtros aplicados':''})\n`;
+    s+=`Columnas: ${d.headers.join(', ')}\n`;
+    s+=filtered.slice(0,3).map(r=>d.headers.map((h,i)=>`${h}:${r[i]}`).join(' | ')).join('\n')+'\n';
+    const kpis=numKPIs(d,filtered);if(kpis.length)s+=`Totales: ${kpis.map(k=>`${k.label}=${k.value}`).join(', ')}\n`;
+  }
+  return s;
+}
+function detectMetrics(headers){
+  const found=[];const h=headers.map(x=>(x||'').toLowerCase());
+  [['impres','Impressions'],['click','Clicks'],['reach|alcance','Reach'],['spend|cost|importe','Spend'],['view|reproduc','Views'],['ctr','CTR'],['cpm','CPM'],['frequen|frecuen','Frequency']].forEach(([pat,label])=>{if(h.some(x=>new RegExp(pat).test(x)))found.push(label);});
+  return found;
+}
+
+function num(v){return parseFloat(String(v??'').replace(/[^0-9.-]/g,''));}
+function fNum(n){if(isNaN(n)||!isFinite(n))return'—';if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return Math.round(n).toLocaleString('es-ES');}
+function fCur(n){if(isNaN(n)||!isFinite(n))return'—';if(n>=1e6)return'€'+(n/1e6).toFixed(2)+'M';if(n>=1e3)return'€'+(n/1e3).toFixed(1)+'K';return'€'+n.toFixed(2);}
+function fCell(v,hdr){
+  const n=num(v);const h=(hdr||'').toLowerCase();
+  // Calculated metrics — match by header name pattern
+  if(/(spend|cost|€|importe|inver|budget|cpc|cpm|cpl|cpv)/.test(h))return fCur(n);
+  if(/(ctr|vtr|cr|rate|%|ratio)/.test(h))return isNaN(n)?String(v):n.toFixed(2)+'%';
+  if(n>=1000)return fNum(n);
+  return isNaN(n)?String(v):n.toLocaleString('es-ES',{maximumFractionDigits:2});
+}
+function pct(a,b){return b?((a/b)*100).toFixed(2)+'%':'—';}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+
+// ── TOAST NOTIFICATION ────────────────────────────────────────────
+function showToast(msg){
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--s2);border:1px solid var(--border2);color:var(--muted2);padding:10px 20px;border-radius:6px;font-family:\'Montserrat\',sans-serif;font-size:12px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:opacity 0.4s';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),400);},3000);
+}
+
+function showToast(msg){
+  const t=document.createElement('div');
+  t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--s2);border:1px solid var(--border2);color:var(--muted2);padding:10px 20px;border-radius:6px;font-family:'Montserrat',sans-serif;font-size:12px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3)";
+  t.textContent=msg;document.body.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity 0.4s';setTimeout(()=>t.remove(),400);},3000);
+}
+// Auto-refresh desactivado: los datos se actualizan manualmente con el botón Refresh
+</script>
+</body>
+</html>
