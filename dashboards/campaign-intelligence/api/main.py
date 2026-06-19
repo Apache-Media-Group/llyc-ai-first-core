@@ -112,7 +112,7 @@ def query_platform(platform: str) -> dict:
 
         headers = list(rows[0].keys())
         data_rows = [
-            [v.isoformat() if isinstance(v, datetime) else v for v in row.values()]
+            [v.isoformat() if isinstance(v, (datetime, __import__("datetime").date)) else v for v in row.values()]
             for row in rows
         ]
 
