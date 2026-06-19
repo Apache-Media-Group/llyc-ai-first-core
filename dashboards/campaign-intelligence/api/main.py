@@ -14,6 +14,7 @@
 
 import os
 import json
+import re
 import hashlib
 import functions_framework
 from datetime import datetime, timezone
@@ -280,7 +281,7 @@ Responde SOLO con JSON válido sin markdown:
                 system=system,
                 messages=[{"role": "user", "content": f"Datos de campaña:\n{summary}"}]
             )
-            text   = response.content[0].text.replace("```json", "").replace("```", "").strip()
+            text = re.sub(r"```(?:json)?\s*|\s*```", "", response.content[0].text).strip()
             parsed = json.loads(text)
 
             if cache_key:
