@@ -59,3 +59,58 @@ scripts/dv360/
 - DEC_069 — Separación formal agente / scripts manuales.
 - DEC_083 — DV360 vía API directa (mismo cliente que tools/dv360.py).
 - DEC_084 — SA separada `llyc-ops-writer-sa` para escritura.
+
+---
+
+## Runbook Operativo — DV360 Write Scripts
+
+### SA y credenciales
+
+- **SA de escritura:** `llyc-ops-writer-sa@llyc-ai-first-core.iam.gserviceaccount.com`
+- **Secret:** `DV360_OPS_WRITER_SA_KEY` en Secret Manager de `llyc-ai-first-core`
+- **Política de guardrails:** pestaña `dv360_write_policy` del workbook operativo del cliente
+
+### Convención de uso
+
+```bash
+python scripts/dv360/<área>/<script>.py \
+  --client <client_id> \
+  [--dry-run] \
+  [parámetros específicos]
+```
+
+- `--client` — siempre obligatorio.
+- `--dry-run` — simula sin ejecutar. Usar siempre antes de la primera ejecución real.
+- `--reason` — obligatorio cuando se usa `--skip-guardrail` o `--max-bid` con valor superior al defecto.
+
+### Override de guardrails
+
+```bash
+python scripts/dv360/line_items/update_bid.py \
+  --client vidal-vidal \
+  --line-item-id 12345 \
+  --bid-eur 75.00 \
+  --max-bid 100.00 \
+  --reason "Puja especial Black Friday aprobada por Jesús el 2026-11-01"
+```
+
+El `--reason` queda registrado en el audit log de Cloud Logging.
+
+### Flujo completo de creación
+
+Todos los objetos se crean en **DRAFT**. Activar solo tras revisión.
+
+### Política de guardrails
+
+Límites leídos en runtime de la pestaña `dv360_write_policy` del workbook del cliente:
+
+| Parámetro | Descripción |
+|---|---|
+| `max_bid_eur` | Puja máxima sin override |
+| `max_budget_variation_pct` | Variación máxima de presupuesto diario |
+| `max_budget_eur_io` | Presupuesto máximo por IO |
+| `max_budget_eur_li` | Presupuesto máximo por LI |
+| `allowed_operations` | Operaciones permitidas para este cliente |
+| `require_reason_on_override` | Si True, `--reason` obligatorio en overrides |
+
+Si falta la fila en el workbook, el script aplica defaults conservadores. Nunca opera sin límite.
