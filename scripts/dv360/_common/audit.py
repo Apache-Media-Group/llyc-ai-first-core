@@ -100,18 +100,17 @@ def confirm_action(message: str, dry_run: bool = False) -> bool:
     return False
 
 
-def confirm_destructive(message: str, dry_run: bool = False) -> bool:
+def confirm_destructive(message: str, client_id: str, dry_run: bool = False) -> bool:
     """
     Doble confirmacion para acciones destructivas (delete, archive masivo).
-
     Args:
         message: descripcion de la accion destructiva
+        client_id: ID del cliente — el usuario debe escribirlo para confirmar
         dry_run: si True, muestra el mensaje pero no pide confirmacion
     """
     if dry_run:
         print(f"\n[DRY-RUN] Accion destructiva que se ejecutaria: {message}")
         return True
-
     print(f"\n🔴 ACCION DESTRUCTIVA: {message}")
     print("Esta accion no se puede deshacer facilmente.")
     print("Primera confirmacion — escribe 'confirmo': ", end="")
@@ -119,8 +118,10 @@ def confirm_destructive(message: str, dry_run: bool = False) -> bool:
     if r1 != "confirmo":
         print("Cancelado.")
         return False
-
-    print("Segunda confirmacion — escribe el client_id para confirmar: ", end="")
+    print(f"Segunda confirmacion — escribe el client_id '{client_id}' para confirmar: ", end="")
     r2 = input().strip().lower()
-    # La segunda confirmacion la valida el script llamante
-    return r2
+    if r2 != client_id.lower():
+        print("Client ID incorrecto. Cancelado.")
+        return False
+    return True
+
