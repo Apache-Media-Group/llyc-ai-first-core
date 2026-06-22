@@ -222,3 +222,11 @@ CLAUDE.local.md
 
 # Claude Code worktrees (sesiones paralelas — nunca commitear)
 .claude/worktrees/
+
+# Ficheros de backup manuales (nunca commitear)
+*.bak
+*.bak-*
+*.orig
+*.tmp
+*~
+.DS_Store
