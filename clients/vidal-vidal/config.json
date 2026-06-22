@@ -454,11 +454,6 @@
   },
   "pendientes": [
     {
-      "campo": "shopify token scope read_all_orders",
-      "owner": "Sara Gil",
-      "impacto": "Desbloquea YoY completo — regenerar token y actualizar secret en Secret Manager"
-    },
-    {
       "campo": "umbrales.inventory_paid_mismatch calibracion",
       "owner": "Tras conversación con cliente",
       "impacto": "No bloquea Sprint 1"
