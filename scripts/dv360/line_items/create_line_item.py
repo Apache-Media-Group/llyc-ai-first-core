@@ -633,7 +633,7 @@ def build_bid_strategy(
         if bid_strategy.upper() == "TARGET_CPV" and target_cpv_eur:
             return {
                 "performanceGoalAutoBid": {
-                    "performanceGoalType": "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPV",
+                    "performanceGoalType": "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
                     "performanceGoalAmountMicros": str(_eur_to_micros(target_cpv_eur)),
                 }
             }
@@ -647,7 +647,7 @@ def build_bid_strategy(
         else:
             # YouTube default: maximize views
             strategy = {
-                "performanceGoalType": "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPV"
+                "performanceGoalType": "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED"
             }
             if bid_max_eur:
                 strategy["maxAverageCpmBidAmountMicros"] = str(_eur_to_micros(bid_max_eur))

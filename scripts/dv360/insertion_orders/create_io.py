@@ -147,18 +147,40 @@ def build_io_body(
             }
         ]
 
-    # Bid strategy — en v4 el IO solo acepta maximizeSpendAutoBid o fixedBid
+    # Bid strategy — mapeo KPI → performanceGoalType
+    KPI_TO_BID_STRATEGY = {
+        # Performance
+        "CPC":         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPC",
+        "CPA":         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA",
+        "CTR":         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPC",   # CTR→CPC es la puja equivalente
+        # Brand awareness / viewability
+        "CPM":         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        "VCPM":        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        "VIEWABILITY": "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",
+        # Video completion
+        "CPCV":        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPCV",
+        "CPIAVC":      "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPIAVC",
+        # YouTube
+        "VTR":         "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_AV_VIEWED",  # mejor aproximación disponible
+        # Custom
+        "BRAND_LIFT":  "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CUSTOM",
+        "CUSTOM":      "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CUSTOM",
+    }
+    bid_goal_type = KPI_TO_BID_STRATEGY.get(
+        kpi_type.upper() if kpi_type else "CPA",
+        "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA"
+    )
     if performance_goal_value_eur:
         body["bidStrategy"] = {
             "maximizeSpendAutoBid": {
-                "performanceGoalType": "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA",
+                "performanceGoalType": bid_goal_type,
                 "maxAverageCpmBidAmountMicros": str(_eur_to_micros(performance_goal_value_eur)),
             }
         }
     else:
         body["bidStrategy"] = {
             "maximizeSpendAutoBid": {
-                "performanceGoalType": "BIDDING_STRATEGY_PERFORMANCE_GOAL_TYPE_CPA",
+                "performanceGoalType": bid_goal_type,
             }
         }
 
@@ -195,6 +217,7 @@ def create_io(
     automation_type: str = "NONE",
     kpi_type: str = None,
     kpi_value: str = None,
+    dry_run: bool = False,
 ) -> dict:
     """Crea un Insertion Order en DV360. Se crea siempre en PAUSED."""
     advertiser_id = get_advertiser_id(client_id)
