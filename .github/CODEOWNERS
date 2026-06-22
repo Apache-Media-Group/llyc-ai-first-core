@@ -4,3 +4,6 @@
 
 # Infra / CI-CD (deploy a Cloud Functions) — añade a Sergio
 /.github/   @sergioalonso-llyc @massimilianoturinetto-lluc @admin-tech-llyc
+
+# Dashboards (campaign-intelligence, deploy Cloud Build path-scoped a dashboards/**) — Sergio + lead (DEC_089)
+/dashboards/ @sergioalonso-llyc @massimilianoturinetto-lluc @admin-tech-llyc
