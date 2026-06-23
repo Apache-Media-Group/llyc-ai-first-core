@@ -318,7 +318,8 @@
     "dv360": {
       "enabled": false,
       "advertiser_id": "8251184879",
-      "_nota": "API directa via tools/dv360.py (DEC_083, deroga DEC_064 y DEC_037). enabled=false — activar en Sprint 2+ cuando se decida. advertiser_id listo."
+      "partner_id": "5748134",
+      "_nota": "API directa via tools/dv360.py (DEC_083, deroga DEC_064 y DEC_037). enabled=false — activar en Sprint 2+ cuando se decida. advertiser_id y partner_id listos."
     },
     "shopify": {
       "enabled": true,
