@@ -44,6 +44,7 @@ FREQUENCY_CAP_UNITS = {
 }
 
 
+_MAX_BUDGET_IO_EUR = 30000.0
 
 OPTIMIZATION_OBJECTIVES = {
     "CONVERSIONS":     "CONVERSION",
@@ -204,6 +205,8 @@ def create_io(
     campaign_id: str,
     name: str,
     budget_eur: float,
+    max_budget_eur: float = _MAX_BUDGET_IO_EUR,
+    reason: str | None = None,
     budget_unit: str = "AMOUNT",
     start_date: str = None,
     end_date: str = None,
@@ -219,8 +222,17 @@ def create_io(
     kpi_value: str = None,
     dry_run: bool = False,
 ) -> dict:
-    """Crea un Insertion Order en DV360. Se crea siempre en PAUSED."""
+    """Crea un Insertion Order en DV360. Se crea siempre en DRAFT."""
     advertiser_id = get_advertiser_id(client_id)
+    if budget_eur > max_budget_eur:
+        return {
+            "status": "error",
+            "error": (
+                f"budget_eur {budget_eur} EUR supera el guardrail de {max_budget_eur} EUR. "
+                "Usa --max-budget con --reason para sobreescribir."
+            ),
+            "data": {"budget_eur": budget_eur, "guardrail_max_eur": max_budget_eur},
+        }
 
     body = build_io_body(
         advertiser_id=advertiser_id,
@@ -306,7 +318,8 @@ def create_io(
             "name": name,
             "budget_eur": budget_eur,
             "pacing": pacing,
-            "advertiser_id": advertiser_id,
+            "advertiser_id": advertiser_id, "guardrail_max_eur": max_budget_eur,
+            "reason": reason,
         },
         result=outcome,
         dry_run=dry_run,
@@ -330,6 +343,10 @@ def main() -> None:
     parser.add_argument("--campaign-id", required=True)
     parser.add_argument("--name", required=True)
     parser.add_argument("--budget-eur", required=True, type=float)
+    parser.add_argument("--max-budget", type=float, default=_MAX_BUDGET_IO_EUR,
+                        help=f"Guardrail maximo de presupuesto IO en EUR (defecto {_MAX_BUDGET_IO_EUR})")
+    parser.add_argument("--reason", type=str, default=None,
+                        help="Justificacion obligatoria si se sobreescribe el guardrail con --max-budget")
     parser.add_argument("--budget-unit", choices=["AMOUNT", "IMPRESSIONS"], default="AMOUNT")
     parser.add_argument("--start-date", required=True)
     parser.add_argument("--end-date", required=True)
@@ -342,10 +359,12 @@ def main() -> None:
     parser.add_argument("--optimization-objective", choices=list(OPTIMIZATION_OBJECTIVES), default="CONVERSIONS", help="Objetivo de optimizacion del IO (defecto: CONVERSIONS)")
     parser.add_argument("--automation-type", choices=list(AUTOMATION_TYPES), default="NONE", help="Tipo de automatizacion: NONE | BUDGET (automate bid+budget) | BID")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--kpi-type", required=True, choices=["VIEWABILITY", "CTR", "CPC", "CPA", "CPM", "CPIAVC", "BRAND_LIFT"], help="Tipo de KPI del IO (VIEWABILITY/CTR en porcentaje micros, resto en amount micros)")
-    parser.add_argument("--kpi-value", required=True, help="Valor del KPI en micros (ej: 700000=70% para VIEWABILITY, 500000=0.50EUR para CPC)")
-
+    parser.add_argument("--kpi-type", required=True, choices=["VIEWABILITY", "CTR", "CPC", "CPA", "CPM", "CPIAVC", "BRAND_LIFT"], help="Tipo de KPI del IO")
+    parser.add_argument("--kpi-value", required=True, help="Valor del KPI en micros (ej: 500000=0.50EUR para CPC)")
     args = parser.parse_args()
+    if args.max_budget != _MAX_BUDGET_IO_EUR and not args.reason:
+        print("ERROR: --reason es obligatorio cuando se sobreescribe el guardrail con --max-budget.")
+        sys.exit(1)
 
     budget_segments = None
     if args.budget_segments:
@@ -374,6 +393,8 @@ def main() -> None:
         kpi_type=getattr(args, "kpi_type", "VIEWABILITY"),
         kpi_value=getattr(args, "kpi_value", "700000"),
         dry_run=args.dry_run,
+        max_budget_eur=args.max_budget,
+        reason=getattr(args, "reason", None),
     )
 
     print(json.dumps(result, indent=2, ensure_ascii=False))
