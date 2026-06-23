@@ -35,6 +35,9 @@ _EUR_TO_MICROS = 1_000_000
 
 # ── Tipos de Line Item ────────────────────────────────────────────────────────
 
+_MAX_BUDGET_LI_EUR = 5000.0
+_MAX_BID_LI_EUR = 50.0
+
 LINE_ITEM_TYPES = {
     "DISPLAY":            "LINE_ITEM_TYPE_DISPLAY_DEFAULT",
     "VIDEO":              "LINE_ITEM_TYPE_VIDEO_DEFAULT",
@@ -768,6 +771,9 @@ def create_line_item(
     end_date: str = None,
     bid_strategy: str = "FIXED",
     bid_eur: float | None = None,
+    max_budget_eur: float = _MAX_BUDGET_LI_EUR,
+    max_bid_eur_guardrail: float = _MAX_BID_LI_EUR,
+    reason: str | None = None,
     bid_max_eur: float | None = None,
     target_cpa_eur: float | None = None,
     target_cpv_eur: float | None = None,
@@ -814,6 +820,25 @@ def create_line_item(
         creative_ids = []
 
     advertiser_id = get_advertiser_id(client_id)
+
+    if budget_eur > max_budget_eur:
+        return {
+            "status": "error",
+            "error": (
+                f"budget_eur {budget_eur} EUR supera el guardrail de {max_budget_eur} EUR. "
+                "Usa --max-budget con --reason para sobreescribir."
+            ),
+            "data": {"budget_eur": budget_eur, "guardrail_max_eur": max_budget_eur},
+        }
+    if bid_eur and bid_eur > max_bid_eur_guardrail:
+        return {
+            "status": "error",
+            "error": (
+                f"bid_eur {bid_eur} EUR supera el guardrail de {max_bid_eur_guardrail} EUR. "
+                "Usa --max-bid-guardrail con --reason para sobreescribir."
+            ),
+            "data": {"bid_eur": bid_eur, "guardrail_max_eur": max_bid_eur_guardrail},
+        }
 
     bid_strategy_body = build_bid_strategy(
         li_type=li_type,
@@ -1042,11 +1067,17 @@ Ejemplos:
     parser.add_argument("--name", required=True)
     parser.add_argument("--li-type", choices=list(LINE_ITEM_TYPES), default="DISPLAY")
     parser.add_argument("--budget-eur", required=True, type=float)
+    parser.add_argument("--max-budget", type=float, default=_MAX_BUDGET_LI_EUR,
+                        help=f"Guardrail maximo de presupuesto LI en EUR (defecto {_MAX_BUDGET_LI_EUR})")
     parser.add_argument("--start-date", required=True)
     parser.add_argument("--end-date", required=True)
     parser.add_argument("--bid-strategy", choices=list(BID_STRATEGIES), default="FIXED")
     parser.add_argument("--bid-eur", type=float, default=None)
     parser.add_argument("--bid-max-eur", type=float, default=None)
+    parser.add_argument("--max-bid-guardrail", type=float, default=_MAX_BID_LI_EUR,
+                        help=f"Guardrail maximo de bid en EUR (defecto {_MAX_BID_LI_EUR})")
+    parser.add_argument("--reason", type=str, default=None,
+                        help="Justificacion obligatoria si se sobreescribe cualquier guardrail")
     parser.add_argument("--target-cpa-eur", type=float, default=None)
     parser.add_argument("--target-cpv-eur", type=float, default=None)
     parser.add_argument("--frequency-cap", type=int, default=None)
@@ -1087,6 +1118,12 @@ Ejemplos:
     parser.add_argument("--dry-run", action="store_true")
 
     args = parser.parse_args()
+    if args.max_budget != _MAX_BUDGET_LI_EUR and not args.reason:
+        print("ERROR: --reason es obligatorio cuando se sobreescribe --max-budget.")
+        sys.exit(1)
+    if args.max_bid_guardrail != _MAX_BID_LI_EUR and not args.reason:
+        print("ERROR: --reason es obligatorio cuando se sobreescribe --max-bid-guardrail.")
+        sys.exit(1)
 
     daypart_matrix = None
     if args.daypart_matrix:
@@ -1146,6 +1183,9 @@ Ejemplos:
         youtube_channel_ids=args.youtube_channel_ids,
         youtube_video_ids=args.youtube_video_ids,
         dry_run=args.dry_run,
+        max_budget_eur=args.max_budget,
+        max_bid_eur_guardrail=args.max_bid_guardrail,
+        reason=getattr(args, "reason", None),
     )
 
     print(json.dumps(result, indent=2, ensure_ascii=False))
