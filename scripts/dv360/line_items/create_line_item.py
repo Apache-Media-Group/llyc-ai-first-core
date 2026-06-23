@@ -838,14 +838,16 @@ def create_line_item(
             ),
             "data": {"budget_eur": budget_eur, "guardrail_max_eur": max_budget_eur},
         }
-    if bid_eur and bid_eur > max_bid_eur_guardrail:
+    bid_to_check = bid_eur or target_cpa_eur or target_cpv_eur
+    if bid_to_check and bid_to_check > max_bid_eur_guardrail:
         return {
             "status": "error",
             "error": (
-                f"bid_eur {bid_eur} EUR supera el guardrail de {max_bid_eur_guardrail} EUR. "
+                f"bid {bid_to_check} EUR supera el guardrail de {max_bid_eur_guardrail} EUR "
+                f"(bid_eur={bid_eur}, target_cpa_eur={target_cpa_eur}, target_cpv_eur={target_cpv_eur}). "
                 "Usa --max-bid-guardrail con --reason para sobreescribir."
             ),
-            "data": {"bid_eur": bid_eur, "guardrail_max_eur": max_bid_eur_guardrail},
+            "data": {"bid_to_check": bid_to_check, "guardrail_max_eur": max_bid_eur_guardrail},
         }
 
     bid_strategy_body = build_bid_strategy(
