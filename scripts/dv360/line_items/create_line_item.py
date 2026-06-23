@@ -543,10 +543,18 @@ def build_targeting_settings(
                 })
     if language_codes:
         for lang in language_codes:
+            lang_id = LANGUAGE_IDS.get(lang.lower(), "")
+            if not lang_id:
+                logging.warning(f"Idioma '{lang}' no encontrado en LANGUAGE_IDS — ignorado.")
+                continue
+            if lang.lower() in ("ca", "eu", "gl"):
+                logging.warning(
+                    f"Idioma '{lang}' mapeado a Spanish (1003) — DV360 no tiene targeting nativo para {lang}."
+                )
             targeting.append({
                 "targetingType": "TARGETING_TYPE_LANGUAGE",
                 "languageDetails": {
-                    "targetingOptionId": LANGUAGE_IDS.get(lang.lower(), ""),
+                    "targetingOptionId": lang_id,
                 },
             })
 
