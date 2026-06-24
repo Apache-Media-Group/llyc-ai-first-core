@@ -142,9 +142,9 @@ textarea.ci:focus{border-color:var(--border2)}
     <div class="logo"><div class="logo-dot"></div>Campaign<span style="color:var(--llyc-red);font-weight:300"> Intelligence</span></div>
     <div class="header-center">
       <div class="proxy-url-wrap">
-        <span class="proxy-label">Proxy URL</span>
-        <span style="font-family:'Montserrat',sans-serif;font-size:9px;color:var(--muted);letter-spacing:0.5px" id="dataStatus">Cargando...</span>
-        <!-- URL preconfigurada en PROXY_URL_CONFIG -->
+        <span class="proxy-label">API</span>
+        <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.5px">campaign-intelligence-api · europe-west1</span>
+        <span style="font-family:'Montserrat',sans-serif;font-size:9px;color:var(--muted);letter-spacing:0.5px;margin-left:8px" id="dataStatus">Cargando...</span>
       </div>
     </div>
     <div class="header-right">
@@ -155,13 +155,8 @@ textarea.ci:focus{border-color:var(--border2)}
   <div class="main">
     <div class="dashboard" id="dashboard">
       <div class="notice">
-        <h2>⚡ Setup</h2>
-        <ol>
-          <li>Abre el Google Sheet → <code>Extensions</code> → <code>Apps Script</code></li>
-          <li>Pega el código de <code>Code.gs</code>. Añade tu Anthropic API Key en la línea 4.</li>
-          <li><code>Deploy</code> → <code>New deployment</code> → Web app → Execute as: <strong>Me</strong> → Who has access: <strong>Anyone</strong> → Deploy</li>
-          <li>Copia la Web App URL y pégala arriba → <strong>Conectar</strong></li>
-        </ol>
+        <h2>⟳ Conectando...</h2>
+        <p style="color:var(--muted2);font-size:13px">Cargando datos de campaña desde BigQuery...</p>
       </div>
     </div>
     <div class="chat-panel">
@@ -199,32 +194,33 @@ let colIdx = {}; // { platform: { date, campaign, ad } }
 // Sort state per platform
 let sortState = {}; // { platform: { col, dir } }
 
-// ── CONNECTION ─────────────────────────────────────────────────────
-function connect(){
-  const url=document.getElementById('proxyInput').value.trim();
-  if(!url){alert('Pega la Web App URL primero');return;}
-  proxyUrl=url;localStorage.setItem('campaignProxyUrl',url);
-  document.getElementById('btnRefresh').disabled=false;loadAll();
-}
-window.onload=()=>{
-  const saved=localStorage.getItem('campaignProxyUrl');
-  if(saved){proxyUrl=saved;document.getElementById('proxyInput').value=saved;document.getElementById('btnRefresh').disabled=false;loadAll();}
+// ── CLOUD FUNCTION URL (via Firebase Hosting proxy) ──────────────
+// El navegador llama a /api — Firebase lo redirige a la Cloud Function
+// Nunca se expone la URL directa de la CF al navegador
+const CF_URL = '/api';
+
+window.onload = () => {
+  proxyUrl = CF_URL;
+  document.getElementById('btnRefresh').disabled = false;
+  loadAll();
 };
 
 // ── FETCH ──────────────────────────────────────────────────────────
 async function gasGet(params){
-  const url=new URL(proxyUrl);
+  const url=new URL(CF_URL, window.location.origin);
   Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,typeof v==='object'?JSON.stringify(v):String(v)));
   const r=await fetch(url.toString());
   if(!r.ok)throw new Error(`HTTP ${r.status}`);
   const text=await r.text();
-  try{return JSON.parse(text);}catch{throw new Error('Respuesta inválida del Apps Script');}
+  try{return JSON.parse(text);}catch{throw new Error('Respuesta inválida de la API');}
 }
 async function gasPost(body){
-  const r=await fetch(proxyUrl,{method:'POST',body:JSON.stringify(body)});
+  const url=new URL(CF_URL, window.location.origin);
+  url.searchParams.set('action', body.action || 'chat');
+  const r=await fetch(url.toString(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(!r.ok)throw new Error(`HTTP ${r.status}`);
   const text=await r.text();
-  try{return JSON.parse(text);}catch{throw new Error('Respuesta inválida del Apps Script');}
+  try{return JSON.parse(text);}catch{throw new Error('Respuesta inválida de la API');}
 }
 
 // ── LOAD ───────────────────────────────────────────────────────────
@@ -303,7 +299,7 @@ async function loadAll(forceRefresh=false){
       setTimeout(()=>addMsg('bot',`✓ <strong>${loaded.join(', ')}</strong> cargadas. ¿Qué quieres analizar?`),500);
     }
   }catch(err){
-    showError(`Error: ${err.message}<br><small>Verifica que el Apps Script esté desplegado como Web App con acceso "Anyone".</small>`);
+    showError(`Error: ${err.message}<br><small>Verifica que la Cloud Function esté activa en llyc-ai-first-core.</small>`);
     document.getElementById('updateInfo').textContent='Error de conexión';
   }
   document.getElementById('btnRefresh').disabled=false;
@@ -628,7 +624,6 @@ async function genInsights(fetchedAt=''){
 function sq(q){document.getElementById('ci').value=q;sc();}
 function ck(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sc();}}
 async function sc(){
-  if(!proxyUrl)return;
   const inp=document.getElementById('ci');const q=inp.value.trim();if(!q)return;
   inp.value='';document.getElementById('btnSend').disabled=true;
   document.getElementById('quickQs').style.display='none';

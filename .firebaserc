@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "llyc-ai-first-core"
+  },
+  "targets": {
+    "llyc-ai-first-core": {
+      "hosting": {
+        "llyc-campaign-intelligence": [
+          "llyc-campaign-intelligence"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
