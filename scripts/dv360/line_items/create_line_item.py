@@ -459,28 +459,16 @@ def build_targeting_settings(
             },
         })
 
-    if audience_inmarket:
-        for audience in audience_inmarket:
-            targeting.append({
-                "targetingType": "TARGETING_TYPE_AUDIENCE_GROUP",
-                "audienceGroupDetails": {
-                    "includedGoogleAudienceGroup": {
-                        "settings": [{"googleAudienceId": audience}]
-                    }
-                },
-            })
-
-    if audience_affinity:
-        for audience in audience_affinity:
-            targeting.append({
-                "targetingType": "TARGETING_TYPE_AUDIENCE_GROUP",
-                "audienceGroupDetails": {
-                    "includedGoogleAudienceGroup": {
-                        "settings": [{"googleAudienceId": audience}]
-                    }
-                },
-            })
-
+    google_audiences = (audience_inmarket or []) + (audience_affinity or [])
+    if google_audiences:
+        targeting.append({
+            "targetingType": "TARGETING_TYPE_AUDIENCE_GROUP",
+            "audienceGroupDetails": {
+                "includedGoogleAudienceGroup": {
+                    "settings": [{"googleAudienceId": a} for a in google_audiences]
+                }
+            },
+        })
     if genders:
         for gender in genders:
             mapped = GENDER_TYPES.get(gender.upper())
