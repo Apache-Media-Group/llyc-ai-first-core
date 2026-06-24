@@ -116,6 +116,7 @@
   },
   "data_sources": {
     "leads": "ga4",
+    "_leads_nota": "Fuente primaria L1 = eventos GA4 (lead bruto). Validación cualitativa vía CRM del cliente pendiente — DEC_074, pre-L3. No interpretar el CPL como coste por lead cualificado hasta integrar CRM.",
     "comportamiento_web": "ga4",
     "sesiones": "ga4",
     "atribucion": "ga4",
@@ -163,7 +164,11 @@
     "_nota": "ID de la carpeta 04_OUTPUTS/vaillant/ en Drive. Crear la carpeta y rellenar antes del primer deploy."
   },
   "pendientes": [
-
+{
+  "campo": "data_sources.crm_integration",
+  "owner": "Jesús López / Sara Gil",
+  "impacto": "Diferencia lead bruto (GA4) vs lead cualificado (CRM) — necesario antes de L3 para interpretar CPL real"
+}
     {
       "campo": "operational_inputs.workbook.file_id",
       "owner": "Jesús López / Sara Gil",
