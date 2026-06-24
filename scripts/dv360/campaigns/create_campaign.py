@@ -128,6 +128,7 @@ def create_campaign(
     frequency_cap: int | None = None,
     frequency_cap_unit: str | None = None,
     dry_run: bool = False,
+    skip_confirm: bool = False,
 ) -> dict:
     """Crea una Campana en DV360."""
     advertiser_id = get_advertiser_id(client_id)
@@ -150,7 +151,7 @@ def create_campaign(
         f"en advertiser {advertiser_id} cliente {client_id}"
     )
 
-    if not confirm_action(action_msg, dry_run=dry_run):
+    if not confirm_action(action_msg, dry_run=dry_run, skip_confirm=skip_confirm):
         return {"status": "cancelled", "data": {}}
 
     if dry_run:

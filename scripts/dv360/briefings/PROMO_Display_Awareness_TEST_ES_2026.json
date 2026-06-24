@@ -1,0 +1,187 @@
+{
+  "_briefing": "PROMO_Display_Awareness_TEST_ES_2026",
+  "_generado": "2026-06-24",
+  "_advertiser": "TEST_AGENTE_IA (8108930762)",
+  "client": "test",
+  "dry_run": false,
+  "reason": null,
+  "campaign": {
+    "name": "PROMO_Display_Awareness_TEST_ES_2026",
+    "goal": "AWARENESS",
+    "kpi": "CPM",
+    "kpi_value": 0.7,
+    "start_date": "2026-07-01",
+    "end_date": "2026-07-31",
+    "frequency_cap": null,
+    "frequency_cap_unit": null
+  },
+  "insertion_orders": [
+    {
+      "name": "IO_Audience_InMarket_ES",
+      "budget_eur": 5.0,
+      "pacing": "EVEN",
+      "pacing_period": "DAILY",
+      "kpi_type": "CPM",
+      "kpi_value": "700000",
+      "optimization_objective": "BRAND_AWARENESS",
+      "automation_type": "NONE",
+      "frequency_cap": 3,
+      "frequency_cap_unit": "WEEKS",
+      "start_date": "2026-07-01",
+      "end_date": "2026-07-31",
+      "line_items": [
+        {
+          "name": "LI_InMarket_Business_Tech",
+          "li_type": "DISPLAY",
+          "budget_eur": 2.5,
+          "start_date": "2026-07-01",
+          "end_date": "2026-07-31",
+          "bid_strategy": "FIXED",
+          "bid_eur": 0.7,
+          "frequency_cap": 3,
+          "frequency_cap_unit": "WEEKS",
+          "geo_regions": [
+            "ES"
+          ],
+          "language_codes": [
+            "es"
+          ],
+          "environment": "DESKTOP_WEB",
+          "audience_inmarket": [
+            "80463",
+            "80530",
+            "80207"
+          ],
+          "brand_safety_exclude": [
+            "ADULT",
+            "VIOLENCE",
+            "DRUGS",
+            "WEAPONS"
+          ],
+          "content_labels_exclude": [
+            "MA",
+            "T"
+          ],
+          "viewability_target": "50"
+        },
+        {
+          "name": "LI_InMarket_Lifestyle_Travel",
+          "li_type": "DISPLAY",
+          "budget_eur": 2.5,
+          "start_date": "2026-07-01",
+          "end_date": "2026-07-31",
+          "bid_strategy": "FIXED",
+          "bid_eur": 0.7,
+          "frequency_cap": 3,
+          "frequency_cap_unit": "WEEKS",
+          "geo_regions": [
+            "ES"
+          ],
+          "language_codes": [
+            "es"
+          ],
+          "environment": "DESKTOP_WEB",
+          "audience_inmarket": [
+            "80287",
+            "80428",
+            "80548"
+          ],
+          "brand_safety_exclude": [
+            "ADULT",
+            "VIOLENCE",
+            "DRUGS",
+            "WEAPONS"
+          ],
+          "content_labels_exclude": [
+            "MA",
+            "T"
+          ],
+          "viewability_target": "50"
+        }
+      ]
+    },
+    {
+      "name": "IO_Contextual_Categories_ES",
+      "budget_eur": 5.0,
+      "pacing": "EVEN",
+      "pacing_period": "DAILY",
+      "kpi_type": "CPM",
+      "kpi_value": "600000",
+      "optimization_objective": "BRAND_AWARENESS",
+      "automation_type": "NONE",
+      "frequency_cap": 3,
+      "frequency_cap_unit": "WEEKS",
+      "start_date": "2026-07-01",
+      "end_date": "2026-07-31",
+      "line_items": [
+        {
+          "name": "LI_Cat_News_Society",
+          "li_type": "DISPLAY",
+          "budget_eur": 2.5,
+          "start_date": "2026-07-01",
+          "end_date": "2026-07-31",
+          "bid_strategy": "FIXED",
+          "bid_eur": 0.6,
+          "frequency_cap": 3,
+          "frequency_cap_unit": "WEEKS",
+          "geo_regions": [
+            "ES"
+          ],
+          "language_codes": [
+            "es"
+          ],
+          "environment": "DESKTOP_WEB",
+          "iab_categories": [
+            "16",
+            "14",
+            "19"
+          ],
+          "brand_safety_exclude": [
+            "ADULT",
+            "VIOLENCE",
+            "DRUGS",
+            "WEAPONS"
+          ],
+          "content_labels_exclude": [
+            "MA",
+            "T"
+          ],
+          "viewability_target": "50"
+        },
+        {
+          "name": "LI_Cat_Finance_Business",
+          "li_type": "DISPLAY",
+          "budget_eur": 2.5,
+          "start_date": "2026-07-01",
+          "end_date": "2026-07-31",
+          "bid_strategy": "FIXED",
+          "bid_eur": 0.6,
+          "frequency_cap": 3,
+          "frequency_cap_unit": "WEEKS",
+          "geo_regions": [
+            "ES"
+          ],
+          "language_codes": [
+            "es"
+          ],
+          "environment": "DESKTOP_WEB",
+          "iab_categories": [
+            "7",
+            "12"
+          ],
+          "brand_safety_exclude": [
+            "ADULT",
+            "VIOLENCE",
+            "DRUGS",
+            "WEAPONS"
+          ],
+          "content_labels_exclude": [
+            "MA",
+            "T"
+          ],
+          "viewability_target": "50"
+        }
+      ]
+    }
+  ]
+}

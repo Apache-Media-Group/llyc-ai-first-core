@@ -71,7 +71,7 @@ def log_action(
     log.info(json.dumps(entry, ensure_ascii=False))
 
 
-def confirm_action(message: str, dry_run: bool = False) -> bool:
+def confirm_action(message: str, dry_run: bool = False, skip_confirm: bool = False) -> bool:
     """
     Solicita confirmacion interactiva antes de ejecutar una accion.
 
@@ -87,6 +87,8 @@ def confirm_action(message: str, dry_run: bool = False) -> bool:
     """
     if dry_run:
         print(f"\n[DRY-RUN] Se ejecutaria: {message}")
+        return True
+    if skip_confirm:
         return True
 
     print(f"\n⚠️  ACCION IRREVERSIBLE: {message}")
