@@ -1,0 +1,118 @@
+{
+  "client": {
+    "id": "CLIENT_ID",
+    "name": "CLIENT NAME",
+    "sector": "",
+    "country": "ES",
+    "language": "es",
+    "timezone": "Europe/Madrid",
+    "currency": "EUR"
+  },
+  "agents": {
+    "performance_monitor": { "agent_id": null, "enabled": true, "output_folder": "04_OUTPUTS/CLIENT_ID/performance-monitor" },
+    "budget_pacer": { "agent_id": null, "enabled": true, "output_folder": "04_OUTPUTS/CLIENT_ID/budget-pacer" },
+    "naming_utm_auditor": { "agent_id": null, "enabled": true, "output_folder": "04_OUTPUTS/CLIENT_ID/naming-utm-auditor" },
+    "weekly_digest": { "agent_id": null, "enabled": true, "output_folder": "04_OUTPUTS/CLIENT_ID/weekly-digest" },
+    "creative_fatigue_detector": { "agent_id": null, "enabled": false, "output_folder": "04_OUTPUTS/CLIENT_ID/creative-fatigue-detector", "note": "Sprint 2" },
+    "trend_radar": { "agent_id": null, "enabled": false, "output_folder": "04_OUTPUTS/CLIENT_ID/trend-radar", "note": "Sprint 3 — DEC_101" }
+  },
+  "operational_inputs": {
+    "_nota": "DEC_075 — el workbook (Drive Operativo) es la fuente de verdad de budget dinámico y tolerancias KPI, editable por ops sin PR. main.py lo lee vía Sheets API (operational_inputs.py). Este bloque declara SOLO el puntero y el fallback degradado.",
+    "workbook": {
+      "file_id": "WORKBOOK_FILE_ID",
+      "_nota": "PAID_parametros-operativos-CLIENT_ID. Compartir como Viewer con llyc-agents-sa@llyc-ai-first-core.iam.gserviceaccount.com."
+    },
+    "timezone": "Europe/Madrid",
+    "fallback": {
+      "_nota": "Modo degradado: solo si el workbook no está disponible o falta la fila del mes. Importes a 0 a propósito (DEC_075 — no se hardcodean importes que derivan en el workbook); con 0, budget-pacer reporta N/A y avisa del fallback en vez de pacear contra números obsoletos. Floors y tolerancias se conservan para que performance-monitor siga alertando. AJUSTAR floors por cliente (null = no aplica, p.ej. lead-gen sin ROAS).",
+      "currency": "EUR",
+      "budget": {
+        "base_eur": 0,
+        "incremental_max_eur": 0,
+        "roas_floor_base": null,
+        "roas_floor_incremental": null
+      },
+      "kpis": [
+        { "nivel": "cuenta", "metrica": "roas", "parametro": "tolerancia_desviacion_pct", "valor": 15, "ventana": "7d", "enabled": true },
+        { "nivel": "cuenta", "metrica": "cpa", "parametro": "tolerancia_desviacion_pct", "valor": 20, "ventana": "7d", "enabled": true },
+        { "nivel": "cuenta", "metrica": "pacing", "parametro": "tolerancia_desviacion_pct", "valor": 10, "ventana": "mensual", "enabled": true }
+      ]
+    }
+  },
+  "platforms": {
+    "meta": { "enabled": false, "ad_account_id": "", "business_manager_id": "", "utm_medium": "paid_social", "campaigns_in_scope": [] },
+    "google_ads": { "enabled": false, "customer_id": "", "manager_id": "", "utm_medium": ["paid_search", "paid_shopping", "paid_pmax"], "campaigns_in_scope": [] },
+    "ga4": { "enabled": false, "property_id": "", "data_stream_id": "", "rol": "comportamiento web, sesiones, atribución" },
+    "tiktok": { "enabled": false, "advertiser_id": "", "utm_medium": "paid_social" },
+    "dv360": { "enabled": false, "advertiser_id": "", "_nota": "API directa vía tools/dv360.py (DEC_083). Read-only en runtime; escritura por catálogo scripts/dv360 (DEC_069)." },
+    "shopify": { "enabled": false, "shop_domain": "", "api_version": "2026-01", "dtc_filter": { "source_name": "web", "excluded_source_names": [] }, "rol": "fuente de verdad de revenue/transacciones DTC (DEC_048) si el cliente es ecomm" }
+  },
+  "data_sources": {
+    "_nota": "Contrato de fuente de verdad por cliente (DEC_042/048/090). DECLARATIVO — sin consumidor cableado aún (router de fuente de verdad pendiente). Ajustar por modelo: ecomm→shopify, lead-gen→ga4 (+CRM cuando exista conector, DEC_090).",
+    "revenue": "shopify",
+    "transacciones": "shopify",
+    "comportamiento_web": "ga4",
+    "sesiones": "ga4",
+    "atribucion": "ga4"
+  },
+  "weekly_digest": {
+    "report_top_n_patterns": 5,
+    "revenue_source_of_truth": "shopify",
+    "_revenue_source_nota": "DEC_048/060 — alinear con data_sources.revenue del cliente.",
+    "platform_to_ga4_source_medium": {
+      "google_ads": "google / cpc",
+      "meta": "meta / paid_social"
+    },
+    "patterns": {
+      "paid_organic_cannibalization": { "enabled": true },
+      "funnel_step_drop": { "enabled": true },
+      "creative_fatigue_aggregate": { "enabled": true, "auto_disable_if_creative_fatigue_detector_active": true },
+      "device_performance_divergence": { "enabled": true },
+      "geographic_concentration_drop": { "enabled": true },
+      "product_mix_shift": { "enabled": true },
+      "platform_ga4_delta_widening": { "enabled": true },
+      "daypart_efficiency_drop": { "enabled": true },
+      "platform_ga4_trend_break": { "enabled": true },
+      "auction_saturation": { "enabled": true },
+      "tofu_bofu_divergence": { "enabled": true },
+      "revenue_concentration_break": { "enabled": true },
+      "yoy_seasonality_miss": { "enabled": false, "yoy_baseline_validated": false },
+      "inventory_paid_mismatch": { "enabled": false, "_nota": "Solo ecomm. Umbral operativo vive en workbook." }
+    }
+  },
+  "notifications": {
+    "canal": "email",
+    "_canal_nota": "Sprint 1 = email; Sprint 2+ = google_chat (el equipo se comunica por Google Chat, no Slack).",
+    "alert_recipients": [],
+    "alert_levels": ["ALERTA", "ERROR", "PARTIAL"]
+  },
+  "credentials": {
+    "_nota": "Solo NOMBRES de variables, nunca valores (valores → Secret Manager). Gmail (capacidad de agencia) vive en core y está en tools/notifications.py, no aquí (DEC_026).",
+    "meta_access_token": "META_ACCESS_TOKEN",
+    "meta_app_id": "META_APP_ID",
+    "meta_app_secret": "META_APP_SECRET",
+    "google_ads_developer_token": "GOOGLE_ADS_DEVELOPER_TOKEN",
+    "google_ads_client_id": "GOOGLE_ADS_CLIENT_ID",
+    "google_ads_client_secret": "GOOGLE_ADS_CLIENT_SECRET",
+    "google_ads_refresh_token": "GOOGLE_ADS_REFRESH_TOKEN",
+    "ga4_client_id": "GA4_CLIENT_ID",
+    "ga4_client_secret": "GA4_CLIENT_SECRET",
+    "ga4_refresh_token": "GA4_REFRESH_TOKEN",
+    "shopify_admin_token": "SHOPIFY_ADMIN_API_TOKEN"
+  },
+  "gcp": {
+    "project_id": "llyc-ai-CLIENT_ID",
+    "region": "europe-west1",
+    "function_name": "agent-executor-CLIENT_ID",
+    "secret_manager_project": "llyc-ai-CLIENT_ID",
+    "secret_manager_core_project": "llyc-ai-first-core",
+    "_anthropic_api_key_nota": "main.py deriva el nombre del secret con el patrón anthropic-api-key-{agent_name}-{client_id} y lo lee de secret_manager_project (DEC_058). No se declara aquí."
+  },
+  "drive": {
+    "outputs_folder_id": "DRIVE_OUTPUTS_FOLDER_ID"
+  },
+  "_metadata": {
+    "version": "template-1.0",
+    "_nota": "Plantilla IaC. Vive SOLO en repo, sin espejo en Drive (DEC_102). Copiar a clients/<id>/config.json y rellenar placeholders en MAYÚSCULAS. Bloques de negocio/narrativa (umbrales, kpis, estacionalidad, contexto_negocio, shopify.data_context) NO van aquí: parámetros operativos → workbook; narrativa de cliente → CLIENT_contexto-<id>.md."
+  }
+}
