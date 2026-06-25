@@ -44,6 +44,7 @@ _DEFAULT_PAGE_SIZE = 250
 # INICIALIZACIÓN
 # ─────────────────────────────────────────────
 
+
 def init_shopify_api(shop_domain: str, access_token: str, api_version: str) -> None:
     """
     Configura el cliente Shopify para esta ejecución de Cloud Function.
@@ -57,6 +58,7 @@ def init_shopify_api(shop_domain: str, access_token: str, api_version: str) -> N
 # ─────────────────────────────────────────────
 # HELPERS INTERNOS
 # ─────────────────────────────────────────────
+
 
 def _ensure_initialized() -> None:
     if not _SHOPIFY_CONFIG["access_token"]:
@@ -100,7 +102,7 @@ def _parse_next_page_info(link_header: str | None) -> str | None:
     match = re.search(r'<([^>]*)>;\s*rel="next"', link_header)
     if not match:
         return None
-    page_info_match = re.search(r'[?&]page_info=([^&]+)', match.group(1))
+    page_info_match = re.search(r"[?&]page_info=([^&]+)", match.group(1))
     return page_info_match.group(1) if page_info_match else None
 
 
@@ -119,7 +121,9 @@ def _get_paginated(path: str, params: dict) -> list[dict]:
     current_params.setdefault("limit", _DEFAULT_PAGE_SIZE)
 
     while True:
-        response = requests.get(url, headers=_headers(), params=current_params, timeout=25)
+        response = requests.get(
+            url, headers=_headers(), params=current_params, timeout=25
+        )
         response.raise_for_status()
         payload = response.json()
         items.extend(payload.get(resource_key, []))
@@ -150,6 +154,7 @@ def _apply_dtc_filter(orders: list[dict], dtc_filter: dict | None) -> list[dict]
 # ─────────────────────────────────────────────
 # TOOL 1 — ORDERS PERIOD (performance-monitor + weekly-digest)
 # ─────────────────────────────────────────────
+
 
 @with_timeout("shopify")
 def get_shopify_orders_period(
@@ -223,18 +228,21 @@ def get_shopify_orders_period(
         orders_count = len(orders)
         aov = (revenue / orders_count) if orders_count > 0 else 0.0
 
-        return ok("shopify", {
-            "revenue_eur": round(revenue, 2),
-            "orders_count": orders_count,
-            "units_count": units,
-            "aov_eur": round(aov, 2),
-            "new_customer_orders": new_customer_orders,
-            "returning_customer_orders": returning_customer_orders,
-            "discounted_orders_count": discounted_orders_count,
-            "date_start": date_start,
-            "date_end": date_end,
-            "dtc_filter_applied": dtc_filter if dtc_filter else None,
-        })
+        return ok(
+            "shopify",
+            {
+                "revenue_eur": round(revenue, 2),
+                "orders_count": orders_count,
+                "units_count": units,
+                "aov_eur": round(aov, 2),
+                "new_customer_orders": new_customer_orders,
+                "returning_customer_orders": returning_customer_orders,
+                "discounted_orders_count": discounted_orders_count,
+                "date_start": date_start,
+                "date_end": date_end,
+                "dtc_filter_applied": dtc_filter if dtc_filter else None,
+            },
+        )
 
     except requests.HTTPError as e:
         body = e.response.text[:200] if e.response is not None else ""
@@ -248,6 +256,7 @@ def get_shopify_orders_period(
 # ─────────────────────────────────────────────
 # TOOL 2 — CUSTOMER SEGMENT (weekly-digest)
 # ─────────────────────────────────────────────
+
 
 @with_timeout("shopify")
 def get_shopify_customer_segment(
@@ -295,15 +304,18 @@ def get_shopify_customer_segment(
         new_rate = (len(new_ids) / unique * 100) if unique > 0 else 0.0
         repeat_rate = (len(repeat_ids) / unique * 100) if unique > 0 else 0.0
 
-        return ok("shopify", {
-            "new_customers": len(new_ids),
-            "returning_customers": len(returning_ids),
-            "new_customer_rate_pct": round(new_rate, 2),
-            "repeat_purchase_rate_pct": round(repeat_rate, 2),
-            "unique_customers": unique,
-            "date_start": date_start,
-            "date_end": date_end,
-        })
+        return ok(
+            "shopify",
+            {
+                "new_customers": len(new_ids),
+                "returning_customers": len(returning_ids),
+                "new_customer_rate_pct": round(new_rate, 2),
+                "repeat_purchase_rate_pct": round(repeat_rate, 2),
+                "unique_customers": unique,
+                "date_start": date_start,
+                "date_end": date_end,
+            },
+        )
 
     except requests.HTTPError as e:
         body = e.response.text[:200] if e.response is not None else ""
@@ -317,6 +329,7 @@ def get_shopify_customer_segment(
 # ─────────────────────────────────────────────
 # TOOL 3 — INVENTORY STATUS (patrón inventory_paid_mismatch DEC_050)
 # ─────────────────────────────────────────────
+
 
 @with_timeout("shopify")
 def get_shopify_inventory_status(
@@ -362,13 +375,16 @@ def get_shopify_inventory_status(
                 else:
                     healthy += 1
 
-        return ok("shopify", {
-            "out_of_stock": out_of_stock,
-            "critical_stock": critical,
-            "healthy_count": healthy,
-            "total_variants_checked": total,
-            "threshold_critical_applied": threshold_critical,
-        })
+        return ok(
+            "shopify",
+            {
+                "out_of_stock": out_of_stock,
+                "critical_stock": critical,
+                "healthy_count": healthy,
+                "total_variants_checked": total,
+                "threshold_critical_applied": threshold_critical,
+            },
+        )
 
     except requests.HTTPError as e:
         body = e.response.text[:200] if e.response is not None else ""
@@ -382,6 +398,7 @@ def get_shopify_inventory_status(
 # ─────────────────────────────────────────────
 # TOOL 4 — ACTIVE DISCOUNTS (weekly-digest % pedidos con cupón)
 # ─────────────────────────────────────────────
+
 
 @with_timeout("shopify")
 def get_shopify_active_discounts(
@@ -399,12 +416,12 @@ def get_shopify_active_discounts(
 
         now = datetime.now(_MADRID_TZ)
         window_start = (
-            datetime.fromisoformat(_to_madrid_iso(date_start))
-            if date_start else None
+            datetime.fromisoformat(_to_madrid_iso(date_start)) if date_start else None
         )
         window_end = (
             datetime.fromisoformat(_to_madrid_iso(date_end, end_of_day=True))
-            if date_end else None
+            if date_end
+            else None
         )
 
         def _is_active(rule: dict) -> bool:
@@ -428,24 +445,27 @@ def get_shopify_active_discounts(
 
         active = [r for r in rules if _is_active(r)]
 
-        return ok("shopify", {
-            "active_price_rules": [
-                {
-                    "id": r.get("id"),
-                    "title": r.get("title"),
-                    "value_type": r.get("value_type"),
-                    "value": r.get("value"),
-                    "starts_at": r.get("starts_at"),
-                    "ends_at": r.get("ends_at"),
-                    "target_type": r.get("target_type"),
-                    "customer_selection": r.get("customer_selection"),
-                }
-                for r in active
-            ],
-            "total_active_count": len(active),
-            "date_start": date_start,
-            "date_end": date_end,
-        })
+        return ok(
+            "shopify",
+            {
+                "active_price_rules": [
+                    {
+                        "id": r.get("id"),
+                        "title": r.get("title"),
+                        "value_type": r.get("value_type"),
+                        "value": r.get("value"),
+                        "starts_at": r.get("starts_at"),
+                        "ends_at": r.get("ends_at"),
+                        "target_type": r.get("target_type"),
+                        "customer_selection": r.get("customer_selection"),
+                    }
+                    for r in active
+                ],
+                "total_active_count": len(active),
+                "date_start": date_start,
+                "date_end": date_end,
+            },
+        )
 
     except requests.HTTPError as e:
         body = e.response.text[:200] if e.response is not None else ""

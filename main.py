@@ -54,7 +54,10 @@ from operational_inputs import (  # DEC_075
 )
 from orchestrator import orchestrate_l3  # T4 L3
 from output_registry import OUTPUT_REGISTRY  # T2 L3
-from output_assembler import assemble, overwrite_budget_pacer  # T3 L3 / T10 budget-pacer
+from output_assembler import (
+    assemble,
+    overwrite_budget_pacer,
+)  # T3 L3 / T10 budget-pacer
 from narrative import build_metrics_block, merge_prose  # T5 L3
 
 # ─── BOOTSTRAP ────────────────────────────────────────────────────────────────
@@ -860,7 +863,11 @@ def run_agent(
                     )
                     error_result = {"status": "error", "message": str(e)}
                     captured_tool_results.append(
-                        {"tool": block.name, "input": block.input, "result": error_result}
+                        {
+                            "tool": block.name,
+                            "input": block.input,
+                            "result": error_result,
+                        }
                     )
                     tool_results.append(
                         {
@@ -1197,7 +1204,9 @@ def _derive_analysis_status(legacy_status: str) -> str:
 
 
 @functions_framework.http
-def _request_prose(anthropic_client, system_prompt, metrics_block, client_id, agent_name):
+def _request_prose(
+    anthropic_client, system_prompt, metrics_block, client_id, agent_name
+):
     """Una sola llamada al LLM (sin tools): recibe el BLOQUE DE MÉTRICAS y
     devuelve SOLO el JSON de prosa. Degrada a {} si no parsea — los números
     deterministas se mantienen intactos (garantía L3)."""
@@ -1427,9 +1436,7 @@ def agent_executor(request):
             agent_name, config, analysis_date, run_profile
         )
         if agent_name == "performance-monitor":
-            enabled_paid = [
-                p for p in ("meta", "google_ads") if p in enabled_platforms
-            ]
+            enabled_paid = [p for p in ("meta", "google_ads") if p in enabled_platforms]
             output = run_perf_monitor_l3(
                 anthropic_client,
                 system_prompt,
