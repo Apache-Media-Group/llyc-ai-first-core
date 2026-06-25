@@ -119,6 +119,7 @@ TOOL_DISPATCHER = {
     "get_shopify_customer_segment": shopify.get_shopify_customer_segment,
     "get_shopify_inventory_status": shopify.get_shopify_inventory_status,
     "get_shopify_active_discounts": shopify.get_shopify_active_discounts,
+    "get_shopify_product_revenue": shopify.get_shopify_product_revenue,
     # tiktok → Sprint 1.5 (Jesús pendiente de validar access token)
 }
 

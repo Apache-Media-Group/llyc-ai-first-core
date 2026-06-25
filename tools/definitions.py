@@ -853,6 +853,57 @@ GET_SHOPIFY_ACTIVE_DISCOUNTS = {
 }
 
 
+GET_SHOPIFY_PRODUCT_REVENUE = {
+    "type": "custom",
+    "name": "get_shopify_product_revenue",
+    "description": (
+        "Agrega revenue ground truth (DEC_048) por producto en un rango de "
+        "fechas y devuelve el top_n por revenue descendente. Itera los mismos "
+        "pedidos DTC que get_shopify_orders_period (processed_at, TZ Madrid, "
+        "DEC_049, mismo dtc_filter) y suma price×quantity por product_id. El "
+        "tool computa y ordena. Usado por weekly-digest para concentración de "
+        "revenue (P-12 revenue_concentration_break)."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "date_start": {
+                "type": "string",
+                "description": "Fecha inicio (inclusiva) en formato YYYY-MM-DD.",
+            },
+            "date_end": {
+                "type": "string",
+                "description": "Fecha fin (inclusiva) en formato YYYY-MM-DD.",
+            },
+            "dtc_filter": {
+                "type": "object",
+                "description": (
+                    "Filtro DTC del config del cliente. Estructura: "
+                    "{source_name: str, excluded_source_names: list[str]}. "
+                    "Opcional; si se omite no se filtra."
+                ),
+                "properties": {
+                    "source_name": {"type": "string"},
+                    "excluded_source_names": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+            },
+            "top_n": {
+                "type": "integer",
+                "description": (
+                    "Nº de productos a devolver, ordenados por revenue desc. "
+                    "Leer de kpis.revenue_concentration.top_n del CONTEXTO DEL "
+                    "CLIENTE. Si no está disponible, omitir (el tool usa 20)."
+                ),
+            },
+        },
+        "required": ["date_start", "date_end"],
+    },
+}
+
+
 # ─── ASIGNACIÓN POR AGENTE ───────────────────────────────────────────────────
 #
 # Cada entrada del dict es la lista exacta de tools que se envía a Anthropic
@@ -907,6 +958,7 @@ TOOL_DEFINITIONS_BY_AGENT = {
         GET_SHOPIFY_CUSTOMER_SEGMENT,
         GET_SHOPIFY_INVENTORY_STATUS,
         GET_SHOPIFY_ACTIVE_DISCOUNTS,
+        GET_SHOPIFY_PRODUCT_REVENUE,
         # DV360 excluido — dv360_list_campaigns y dv360_list_insertion_orders
         # no están en TOOL_DISPATCHER (MCP server en Cloud Run, DEC_037).
     ],

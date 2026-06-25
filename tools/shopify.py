@@ -254,6 +254,116 @@ def get_shopify_orders_period(
 
 
 # ─────────────────────────────────────────────
+# TOOL 1b — PRODUCT REVENUE / TOP-N (weekly-digest)
+# ─────────────────────────────────────────────
+
+
+@with_timeout("shopify")
+def get_shopify_product_revenue(
+    date_start: str,
+    date_end: str,
+    dtc_filter: dict | None = None,
+    top_n: int = 20,
+) -> dict:
+    """
+    Revenue ground truth (DEC_048) agregado por producto para un período.
+
+    Reaprovecha el mismo fetch/paginación/dtc_filter que
+    get_shopify_orders_period (processed_at, TZ Madrid — DEC_049). Agrega los
+    line_items por product_id (revenue = price × quantity) y devuelve el top_n
+    por revenue desc. El tool computa y ordena (patrón L3: el número vive en el
+    tool, no en el LLM).
+
+    Usado por: weekly-digest (P-12 revenue_concentration_break).
+
+    NOTA: revenue por línea = price × quantity (bruto de línea, sin asignación
+    de descuentos a nivel pedido). No cuadra exactamente con el revenue de
+    get_shopify_orders_period (que usa total_price del pedido); sirve para
+    ranking de concentración relativa, no como ground truth absoluto del total.
+
+    Args:
+        date_start: YYYY-MM-DD (inclusivo).
+        date_end:   YYYY-MM-DD (inclusivo).
+        dtc_filter: {"source_name": "web", "excluded_source_names": [...]}.
+                    Mismo filtro que get_shopify_orders_period. Si None, no filtra.
+        top_n:      nº de productos a devolver, ordenados por revenue desc.
+                    Default 20 (fallback). El valor operativo vive en el workbook
+                    (kpis.revenue_concentration.top_n) y lo pasa el agente.
+
+    Returns:
+        ok("shopify", {products: [{product_id, title, revenue_eur, units}],
+                       period: {date_start, date_end}, total_products, top_n,
+                       dtc_filter_applied})
+    """
+    try:
+        _ensure_initialized()
+
+        params: dict[str, Any] = {
+            "status": "any",
+            "processed_at_min": _to_madrid_iso(date_start, end_of_day=False),
+            "processed_at_max": _to_madrid_iso(date_end, end_of_day=True),
+        }
+        if dtc_filter and dtc_filter.get("source_name"):
+            params["source_name"] = dtc_filter["source_name"]
+
+        orders = _get_paginated("/orders.json", params)
+        orders = _apply_dtc_filter(orders, dtc_filter)
+
+        by_product: dict[Any, dict[str, Any]] = {}
+        for o in orders:
+            for line_item in o.get("line_items", []) or []:
+                pid = line_item.get("product_id")
+                try:
+                    qty = int(line_item.get("quantity", 0) or 0)
+                except (TypeError, ValueError):
+                    qty = 0
+                try:
+                    price = float(line_item.get("price", 0) or 0)
+                except (TypeError, ValueError):
+                    price = 0.0
+
+                entry = by_product.get(pid)
+                if entry is None:
+                    entry = {
+                        "product_id": str(pid) if pid is not None else None,
+                        "title": line_item.get("title"),
+                        "revenue_eur": 0.0,
+                        "units": 0,
+                    }
+                    by_product[pid] = entry
+                entry["revenue_eur"] += price * qty
+                entry["units"] += qty
+
+        products = sorted(
+            by_product.values(), key=lambda p: p["revenue_eur"], reverse=True
+        )
+        for p in products:
+            p["revenue_eur"] = round(p["revenue_eur"], 2)
+
+        total_products = len(products)
+        limit = top_n if (isinstance(top_n, int) and top_n > 0) else total_products
+
+        return ok(
+            "shopify",
+            {
+                "products": products[:limit],
+                "period": {"date_start": date_start, "date_end": date_end},
+                "total_products": total_products,
+                "top_n": top_n,
+                "dtc_filter_applied": dtc_filter if dtc_filter else None,
+            },
+        )
+
+    except requests.HTTPError as e:
+        body = e.response.text[:200] if e.response is not None else ""
+        return error("shopify", "HTTP_ERROR", f"{e.response.status_code}: {body}")
+    except requests.RequestException as e:
+        return error("shopify", "API_ERROR", str(e))
+    except Exception as e:
+        return error("shopify", "UNEXPECTED_ERROR", str(e))
+
+
+# ─────────────────────────────────────────────
 # TOOL 2 — CUSTOMER SEGMENT (weekly-digest)
 # ─────────────────────────────────────────────
 
