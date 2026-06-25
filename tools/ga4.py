@@ -23,10 +23,6 @@ Nota sobre revenue (DEC_048):
   que el agente pueda aplicar la jerarquía correcta.
 """
 
-import json
-import os
-import tempfile
-
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import (
     DateRange,
@@ -45,6 +41,7 @@ from tools.response import ok, error, with_timeout
 # ─────────────────────────────────────────────
 # INICIALIZACIÓN
 # ─────────────────────────────────────────────
+
 
 def init_ga4_client(
     client_id: str,
@@ -75,6 +72,7 @@ def init_ga4_client(
 # ─────────────────────────────────────────────
 # PERFORMANCE MONITOR
 # ─────────────────────────────────────────────
+
 
 @with_timeout("ga4")
 def get_ga4_performance(
@@ -141,32 +139,37 @@ def get_ga4_performance(
             revenue = float(row.metric_values[3].value)
             bounce_rate = float(row.metric_values[5].value)
 
-            channels.append({
-                "channel": channel,
-                "medium": medium,
-                "source": source,
-                "sessions": sessions,
-                "new_users": new_users,
-                "transactions": transactions,
-                "revenue_eur": round(revenue, 2),
-                "bounce_rate_pct": round(bounce_rate, 4),
-            })
+            channels.append(
+                {
+                    "channel": channel,
+                    "medium": medium,
+                    "source": source,
+                    "sessions": sessions,
+                    "new_users": new_users,
+                    "transactions": transactions,
+                    "revenue_eur": round(revenue, 2),
+                    "bounce_rate_pct": round(bounce_rate, 4),
+                }
+            )
 
             total_sessions += sessions
             total_transactions += transactions
             total_revenue += revenue
             total_new_users += new_users
 
-        return ok("ga4", {
-            "sessions": total_sessions,
-            "new_users": total_new_users,
-            "transactions": total_transactions,
-            "revenue_eur": round(total_revenue, 2),
-            "revenue_source": "ga4",  # DEC_048: Shopify es ground truth — este valor es referencial
-            "channels": channels,
-            "date_start": date_start,
-            "date_end": date_end,
-        })
+        return ok(
+            "ga4",
+            {
+                "sessions": total_sessions,
+                "new_users": total_new_users,
+                "transactions": total_transactions,
+                "revenue_eur": round(total_revenue, 2),
+                "revenue_source": "ga4",  # DEC_048: Shopify es ground truth — este valor es referencial
+                "channels": channels,
+                "date_start": date_start,
+                "date_end": date_end,
+            },
+        )
 
     except Exception as e:
         return error("ga4", "API_ERROR", str(e))
@@ -175,6 +178,7 @@ def get_ga4_performance(
 # ─────────────────────────────────────────────
 # PAID CHANNEL BREAKDOWN
 # ─────────────────────────────────────────────
+
 
 @with_timeout("ga4")
 def get_ga4_paid_channel_performance(
@@ -238,24 +242,29 @@ def get_ga4_paid_channel_performance(
             by_medium[medium]["sessions"] += sessions
             by_medium[medium]["transactions"] += transactions
             by_medium[medium]["revenue_eur"] += revenue
-            by_medium[medium]["campaigns"].append({
-                "campaign": campaign,
-                "source": source,
-                "sessions": sessions,
-                "transactions": transactions,
-                "revenue_eur": round(revenue, 2),
-            })
+            by_medium[medium]["campaigns"].append(
+                {
+                    "campaign": campaign,
+                    "source": source,
+                    "sessions": sessions,
+                    "transactions": transactions,
+                    "revenue_eur": round(revenue, 2),
+                }
+            )
 
         # Redondear revenue totales
         for m in by_medium.values():
             m["revenue_eur"] = round(m["revenue_eur"], 2)
 
-        return ok("ga4", {
-            "paid_channels": list(by_medium.values()),
-            "revenue_source": "ga4",  # DEC_048
-            "date_start": date_start,
-            "date_end": date_end,
-        })
+        return ok(
+            "ga4",
+            {
+                "paid_channels": list(by_medium.values()),
+                "revenue_source": "ga4",  # DEC_048
+                "date_start": date_start,
+                "date_end": date_end,
+            },
+        )
 
     except Exception as e:
         return error("ga4", "API_ERROR", str(e))
@@ -264,6 +273,7 @@ def get_ga4_paid_channel_performance(
 # ─────────────────────────────────────────────
 # FUNNEL DE CONVERSIÓN
 # ─────────────────────────────────────────────
+
 
 @with_timeout("ga4")
 def get_ga4_funnel(
@@ -317,18 +327,26 @@ def get_ga4_funnel(
             transactions = int(row.metric_values[4].value)
             revenue = float(row.metric_values[5].value)
 
-            by_device.append({
-                "device": device,
-                "sessions": sessions,
-                "active_users": active_users,
-                "add_to_carts": add_to_carts,
-                "checkouts": checkouts,
-                "transactions": transactions,
-                "revenue_eur": round(revenue, 2),
-                "cart_rate_pct": round(add_to_carts / sessions, 4) if sessions > 0 else 0.0,
-                "checkout_rate_pct": round(checkouts / add_to_carts, 4) if add_to_carts > 0 else 0.0,
-                "conversion_rate_pct": round(transactions / sessions, 4) if sessions > 0 else 0.0,
-            })
+            by_device.append(
+                {
+                    "device": device,
+                    "sessions": sessions,
+                    "active_users": active_users,
+                    "add_to_carts": add_to_carts,
+                    "checkouts": checkouts,
+                    "transactions": transactions,
+                    "revenue_eur": round(revenue, 2),
+                    "cart_rate_pct": round(add_to_carts / sessions, 4)
+                    if sessions > 0
+                    else 0.0,
+                    "checkout_rate_pct": round(checkouts / add_to_carts, 4)
+                    if add_to_carts > 0
+                    else 0.0,
+                    "conversion_rate_pct": round(transactions / sessions, 4)
+                    if sessions > 0
+                    else 0.0,
+                }
+            )
 
             totals["sessions"] += sessions
             totals["active_users"] += active_users
@@ -338,17 +356,32 @@ def get_ga4_funnel(
             totals["revenue_eur"] += revenue
 
         totals["revenue_eur"] = round(totals["revenue_eur"], 2)
-        totals["cart_rate_pct"] = round(totals["add_to_carts"] / totals["sessions"], 4) if totals["sessions"] > 0 else 0.0
-        totals["checkout_rate_pct"] = round(totals["checkouts"] / totals["add_to_carts"], 4) if totals["add_to_carts"] > 0 else 0.0
-        totals["conversion_rate_pct"] = round(totals["transactions"] / totals["sessions"], 4) if totals["sessions"] > 0 else 0.0
+        totals["cart_rate_pct"] = (
+            round(totals["add_to_carts"] / totals["sessions"], 4)
+            if totals["sessions"] > 0
+            else 0.0
+        )
+        totals["checkout_rate_pct"] = (
+            round(totals["checkouts"] / totals["add_to_carts"], 4)
+            if totals["add_to_carts"] > 0
+            else 0.0
+        )
+        totals["conversion_rate_pct"] = (
+            round(totals["transactions"] / totals["sessions"], 4)
+            if totals["sessions"] > 0
+            else 0.0
+        )
 
-        return ok("ga4", {
-            "funnel_totals": totals,
-            "funnel_by_device": by_device,
-            "revenue_source": "ga4",  # DEC_048
-            "date_start": date_start,
-            "date_end": date_end,
-        })
+        return ok(
+            "ga4",
+            {
+                "funnel_totals": totals,
+                "funnel_by_device": by_device,
+                "revenue_source": "ga4",  # DEC_048
+                "date_start": date_start,
+                "date_end": date_end,
+            },
+        )
 
     except Exception as e:
         return error("ga4", "API_ERROR", str(e))
@@ -357,6 +390,7 @@ def get_ga4_funnel(
 # ─────────────────────────────────────────────
 # WEEKLY COMPARISON (auxiliar weekly-digest)
 # ─────────────────────────────────────────────
+
 
 @with_timeout("ga4")
 def get_ga4_weekly_comparison(
@@ -381,9 +415,17 @@ def get_ga4_weekly_comparison(
                 Metric(name="activeUsers"),
             ],
             date_ranges=[
-                DateRange(start_date="7daysAgo", end_date="yesterday", name="this_week"),
-                DateRange(start_date="14daysAgo", end_date="8daysAgo", name="last_week"),
-                DateRange(start_date="371daysAgo", end_date="365daysAgo", name="same_week_last_year"),
+                DateRange(
+                    start_date="7daysAgo", end_date="yesterday", name="this_week"
+                ),
+                DateRange(
+                    start_date="14daysAgo", end_date="8daysAgo", name="last_week"
+                ),
+                DateRange(
+                    start_date="371daysAgo",
+                    end_date="365daysAgo",
+                    name="same_week_last_year",
+                ),
             ],
             metric_aggregations=[MetricAggregation.TOTAL],
         )
@@ -400,10 +442,18 @@ def get_ga4_weekly_comparison(
             }
             for row in rows:
                 totals["sessions"] += int(row.metric_values[period_index * 5 + 0].value)
-                totals["transactions"] += int(row.metric_values[period_index * 5 + 1].value)
-                totals["revenue_eur"] += float(row.metric_values[period_index * 5 + 2].value)
-                totals["new_users"] += int(row.metric_values[period_index * 5 + 3].value)
-                totals["active_users"] += int(row.metric_values[period_index * 5 + 4].value)
+                totals["transactions"] += int(
+                    row.metric_values[period_index * 5 + 1].value
+                )
+                totals["revenue_eur"] += float(
+                    row.metric_values[period_index * 5 + 2].value
+                )
+                totals["new_users"] += int(
+                    row.metric_values[period_index * 5 + 3].value
+                )
+                totals["active_users"] += int(
+                    row.metric_values[period_index * 5 + 4].value
+                )
             totals["revenue_eur"] = round(totals["revenue_eur"], 2)
             return totals
 
@@ -416,22 +466,37 @@ def get_ga4_weekly_comparison(
                 return None
             return round((current - previous) / previous * 100, 1)
 
-        return ok("ga4", {
-            "this_week": this_week,
-            "last_week": last_week,
-            "same_week_last_year": same_week_ly,
-            "wow_change_pct": {
-                "sessions": pct_change(this_week["sessions"], last_week["sessions"]),
-                "transactions": pct_change(this_week["transactions"], last_week["transactions"]),
-                "revenue": pct_change(this_week["revenue_eur"], last_week["revenue_eur"]),
+        return ok(
+            "ga4",
+            {
+                "this_week": this_week,
+                "last_week": last_week,
+                "same_week_last_year": same_week_ly,
+                "wow_change_pct": {
+                    "sessions": pct_change(
+                        this_week["sessions"], last_week["sessions"]
+                    ),
+                    "transactions": pct_change(
+                        this_week["transactions"], last_week["transactions"]
+                    ),
+                    "revenue": pct_change(
+                        this_week["revenue_eur"], last_week["revenue_eur"]
+                    ),
+                },
+                "yoy_change_pct": {
+                    "sessions": pct_change(
+                        this_week["sessions"], same_week_ly["sessions"]
+                    ),
+                    "transactions": pct_change(
+                        this_week["transactions"], same_week_ly["transactions"]
+                    ),
+                    "revenue": pct_change(
+                        this_week["revenue_eur"], same_week_ly["revenue_eur"]
+                    ),
+                },
+                "revenue_source": "ga4",  # DEC_048
             },
-            "yoy_change_pct": {
-                "sessions": pct_change(this_week["sessions"], same_week_ly["sessions"]),
-                "transactions": pct_change(this_week["transactions"], same_week_ly["transactions"]),
-                "revenue": pct_change(this_week["revenue_eur"], same_week_ly["revenue_eur"]),
-            },
-            "revenue_source": "ga4",  # DEC_048
-        })
+        )
 
     except Exception as e:
         return error("ga4", "API_ERROR", str(e))
