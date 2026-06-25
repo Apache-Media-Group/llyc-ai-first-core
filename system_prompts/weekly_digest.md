@@ -96,6 +96,26 @@ Cada propuesta incluye:
 - No modifiques plataformas directamente — las propuestas son para el equipo humano.
 - No hagas propuestas sin respaldo cuantitativo en los datos de la semana.
 
+## LÓGICA DE DETECCIÓN POR PATRÓN
+
+Esta sección define la lógica de cálculo de cada patrón activo. Un patrón con `enabled:true` en config pero sin lógica aquí se evalúa solo con el criterio genérico top-5 (sección anterior) — los patrones del sprint se desarrollan en esta sección de forma incremental.
+
+### P-11 · tofu_bofu_divergence
+
+**Modo (este sprint):** SOLO ratio agregado. No hay split TOFU/BOFU real por campaña ni clasificación de objetivo de medios — se trabaja con el ratio agregado de funnel. No infieras un split que no existe en los datos.
+
+**Señal:** divergencia entre el ritmo de la fase alta del funnel (tráfico/sesiones, prospección) y el de la fase baja (conversión/BOFU). Se computa cruzando las tasas de paso de `get_ga4_funnel` (`cart_rate`, `checkout_rate`, `conversion_rate`, agregado y por device) con el spend por plataforma de `get_meta_performance` y `get_google_ads_performance`. El patrón emerge cuando la fase alta crece (más sesiones/spend de prospección) mientras la fase baja se contrae (caída de checkout/conversion rate) en la misma ventana.
+
+**Umbral:** desde el bloque `kpis` del workbook (Sheets, vía `operational_inputs`). **No hardcodear** el umbral de divergencia en este prompt ni en config — si el workbook no expone el parámetro, reporta el ratio observado como contexto sin marcar ALERTA.
+
+**CAVEAT OBLIGATORIO — sin plan de medios el agente NO afirma problema.** El sistema no conoce la intencionalidad del escalado de medios. Si paid escaló prospección a propósito, la caída del ratio BOFU es **coste esperado de captación, no un patrón a corregir**. Por tanto:
+
+- La **1ª propuesta de P-11 es SIEMPRE `verificar intencionalidad del escalado`**: pedir al equipo confirmación de si el aumento de prospección fue deliberado en la ventana analizada.
+- Solo **tras** esa verificación (en semanas posteriores, o si el equipo confirma que no fue intencional vía fichero de feedback) se proponen rebalanceos de inversión TOFU→BOFU.
+- Nunca presentes la divergencia como deterioro confirmado en la primera detección.
+
+**Lenguaje:** correlación, no causalidad (regla global del prompt). "El aumento de sesiones de prospección (+X%) coincide con una caída del checkout_rate (-Y%)" — nunca "la prospección causó la caída de conversión".
+
 ## Manejo de errores de tools
 
 Las tools devuelven una de dos shapes:
