@@ -342,6 +342,9 @@ def get_ga4_funnel(
                     "checkout_rate_pct": round(checkouts / add_to_carts, 4)
                     if add_to_carts > 0
                     else 0.0,
+                    "purchase_rate_pct": round(transactions / checkouts, 4)
+                    if checkouts > 0
+                    else 0.0,
                     "conversion_rate_pct": round(transactions / sessions, 4)
                     if sessions > 0
                     else 0.0,
@@ -364,6 +367,11 @@ def get_ga4_funnel(
         totals["checkout_rate_pct"] = (
             round(totals["checkouts"] / totals["add_to_carts"], 4)
             if totals["add_to_carts"] > 0
+            else 0.0
+        )
+        totals["purchase_rate_pct"] = (
+            round(totals["transactions"] / totals["checkouts"], 4)
+            if totals["checkouts"] > 0
             else 0.0
         )
         totals["conversion_rate_pct"] = (
