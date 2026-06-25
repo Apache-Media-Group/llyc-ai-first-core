@@ -55,7 +55,7 @@ Detalle completo en `META_sintesis-proyecto.md` del knowledge base.
 ```bash
 source .venv/bin/activate
 gcloud auth application-default login   # required; no .env file exists
-functions-framework --target=main --debug
+functions-framework --target=agent_executor --debug
 ```
 
 All secrets are fetched from GCP Secret Manager at runtime — never use a local `.env` file.
