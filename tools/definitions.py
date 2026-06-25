@@ -438,6 +438,48 @@ GET_GA4_WEEKLY_COMPARISON = {
 }
 
 
+GET_GA4_FUNNEL = {
+    "type": "custom",
+    "name": "get_ga4_funnel",
+    "description": (
+        "Obtiene el funnel de conversión GA4 desagregado por device "
+        "(deviceCategory) para una property y rango de fechas. Etapas: "
+        "sessions → active_users → add_to_carts → checkouts → transactions, "
+        "con tasas de paso (cart_rate, checkout_rate, conversion_rate) por "
+        "device y en total. Usado por weekly-digest para la sección de funnel. "
+        "NOTA: el revenue que devuelve es GA4 self-reported — desde DEC_048 "
+        "Shopify es la fuente de verdad de revenue, GA4 entra solo como funnel "
+        "y atribución, no como ground truth."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "property_id": {
+                "type": "string",
+                "description": (
+                    "ID de la property GA4. Solo el número, sin prefijo 'properties/'."
+                ),
+            },
+            "date_start": {
+                "type": "string",
+                "description": (
+                    "Fecha inicio. Formato YYYY-MM-DD o expresión relativa "
+                    "soportada por GA4: 'yesterday', '7daysAgo', '30daysAgo'."
+                ),
+            },
+            "date_end": {
+                "type": "string",
+                "description": (
+                    "Fecha fin (inclusive). Formato YYYY-MM-DD o expresión "
+                    "relativa: 'today', 'yesterday'."
+                ),
+            },
+        },
+        "required": ["property_id", "date_start", "date_end"],
+    },
+}
+
+
 # ─── SHOPIFY TOOL DEFINITIONS ────────────────────────────────────────────────
 #
 # Shopify es fuente de verdad de revenue (DEC_048). Las 4 tools alimentan
@@ -860,6 +902,7 @@ TOOL_DEFINITIONS_BY_AGENT = {
         GET_GOOGLE_ADS_PERFORMANCE,
         GET_GA4_PERFORMANCE,
         GET_GA4_WEEKLY_COMPARISON,
+        GET_GA4_FUNNEL,
         GET_SHOPIFY_ORDERS_PERIOD,
         GET_SHOPIFY_CUSTOMER_SEGMENT,
         GET_SHOPIFY_INVENTORY_STATUS,
