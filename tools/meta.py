@@ -88,6 +88,7 @@ def get_meta_performance(
                     "revenue_eur": 0.0,
                     "roas": 0.0,
                     "cpa_eur": 0.0,
+                    "cpm_eur": 0.0,
                     "impressions": 0,
                     "clicks": 0,
                     "ctr_pct": 0.0,
@@ -121,6 +122,11 @@ def get_meta_performance(
         roas = revenue / spend if spend > 0 else 0.0
         cpa = spend / conversions if conversions > 0 else 0.0
 
+        impressions = int(insight.get("impressions", 0))
+        # CPM = coste por mil impresiones. Lo calcula el tool (patrón L3: el tool
+        # es dueño del número, no el LLM). En EUR, no fracción.
+        cpm = (spend / impressions * 1000) if impressions > 0 else 0.0
+
         return ok(
             "meta",
             {
@@ -128,7 +134,8 @@ def get_meta_performance(
                 "revenue_eur": round(revenue, 2),
                 "roas": round(roas, 2),
                 "cpa_eur": round(cpa, 2),
-                "impressions": int(insight.get("impressions", 0)),
+                "cpm_eur": round(cpm, 2),
+                "impressions": impressions,
                 "clicks": int(insight.get("clicks", 0)),
                 "ctr_pct": round(float(insight.get("ctr", 0)), 4),
                 "conversions": conversions,

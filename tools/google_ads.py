@@ -90,7 +90,10 @@ def get_google_ads_performance(
                 metrics.conversions_value,
                 metrics.impressions,
                 metrics.clicks,
-                metrics.ctr
+                metrics.ctr,
+                metrics.search_impression_share,
+                metrics.search_budget_lost_impression_share,
+                metrics.search_rank_lost_impression_share
             FROM campaign
             WHERE segments.date BETWEEN '{date_start}' AND '{date_end}'
               AND metrics.cost_micros > 0
@@ -98,6 +101,21 @@ def get_google_ads_performance(
         """
 
         response = ga_service.search_stream(customer_id=str(customer_id), query=query)
+
+        # Impression Share (IS): solo aplica a campañas Search. PMax/Shopping no
+        # reportan estos campos → el proto no los trae (sin presencia) y se
+        # devuelve None, NO 0.0, para no confundir "sin dato" con "0% perdido".
+        # Los 3 campos son `optional` en el proto (v24), así que se detecta la
+        # presencia con el idiom proto-plus `field in message`. OJO: el wrapper
+        # proto-plus NO expone .HasField (eso es del protobuf crudo _pb); usar
+        # el idiom `in`.
+        # Convención de unidad: el tool devuelve PORCENTAJE (fracción API ×100)
+        # para casar directo con el umbral del workbook (search_lost_is_rank
+        # .alerta_pct=15, en %). El prompt compara contra 15, no contra 0.15.
+        def _is_pct(metrics, field_name):
+            if field_name in metrics:
+                return round(getattr(metrics, field_name) * 100, 2)
+            return None
 
         campaigns = []
         total_spend = 0.0
@@ -127,6 +145,15 @@ def get_google_ads_performance(
                         "impressions": impressions,
                         "clicks": clicks,
                         "ctr_pct": round(row.metrics.ctr, 4),
+                        "search_impression_share_pct": _is_pct(
+                            row.metrics, "search_impression_share"
+                        ),
+                        "search_budget_lost_impression_share_pct": _is_pct(
+                            row.metrics, "search_budget_lost_impression_share"
+                        ),
+                        "search_rank_lost_impression_share_pct": _is_pct(
+                            row.metrics, "search_rank_lost_impression_share"
+                        ),
                     }
                 )
 
