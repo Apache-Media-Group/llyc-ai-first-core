@@ -102,11 +102,21 @@ Esta sección define la lógica de cálculo de cada patrón activo. Un patrón c
 
 ### P-11 · tofu_bofu_divergence
 
-**Modo (este sprint):** SOLO ratio agregado. No hay split TOFU/BOFU real por campaña ni clasificación de objetivo de medios — se trabaja con el ratio agregado de funnel. No infieras un split que no existe en los datos.
+**Concepto del patrón:** divergencia entre la fase de **captación** (alta del funnel, prospección) y la de **cierre** (baja del funnel, conversión). El patrón emerge cuando la captación se acelera mientras el cierre se contrae en la misma ventana. El nombre `tofu_bofu_divergence` describe el **concepto**; la **métrica de disparo** de este sprint es un proxy (ver abajo), no el split TOFU/BOFU real — que no existe en los datos, no lo infieras.
 
-**Señal:** divergencia entre el ritmo de la fase alta del funnel (tráfico/sesiones, prospección) y el de la fase baja (conversión/BOFU). Se computa cruzando las tasas de paso de `get_ga4_funnel` (`cart_rate`, `checkout_rate`, `conversion_rate`, agregado y por device) con el spend por plataforma de `get_meta_performance` y `get_google_ads_performance`. El patrón emerge cuando la fase alta crece (más sesiones/spend de prospección) mientras la fase baja se contrae (caída de checkout/conversion rate) en la misma ventana.
+**Señal de disparo (este sprint — DEC_104):** ratio `clicks_per_conversion` **combinado Google + Meta**, proxy robusto de la divergencia mientras el tracking GA4 esté contaminado. Se computa sobre la ventana de análisis:
 
-**Umbral:** desde el bloque `kpis` del workbook (Sheets, vía `operational_inputs`). **No hardcodear** el umbral de divergencia en este prompt ni en config — si el workbook no expone el parámetro, reporta el ratio observado como contexto sin marcar ALERTA.
+```
+clicks_per_conversion = (Σ clicks Google + Σ clicks Meta) / (Σ conversions Google + Σ conversions Meta)
+```
+
+Campos reales: `clicks` y `conversions` (por campaña y en totales) de `get_google_ads_performance` y `get_meta_performance`. **Unidad: ratio absoluto** (clics por conversión), no porcentaje. Un ratio al alza WoW = más clics para cerrar la misma conversión = señal de que la captación diverge del cierre.
+
+**Por qué proxy y no el ratio de funnel GA4 (DEC_104):** la señal conceptualmente más fiel sería el ratio de paso del funnel de `get_ga4_funnel` (`cart_rate_pct` → `checkout_rate_pct` → `purchase_rate_pct` → `conversion_rate_pct`). Queda **aplazada**: con el tracking GA4 contaminado (bucket `Unassigned` elevado, 1er run productivo) el funnel no es fiable todavía. `clicks_per_conversion` no depende del tracking de GA4 — por eso es el disparador de este sprint. Evolución prevista: volver al ratio de funnel GA4 cuando el tracking esté saneado.
+
+**CAVEAT de comparabilidad de conversiones:** `conversions` de Google es float con atribución propia de Google Ads; `conversions` de Meta es suma entera de `actions` filtradas (`get_meta_performance`). El ratio combinado **mezcla dos definiciones de conversión** — repórtalo como proxy direccional (tendencia WoW), no como métrica exacta.
+
+**Umbral:** desde el bloque `kpis` del workbook (Sheets, vía `operational_inputs`) — claves `clicks_per_conversion.alerta_alto`, `clicks_per_conversion.alerta_bajo`, `clicks_per_conversion.alerta_alto_q4` (override estacional Q4) y `clicks_per_conversion.persistencia_semanas` (nº de semanas consecutivas fuera de rango antes de marcar ALERTA). **No hardcodear** los umbrales en este prompt ni en config — si el workbook no expone el parámetro, reporta el ratio observado como contexto sin marcar ALERTA.
 
 **CAVEAT OBLIGATORIO — sin plan de medios el agente NO afirma problema.** El sistema no conoce la intencionalidad del escalado de medios. Si paid escaló prospección a propósito, la caída del ratio BOFU es **coste esperado de captación, no un patrón a corregir**. Por tanto:
 
@@ -114,7 +124,7 @@ Esta sección define la lógica de cálculo de cada patrón activo. Un patrón c
 - Solo **tras** esa verificación (en semanas posteriores, o si el equipo confirma que no fue intencional vía fichero de feedback) se proponen rebalanceos de inversión TOFU→BOFU.
 - Nunca presentes la divergencia como deterioro confirmado en la primera detección.
 
-**Lenguaje:** correlación, no causalidad (regla global del prompt). "El aumento de sesiones de prospección (+X%) coincide con una caída del checkout_rate (-Y%)" — nunca "la prospección causó la caída de conversión".
+**Lenguaje:** correlación, no causalidad (regla global del prompt). "El aumento de `clicks_per_conversion` combinado (+X%) coincide con un mayor spend de prospección (+Y%)" — nunca "la prospección causó la caída de conversión".
 
 ## Manejo de errores de tools
 
