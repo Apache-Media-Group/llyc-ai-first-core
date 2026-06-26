@@ -112,6 +112,22 @@ def get_active_platforms() -> list:
 
 
 # ── FIREBASE AUTH ─────────────────────────────────────────────────
+def get_allowed_emails() -> list:
+    """
+    Lee la allowlist de emails autorizados.
+    Prioridad: config.json del cliente → env var ALLOWED_EMAILS (separada por ;)
+    """
+    cfg = get_client_config()
+    from_config = cfg.get("dashboard", {}).get("allowed_emails", [])
+    if from_config:
+        return from_config
+    # Fallback: env var ALLOWED_EMAILS separada por ;
+    env_emails = os.getenv("ALLOWED_EMAILS", "")
+    if env_emails:
+        return [e.strip() for e in env_emails.split(";") if e.strip()]
+    return []
+
+
 def verify_firebase_token(request) -> tuple:
     """Verifica token Firebase y comprueba allowlist del cliente."""
     auth_header = request.headers.get("Authorization", "")
@@ -121,8 +137,7 @@ def verify_firebase_token(request) -> tuple:
     try:
         decoded = firebase_auth.verify_id_token(id_token)
         email = decoded.get("email", "")
-        cfg = get_client_config()
-        allowed_emails = cfg.get("dashboard", {}).get("allowed_emails", [])
+        allowed_emails = get_allowed_emails()
         if email in allowed_emails:
             return True, email
         log.warning(f"Access denied for email: {email}")
