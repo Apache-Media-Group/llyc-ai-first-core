@@ -100,6 +100,17 @@ tbody tr:hover td{background:rgba(255,255,255,0.02)}
 .num{font-family:'DM Mono',monospace}
 .date-cell{font-family:'DM Mono',monospace;color:var(--muted2)}
 
+
+/* LOGIN */
+.login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;flex-direction:column}
+.login-card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:48px;max-width:400px;width:90%;text-align:center;display:flex;flex-direction:column;gap:20px}
+.login-logo{font-family:'Montserrat',sans-serif;font-size:22px;font-weight:800;display:flex;align-items:center;gap:10px;justify-content:center}
+.login-title{font-size:15px;color:var(--muted2)}
+.btn-google{background:#fff;color:#333;border:none;padding:12px 24px;border-radius:6px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;justify-content:center;transition:all 0.15s;width:100%}
+.btn-google:hover{background:#f0f0f0}
+.btn-google svg{width:20px;height:20px}
+.login-error{color:var(--accent2);font-size:12px;font-family:'DM Mono',monospace}
+
 /* LOADING / ERROR */
 .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 40px;gap:14px;flex:1}
 .spinner{width:26px;height:26px;border:2px solid var(--border);border-top-color:var(--llyc-red);border-radius:50%;animation:spin 0.7s linear infinite}
@@ -141,7 +152,7 @@ textarea.ci:focus{border-color:var(--border2)}
     import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
     const firebaseConfig = {
-      apiKey: "AIzaSyCHIluDUA_iS-AFda6aWWrrKFdPFn9Z2yY",
+      apiKey: "AIzaSyC_placeholder_replace_with_real_key",
       authDomain: "llyc-ai-first-core.firebaseapp.com",
       projectId: "llyc-ai-first-core",
       storageBucket: "llyc-ai-first-core.firebasestorage.app",
