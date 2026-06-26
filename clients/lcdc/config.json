@@ -15,8 +15,13 @@
     "windows": {
       "default_days": 30,
       "comparison_days": 7
-    }
-  },
+    },
+    "allowed_emails": [
+      "alberto.gonzalez@llyc.global",
+      "massimiliano.turinetto@llyc.global",
+      "sergio.alonso@llyc.global"
+    ]
+  }
   "_metadata": {
     "version": "1.1",
     "fecha_creacion": "2026-06-19",
