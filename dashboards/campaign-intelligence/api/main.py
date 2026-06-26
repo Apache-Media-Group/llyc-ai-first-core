@@ -21,6 +21,12 @@ from datetime import datetime, timezone, date
 from google.cloud import bigquery, secretmanager
 import google.cloud.logging
 import logging
+import firebase_admin
+from firebase_admin import auth as firebase_auth
+
+# Initialize Firebase Admin SDK (uses application default credentials)
+if not firebase_admin._apps:
+    firebase_admin.initialize_app()
 
 # ── LOGGING ───────────────────────────────────────────────────────
 # Cloud Functions Gen 2 corre como Cloud Run — usar Cloud Logging
@@ -102,6 +108,28 @@ def get_active_platforms() -> list:
     dash_cfg = get_dashboard_config()
     datasources = [s.lower() for s in dash_cfg.get("datasources", PLATFORMS)]
     return [p for p in PLATFORMS if p.lower() in datasources]
+
+
+
+# ── FIREBASE AUTH ─────────────────────────────────────────────────
+def verify_firebase_token(request) -> tuple:
+    """Verifica token Firebase y comprueba allowlist del cliente."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return False, ""
+    id_token = auth_header.split("Bearer ")[1]
+    try:
+        decoded = firebase_auth.verify_id_token(id_token)
+        email = decoded.get("email", "")
+        cfg = get_client_config()
+        allowed_emails = cfg.get("dashboard", {}).get("allowed_emails", [])
+        if email in allowed_emails:
+            return True, email
+        log.warning(f"Access denied for email: {email}")
+        return False, email
+    except Exception as e:
+        log.error(f"Firebase token verification failed: {e}")
+        return False, ""
 
 
 # ── ANTHROPIC ─────────────────────────────────────────────────────
@@ -241,6 +269,13 @@ def dashboard_api(request):
 
     action = request.args.get("action", "ping")
     log.info(f"dashboard_api called: action={action} tenant={TENANT_ID}")
+
+    # ── AUTH — ping no requiere auth (health check) ────────────────
+    if action != "ping":
+        authorized, email = verify_firebase_token(request)
+        if not authorized:
+            return json_response({"error": "Unauthorized"}, 401)
+        log.info(f"Authenticated: {email}")
 
     # ── PING ──────────────────────────────────────────────────────
     if action == "ping":
