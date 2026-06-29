@@ -144,6 +144,10 @@ textarea.ci{flex:1;background:var(--s2);border:1px solid var(--border);color:var
 textarea.ci:focus{border-color:var(--border2)}
 .btn-send{background:var(--llyc-red);color:#fff;border:none;padding:0 16px;border-radius:6px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.15s}
 .btn-send:hover{background:var(--llyc-teal)}.btn-send:disabled{opacity:0.35;cursor:not-allowed}
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:10px 0;margin-top:4px}
+.pg-btn{background:transparent;border:1px solid var(--border);color:var(--muted2);padding:5px 12px;border-radius:3px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;transition:all 0.15s;text-transform:uppercase}
+.pg-btn:hover:not(:disabled){border-color:var(--llyc-teal);color:var(--llyc-teal)}.pg-btn:disabled{opacity:0.3;cursor:not-allowed}
+.pg-info{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)}
 ::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--llyc-teal);opacity:0.4;border-radius:2px}
 </style>
   <!-- Firebase Auth -->
@@ -152,7 +156,7 @@ textarea.ci:focus{border-color:var(--border2)}
     import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
     const firebaseConfig = {
-      apiKey: "AIzaSyC_placeholder_replace_with_real_key",
+      apiKey: "AIzaSyCHIluDUA_iS-AFda6aWWrrKFdPFn9Z2yY",
       authDomain: "llyc-ai-first-core.firebaseapp.com",
       projectId: "llyc-ai-first-core",
       storageBucket: "llyc-ai-first-core.firebasestorage.app",
@@ -242,11 +246,28 @@ let filters = {}; // { platform: { dateFrom, dateTo, campaign, ad } }
 let colIdx = {}; // { platform: { date, campaign, ad } }
 // Sort state per platform
 let sortState = {}; // { platform: { col, dir } }
+// Pagination state per platform
+let pageState = {}; // { platform: currentPage }
+const PAGE_SIZE = 10;
+
+// Overview filters
+let overviewDateFrom = '';
+let overviewDateTo = '';
+let overviewPlatform = '';
+
+// Columns to exclude (IDs, internal codes)
+const EXCLUDE_COL_PATTERNS = /(_id$|^id$|_key$|account_id|advertiser_id|campaign_id|adgroup_id|ad_id|placement_id|creative_id)/i;
 
 // ── CLOUD FUNCTION URL (via Firebase Hosting proxy) ──────────────
 const CF_URL = '/api';
 
 let _authToken = null;
+
+// ── TENANT ────────────────────────────────────────────────────────
+// Lee tenant_id de la URL: /campaign-intelligence/?tenant_id=lcdc
+// Si no viene, usa 'lcdc' como fallback temporal
+const _urlParams = new URLSearchParams(window.location.search);
+const TENANT_ID = _urlParams.get('tenant_id') || 'lcdc';
 
 // ── AUTH ───────────────────────────────────────────────────────────
 async function signIn() {
@@ -289,6 +310,7 @@ window.onload = () => {
 // ── FETCH ──────────────────────────────────────────────────────────
 async function gasGet(params){
   const url=new URL(CF_URL, window.location.origin);
+  url.searchParams.set('tenant_id', TENANT_ID);
   Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,typeof v==='object'?JSON.stringify(v):String(v)));
   const headers = _authToken ? {'Authorization': `Bearer ${_authToken}`} : {};
   const r=await fetch(url.toString(), {headers});
@@ -299,6 +321,7 @@ async function gasGet(params){
 async function gasPost(body){
   const url=new URL(CF_URL, window.location.origin);
   url.searchParams.set('action', body.action || 'chat');
+  url.searchParams.set('tenant_id', TENANT_ID);
   const headers = {'Content-Type':'application/json'};
   if (_authToken) headers['Authorization'] = `Bearer ${_authToken}`;
   const r=await fetch(url.toString(),{method:'POST',headers,body:JSON.stringify(body)});
@@ -342,7 +365,14 @@ async function loadAll(forceRefresh=false){
 
   // Show loading only on first load, not on refresh attempts
   if(!prevFetchedAt) showLoading('Cargando datos...');
-  allData={};filters={};colIdx={};sortState={};
+  allData={};filters={};colIdx={};sortState={};pageState={};
+  // Default date filter: last 28 days
+  const today = new Date();
+  const d28ago = new Date(today);
+  d28ago.setDate(today.getDate() - 28);
+  const fmt = d => d.toISOString().split('T')[0];
+  const defaultDateFrom = fmt(d28ago);
+  const defaultDateTo = fmt(today);
 
   try{
     const res=await gasGet({action:'data'});
@@ -352,8 +382,11 @@ async function loadAll(forceRefresh=false){
       if(res.data[p]&&!res.data[p].error&&res.data[p].rows?.length>0){
         allData[p]=res.data[p];
         colIdx[p]=detectColumns(res.data[p].headers);
-        filters[p]={dateFrom:'',dateTo:'',campaign:'',ad:''};
-        sortState[p]={col:-1,dir:'asc'};
+        filters[p]={dateFrom:defaultDateFrom,dateTo:defaultDateTo,campaign:'',ad:''};
+        // Default sort: date ascending
+        const dateColIdx = colIdx[p]?.date ?? -1;
+        sortState[p]={col:dateColIdx,dir:'asc'};
+        pageState[p]=0;
         loaded.push(p);
       }
     });
@@ -378,7 +411,6 @@ async function loadAll(forceRefresh=false){
     currentTab='OVERVIEW';render();
     if(loaded.length>0){
       // Invalidate insights cache if context Doc changed
-      if(docChanged) insightsCache = '';
       setTimeout(()=>genInsights(newFetchedAt),300);
       setTimeout(()=>addMsg('bot',`✓ <strong>${loaded.join(', ')}</strong> cargadas. ¿Qué quieres analizar?`),500);
     }
@@ -438,6 +470,15 @@ function getFilteredRows(platform){
   if(!d)return[];
 
   return d.rows.filter(row=>{
+    // Skip rows where all non-date values are null/empty/zero
+    const hasData = d.headers.some((hdr,i) => {
+      if(isDateValue(row[i], hdr)) return false;
+      const v = row[i];
+      return v !== null && v !== undefined && v !== '' && v !== 0 && String(v).trim() !== '';
+    });
+    if(!hasData) return false;
+
+
     // Date filter
     if((f.dateFrom||f.dateTo)&&ci.date>=0){
       const rawDate=row[ci.date];
@@ -464,12 +505,19 @@ function getSortedRows(rows, platform){
   const s=sortState[platform];
   if(!s||s.col<0)return rows;
   const col=s.col;
+  const hdr = (allData[platform]?.headers||[])[col]||'';
+  const isDateCol = isDateValue(rows[0]?.[col], hdr);
   return [...rows].sort((a,b)=>{
     const av=a[col]??'', bv=b[col]??'';
-    const an=num(av), bn=num(bv);
     let cmp;
-    if(!isNaN(an)&&!isNaN(bn))cmp=an-bn;
-    else cmp=String(av).localeCompare(String(bv),'es');
+    if(isDateCol){
+      // yyyy-mm-dd sorts correctly as string
+      cmp = String(av).localeCompare(String(bv));
+    } else {
+      const an=num(av), bn=num(bv);
+      if(!isNaN(an)&&!isNaN(bn))cmp=an-bn;
+      else cmp=String(av).localeCompare(String(bv),'es');
+    }
     return s.dir==='asc'?cmp:-cmp;
   });
 }
@@ -481,7 +529,7 @@ function showError(msg){document.getElementById('dashboard').innerHTML=`<div cla
 function render(){
   if(!Object.keys(allData).length){showError('No hay datos.');return;}
   const content=currentTab==='OVERVIEW'?renderOverview():renderPlatform(currentTab);
-  const filtersBar=currentTab!=='OVERVIEW'?renderFiltersBar(currentTab):'';
+  const filtersBar=currentTab==='OVERVIEW'?renderOverviewFilters():renderFiltersBar(currentTab);
   document.getElementById('dashboard').innerHTML=`
     <div class="tabs-wrap"><div class="tabs">${buildTabs()}</div></div>
     ${filtersBar}
@@ -521,16 +569,14 @@ function renderFiltersBar(p){
 
   let html=`<div class="filters-bar">`;
 
-  // Date range — only if date column detected
-  if(ci.date>=0){
-    html+=`<div class="filter-group">
-      <span class="filter-label">Desde</span>
-      <input type="date" class="filter-date" value="${f.dateFrom||''}" onchange="setFilter('${p}','dateFrom',this.value)">
-      <span class="filter-label">Hasta</span>
-      <input type="date" class="filter-date" value="${f.dateTo||''}" onchange="setFilter('${p}','dateTo',this.value)">
-    </div>
-    <div class="filter-sep"></div>`;
-  }
+  // Date range — always show, default last 28 days
+  html+=`<div class="filter-group">
+    <span class="filter-label">Desde</span>
+    <input type="date" class="filter-date" value="${f.dateFrom||''}" onchange="setFilter('${p}','dateFrom',this.value)">
+    <span class="filter-label">Hasta</span>
+    <input type="date" class="filter-date" value="${f.dateTo||''}" onchange="setFilter('${p}','dateTo',this.value)">
+  </div>
+  <div class="filter-sep"></div>`;
 
   // Campaign — only if column detected
   if(ci.campaign>=0){
@@ -562,6 +608,7 @@ function renderFiltersBar(p){
 function setFilter(platform, key, value){
   if(!filters[platform])filters[platform]={dateFrom:'',dateTo:'',campaign:'',ad:''};
   filters[platform][key]=value;
+  pageState[platform]=0; // reset page on filter change
   render();
 }
 function clearFilters(platform){
@@ -570,25 +617,69 @@ function clearFilters(platform){
 }
 
 // ── OVERVIEW ───────────────────────────────────────────────────────
+function getOverviewFilteredData(){
+  // Filter allData by overviewDateFrom/To and overviewPlatform
+  const result = {};
+  const platforms = overviewPlatform ? [overviewPlatform] : Object.keys(allData);
+  platforms.forEach(p => {
+    if(!allData[p]) return;
+    if(!overviewDateFrom && !overviewDateTo) { result[p] = allData[p]; return; }
+    const ci = colIdx[p] || {};
+    const rows = allData[p].rows.filter(row => {
+      if(ci.date < 0) return true;
+      const d = parseDate(row[ci.date]);
+      if(!d) return true;
+      if(overviewDateFrom){ const from=parseDate(overviewDateFrom); if(from&&d<from) return false; }
+      if(overviewDateTo){ const to=parseDate(overviewDateTo); if(to&&d>to) return false; }
+      return true;
+    });
+    result[p] = {...allData[p], rows};
+  });
+  return result;
+}
+
+function renderOverviewFilters(){
+  const platforms = Object.keys(allData);
+  let platOpts = '<option value="">Todas las plataformas</option>';
+  platforms.forEach(p => platOpts += `<option value="${p}" ${overviewPlatform===p?'selected':''}>${p}</option>`);
+
+  return `<div class="filters-bar">
+    <div class="filter-group">
+      <span class="filter-label">Desde</span>
+      <input type="date" class="filter-date" value="${overviewDateFrom}" onchange="overviewDateFrom=this.value;render()">
+      <span class="filter-label">Hasta</span>
+      <input type="date" class="filter-date" value="${overviewDateTo}" onchange="overviewDateTo=this.value;render()">
+    </div>
+    <div class="filter-sep"></div>
+    <div class="filter-group">
+      <span class="filter-label">Canal</span>
+      <select class="filter-select" onchange="overviewPlatform=this.value;render()">${platOpts}</select>
+    </div>
+    ${(overviewDateFrom||overviewDateTo||overviewPlatform)?'<div class="filter-sep"></div><button class="filter-clear" onclick="overviewDateFrom=\'\';overviewDateTo=\'\';overviewPlatform=\'\';render()">✕ Limpiar</button>':''}
+  </div>`;
+}
+
 function renderOverview(){
   let h='';
-  const kpis=aggKPIs();
+  const filteredData = getOverviewFilteredData();
+  const kpis=aggKPIs(filteredData);
   if(kpis.length){h+='<div class="kpi-grid">';kpis.forEach(k=>h+=`<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub||''}</div></div>`);h+='</div>';}
   h+='<div class="sec-title">Plataformas activas</div><div class="platform-grid">';
   PLATFORMS.forEach(p=>{
-    if(!allData[p])return;
+    if(!filteredData[p])return;
     const col=PCOLORS[p]||'#888';
-    const metrics=detectMetrics(allData[p].headers).slice(0,4).join(' · ')||'—';
-    h+=`<div class="platform-card" onclick="switchTab('${p}')"><div class="pcard-top"><div class="pname"><div class="pdot" style="background:${col}"></div>${p}</div><div class="prows">${allData[p].rows.length.toLocaleString('es-ES')} filas</div></div><div class="pmetrics">${metrics}</div></div>`;
+    const metrics=detectMetrics(filteredData[p].headers).slice(0,4).join(' · ')||'—';
+    h+=`<div class="platform-card" onclick="switchTab('${p}')"><div class="pcard-top"><div class="pname"><div class="pdot" style="background:${col}"></div>${p}</div><div class="prows">${filteredData[p].rows.length.toLocaleString('es-ES')} filas</div></div><div class="pmetrics">${metrics}</div></div>`;
   });
   h+='</div><div class="sec-title">Insights IA</div>';
   h+=`<div class="insights-grid" id="insightsGrid">${insightsCache||'<div class="ins-card info" style="grid-column:1/-1"><div class="ins-tag">⟳ Analizando</div><div class="ins-text">Generando insights con IA...</div></div>'}</div>`;
   return h;
 }
 
-function aggKPIs(){
+function aggKPIs(dataSource){
+  const src = dataSource || allData;
   let imp=0,clk=0,spend=0,reach=0,views=0,hI=false,hC=false,hS=false,hR=false,hV=false;
-  for(const[,d]of Object.entries(allData)){
+  for(const[,d]of Object.entries(src)){
     const H=d.headers.map(x=>(x||'').toLowerCase());
     const fi=keys=>H.findIndex(x=>keys.some(k=>x.includes(k)));
     const iI=fi(['impres']),iC=fi(['click']),iS=fi(['spend','cost','inver','importe']),iR=fi(['reach','alcance']),iV=fi(['view','reproduc']);
@@ -620,7 +711,7 @@ function renderPlatform(p){
     h+='</div>';
   }
   h+=`<div class="sec-title">${p} · ${filteredRows.length.toLocaleString('es-ES')} filas</div>`;
-  h+=renderTable(d,filteredRows,p,200);
+  h+=renderTable(d,filteredRows,p);
   return h;
 }
 
@@ -642,14 +733,39 @@ function numKPIs(d, rows){
   return kpis.slice(0,8);
 }
 
-function renderTable(d, rows, platform, maxRows=200){
+function isIdColumn(hdr) {
+  return EXCLUDE_COL_PATTERNS.test(hdr||'');
+}
+
+function isNumericDominantColumn(hdr, rows, colIndex) {
+  // Detect text columns (by name) that contain mostly numeric values (API IDs)
+  const hl = (hdr||'').toLowerCase();
+  const textDimCols = ['campaign','adgroup','ad','creative','placement'];
+  if(!textDimCols.some(dim => hl === dim)) return false;
+  // Check if >70% of non-empty values are purely numeric
+  const nonEmpty = rows.filter(r => r[colIndex] !== null && r[colIndex] !== undefined && r[colIndex] !== '');
+  if(nonEmpty.length === 0) return false;
+  const numericCount = nonEmpty.filter(r => /^-?[0-9]+$/.test(String(r[colIndex]||'').trim())).length;
+  return (numericCount / nonEmpty.length) > 0.7;
+}
+
+function renderTable(d, rows, platform){
   const sorted=getSortedRows(rows,platform);
-  const visible=sorted.slice(0,maxRows);
-  if(!visible.length)return'<p style="color:var(--muted);padding:12px 0">Sin resultados para los filtros aplicados.</p>';
+  if(!sorted.length)return'<p style="color:var(--muted);padding:12px 0">Sin resultados para los filtros aplicados.</p>';
+
+  // Pagination
+  const currentPage = pageState[platform] || 0;
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+  const visible = sorted.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+
+  // Filter out ID columns and numeric-dominant text columns (API IDs)
+  const visibleCols = d.headers.map((hdr,i) => ({hdr,i})).filter(({hdr,i}) => 
+    !isIdColumn(hdr) && !isNumericDominantColumn(hdr, sorted, i)
+  );
 
   const ss=sortState[platform]||{col:-1,dir:'asc'};
   let h='<div class="table-wrap"><table><thead><tr>';
-  d.headers.forEach((hdr,i)=>{
+  visibleCols.forEach(({hdr,i})=>{
     const cls=ss.col===i?`sortable sort-${ss.dir}`:'sortable';
     h+=`<th class="${cls}" onclick="toggleSort('${platform}',${i})">${esc(hdr)||'—'}</th>`;
   });
@@ -657,7 +773,7 @@ function renderTable(d, rows, platform, maxRows=200){
 
   visible.forEach(row=>{
     h+='<tr>';
-    d.headers.forEach((hdr,i)=>{
+    visibleCols.forEach(({hdr,i})=>{
       const v=row[i]??'';
       const isDate=isDateValue(v,hdr);
       const n=isDate?NaN:num(v);
@@ -674,8 +790,25 @@ function renderTable(d, rows, platform, maxRows=200){
   });
 
   h+='</tbody></table></div>';
-  if(sorted.length>maxRows)h+=`<p style="color:var(--muted);font-size:10px;font-family:'DM Mono',monospace;margin-top:8px">Mostrando ${maxRows} de ${sorted.length} filas</p>`;
+
+  // Pagination controls
+  if(totalPages > 1){
+    h+=`<div class="pagination">`;
+    h+=`<button class="pg-btn" onclick="changePage('${platform}',-1)" ${currentPage===0?'disabled':''}>← Anterior</button>`;
+    h+=`<span class="pg-info">Pág. ${currentPage+1} / ${totalPages} · ${sorted.length.toLocaleString('es-ES')} filas</span>`;
+    h+=`<button class="pg-btn" onclick="changePage('${platform}',1)" ${currentPage>=totalPages-1?'disabled':''}>Siguiente →</button>`;
+    h+=`</div>`;
+  } else {
+    h+=`<p style="color:var(--muted);font-size:10px;font-family:'DM Mono',monospace;margin-top:8px">${sorted.length.toLocaleString('es-ES')} filas</p>`;
+  }
   return h;
+}
+
+function changePage(platform, direction){
+  const filtered = getSortedRows(getFilteredRows(platform), platform);
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  pageState[platform] = Math.max(0, Math.min((pageState[platform]||0) + direction, totalPages-1));
+  render();
 }
 
 function toggleSort(platform, colIndex){

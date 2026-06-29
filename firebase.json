@@ -17,7 +17,8 @@
           {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"},
           {"key": "Content-Security-Policy", "value": "default-src 'self' https:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https:;"},
           {"key": "Permissions-Policy", "value": "geolocation=(), microphone=(), camera=()"},
-          {"key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload"}
+          {"key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload"},
+          {"key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups"}
         ]
       }
     ],
@@ -28,6 +29,14 @@
           "serviceId": "campaign-intelligence-api",
           "region": "europe-west1"
         }
+      },
+      {
+        "source": "/campaign-intelligence/**",
+        "destination": "/dashboard-final.html"
+      },
+      {
+        "source": "/campaign-intelligence",
+        "destination": "/dashboard-final.html"
       },
       {
         "source": "**",

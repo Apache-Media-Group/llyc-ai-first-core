@@ -1,0 +1,6 @@
+GCP_CLIENT_PROJECT: llyc-prj-lcdlc-datamart
+BQ_DATASET: ODS
+TENANT_ID: lcdc
+CLIENT_SECRET_PROJECT: llyc-ai-lcdc
+KNOWN_TENANTS: lcdc
+ALLOWED_EMAILS: alberto.gonzalez@llyc.global;massimiliano.turinetto@llyc.global;sergio.alonso@llyc.global

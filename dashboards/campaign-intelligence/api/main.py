@@ -48,6 +48,21 @@ BQ_DATASET            = os.getenv("BQ_DATASET", "ODS")
 TENANT_ID             = os.getenv("TENANT_ID")
 CLIENT_SECRET_PROJECT = os.getenv("CLIENT_SECRET_PROJECT")
 
+# Allowlist de tenants conocidos — separados por ; en KNOWN_TENANTS
+KNOWN_TENANTS = set(
+    t.strip() for t in os.getenv("KNOWN_TENANTS", TENANT_ID).split(";") if t.strip()
+)
+
+# Mapa tenant -> config de proyecto
+TENANT_CONFIG = {
+    t: {
+        "client_project": os.getenv(f"CLIENT_PROJECT_{t.upper()}", os.getenv("GCP_CLIENT_PROJECT")),
+        "bq_dataset": os.getenv("BQ_DATASET", "ODS"),
+        "client_secret_project": os.getenv(f"SECRET_PROJECT_{t.upper()}", os.getenv("CLIENT_SECRET_PROJECT")),
+    }
+    for t in KNOWN_TENANTS
+}
+
 # Plataformas disponibles — pueden filtrarse vía config.json del cliente
 PLATFORMS = ["Spotify", "TikTok", "YouTube", "Meta", "Amazon", "DOOH", "WeMass"]
 
@@ -74,13 +89,14 @@ _anthropic_client = None
 
 
 # ── CLIENT CONFIG ─────────────────────────────────────────────────
-def get_client_config() -> dict:
+def get_client_config(tenant_id=None) -> dict:
     """
     Lee clients/{TENANT_ID}/config.json en runtime.
     El bloque dashboard define datasources, windows y drive_folder_id.
     """
+    effective_tenant = tenant_id or TENANT_ID
     config_path = os.path.join(
-        os.path.dirname(__file__), "..", "..", "clients", TENANT_ID, "config.json"
+        os.path.dirname(__file__), "..", "..", "clients", effective_tenant, "config.json"
     )
     try:
         with open(config_path, "r", encoding="utf-8") as f:
@@ -93,9 +109,9 @@ def get_client_config() -> dict:
         return {}
 
 
-def get_dashboard_config() -> dict:
+def get_dashboard_config(tenant_id=None) -> dict:
     """Devuelve el bloque dashboard del config del cliente."""
-    cfg = get_client_config()
+    cfg = get_client_config(tenant_id)
     return cfg.get("dashboard", {
         "enabled": True,
         "datasources": [p.lower() for p in PLATFORMS],
@@ -103,21 +119,21 @@ def get_dashboard_config() -> dict:
     })
 
 
-def get_active_platforms() -> list:
+def get_active_platforms(tenant_id=None) -> list:
     """Devuelve las plataformas activas según config.json del cliente."""
-    dash_cfg = get_dashboard_config()
+    dash_cfg = get_dashboard_config(tenant_id)
     datasources = [s.lower() for s in dash_cfg.get("datasources", PLATFORMS)]
     return [p for p in PLATFORMS if p.lower() in datasources]
 
 
 
 # ── FIREBASE AUTH ─────────────────────────────────────────────────
-def get_allowed_emails() -> list:
+def get_allowed_emails(tenant_id=None) -> list:
     """
     Lee la allowlist de emails autorizados.
     Prioridad: config.json del cliente → env var ALLOWED_EMAILS (separada por ;)
     """
-    cfg = get_client_config()
+    cfg = get_client_config(tenant_id)
     from_config = cfg.get("dashboard", {}).get("allowed_emails", [])
     if from_config:
         return from_config
@@ -128,7 +144,7 @@ def get_allowed_emails() -> list:
     return []
 
 
-def verify_firebase_token(request) -> tuple:
+def verify_firebase_token(request, tenant_id=None) -> tuple:
     """Verifica token Firebase y comprueba allowlist del cliente."""
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
@@ -137,7 +153,7 @@ def verify_firebase_token(request) -> tuple:
     try:
         decoded = firebase_auth.verify_id_token(id_token)
         email = decoded.get("email", "")
-        allowed_emails = get_allowed_emails()
+        allowed_emails = get_allowed_emails(tenant_id)
         if email in allowed_emails:
             return True, email
         log.warning(f"Access denied for email: {email}")
@@ -146,6 +162,16 @@ def verify_firebase_token(request) -> tuple:
         log.error(f"Firebase token verification failed: {e}")
         return False, ""
 
+
+
+def resolve_tenant(request):
+    """Resuelve y valida tenant_id desde la URL."""
+    url_tenant = request.args.get("tenant_id", "").strip()
+    if not url_tenant:
+        return TENANT_ID, TENANT_CONFIG.get(TENANT_ID, {})
+    if url_tenant not in KNOWN_TENANTS:
+        raise ValueError(f"Unknown tenant_id: {url_tenant}")
+    return url_tenant, TENANT_CONFIG.get(url_tenant, {})
 
 # ── ANTHROPIC ─────────────────────────────────────────────────────
 def get_anthropic_client():
@@ -174,7 +200,7 @@ def get_anthropic_client():
 
 
 # ── HELPERS ───────────────────────────────────────────────────────
-def query_platform(platform: str) -> dict:
+def query_platform(platform: str, client_project: str = None, bq_dataset: str = None) -> dict:
     """
     Lee una tabla nativa de BQ del proyecto del cliente.
     Job de BQ corre en CORE_PROJECT (dashboards-sa).
@@ -184,9 +210,11 @@ def query_platform(platform: str) -> dict:
     if not table:
         return {"error": f"Platform '{platform}' not found"}
 
+    cp = client_project or CLIENT_PROJECT
+    ds = bq_dataset or BQ_DATASET
     sql = f"""
         SELECT *
-        FROM `{CLIENT_PROJECT}.{BQ_DATASET}.{table}`
+        FROM `{cp}.{ds}.{table}`
         LIMIT 5000
     """
     try:
@@ -283,42 +311,52 @@ def dashboard_api(request):
         return json_response({}, 204)
 
     action = request.args.get("action", "ping")
-    log.info(f"dashboard_api called: action={action} tenant={TENANT_ID}")
+
+    # ── TENANT RESOLUTION ──────────────────────────────────────────
+    try:
+        req_tenant, tenant_cfg = resolve_tenant(request)
+    except ValueError as e:
+        return json_response({"error": str(e)}, 403)
+
+    req_client_project = tenant_cfg.get("client_project", CLIENT_PROJECT)
+    req_bq_dataset     = tenant_cfg.get("bq_dataset", BQ_DATASET)
+
+    log.info(f"dashboard_api called: action={action} tenant={req_tenant}")
 
     # ── AUTH — ping no requiere auth (health check) ────────────────
     if action != "ping":
-        authorized, email = verify_firebase_token(request)
+        authorized, email = verify_firebase_token(request, req_tenant)
         if not authorized:
             return json_response({"error": "Unauthorized"}, 401)
-        log.info(f"Authenticated: {email}")
+        log.info(f"Authenticated: {email} tenant={req_tenant}")
 
     # ── PING ──────────────────────────────────────────────────────
     if action == "ping":
         return json_response({
             "ok": True,
             "ts": datetime.now(timezone.utc).isoformat(),
-            "tenant": TENANT_ID,
-            "client_project": CLIENT_PROJECT
+            "tenant": req_tenant,
+            "client_project": req_client_project
         })
 
     # ── DATA ──────────────────────────────────────────────────────
     if action == "data":
-        active_platforms = get_active_platforms()
+        active_platforms = get_active_platforms(req_tenant)
 
         platform = request.args.get("platform")
         if platform:
             if platform not in active_platforms:
                 return json_response({"error": f"Platform '{platform}' not supported"}, 404)
-            return json_response(query_platform(platform))
+            return json_response(query_platform(platform, req_client_project, req_bq_dataset))
 
         result = {}
         for p in active_platforms:
-            result[p] = query_platform(p)
+            result[p] = query_platform(p, req_client_project, req_bq_dataset)
 
         return json_response({
             "data": result,
             "fetchedAt": datetime.now(timezone.utc).isoformat(),
-            "tenant": TENANT_ID
+            "tenant": req_tenant
         })
 
     # ── CHAT ──────────────────────────────────────────────────────
