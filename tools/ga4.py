@@ -440,7 +440,15 @@ def get_ga4_weekly_comparison(
 
         response = client.run_report(request)
 
+        # GA4 Data API con N date_ranges inyecta una dimension implicita
+        # "dateRange" como ULTIMA dimension de cada fila, cuyo VALOR es el
+        # name= declarado en cada DateRange (this_week/last_week/...), NO
+        # "date_range_N". Devuelve una fila por (channelGroup x dateRange)
+        # con las 5 metricas SIEMPRE en indices 0-4 (no se concatenan).
+        _PERIOD_NAMES = {0: "this_week", 1: "last_week", 2: "same_week_last_year"}
+
         def parse_period(rows, period_index):
+            tag = _PERIOD_NAMES[period_index]
             totals = {
                 "sessions": 0,
                 "transactions": 0,
@@ -449,19 +457,13 @@ def get_ga4_weekly_comparison(
                 "active_users": 0,
             }
             for row in rows:
-                totals["sessions"] += int(row.metric_values[period_index * 5 + 0].value)
-                totals["transactions"] += int(
-                    row.metric_values[period_index * 5 + 1].value
-                )
-                totals["revenue_eur"] += float(
-                    row.metric_values[period_index * 5 + 2].value
-                )
-                totals["new_users"] += int(
-                    row.metric_values[period_index * 5 + 3].value
-                )
-                totals["active_users"] += int(
-                    row.metric_values[period_index * 5 + 4].value
-                )
+                if row.dimension_values[-1].value != tag:
+                    continue
+                totals["sessions"] += int(row.metric_values[0].value)
+                totals["transactions"] += int(row.metric_values[1].value)
+                totals["revenue_eur"] += float(row.metric_values[2].value)
+                totals["new_users"] += int(row.metric_values[3].value)
+                totals["active_users"] += int(row.metric_values[4].value)
             totals["revenue_eur"] = round(totals["revenue_eur"], 2)
             return totals
 
