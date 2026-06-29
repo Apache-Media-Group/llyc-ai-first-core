@@ -20,7 +20,7 @@ El briefing JSON sigue el schema de briefing_template.json.
 
 DEC_022: el sistema es read-only en runtime. Este script es operativa humana.
 DEC_069: escritura solo vía scripts manuales con guardrails+dry-run+confirmación+audit.
-DEC_084: SA llyc-ops-writer-sa. NUNCA llyc-agents-sa.
+DEC_086: SA llyc-ops-writer-sa. NUNCA llyc-agents-sa.
 DEC_092: guardrails de presupuesto y bid hardcoded, override con --reason.
 """
 
