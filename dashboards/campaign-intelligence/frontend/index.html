@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLYC — AI Dashboards</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#081522;color:#F0F4F8;font-family:'Montserrat',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.wrap{text-align:center;display:flex;flex-direction:column;align-items:center;gap:40px;padding:40px}
+.logo{font-size:28px;font-weight:800;letter-spacing:-0.5px;display:flex;align-items:center;gap:12px}
+.dot{width:10px;height:10px;border-radius:50%;background:#F54963;animation:breathe 2.5s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.35;transform:scale(0.6)}}
+.subtitle{font-family:'DM Mono',monospace;font-size:11px;color:#5a7a8a;letter-spacing:1.5px;text-transform:uppercase}
+.tools-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;max-width:600px;width:100%}
+.tool-card{background:#0d1f2d;border:1px solid rgba(54,167,183,0.12);border-radius:12px;padding:28px;text-align:left;cursor:pointer;transition:all 0.2s;text-decoration:none;display:flex;flex-direction:column;gap:12px}
+.tool-card:hover{border-color:rgba(54,167,183,0.4);transform:translateY(-2px)}
+.tool-card.disabled{opacity:0.45;cursor:not-allowed;pointer-events:none}
+.tool-tag{font-family:'DM Mono',monospace;font-size:9px;color:#5a7a8a;letter-spacing:1px;text-transform:uppercase}
+.tool-name{font-size:16px;font-weight:700;color:#F0F4F8}
+.tool-desc{font-size:12px;color:#8aaabb;line-height:1.6}
+.tool-arrow{font-size:18px;color:#36A7B7;margin-top:4px}
+.badge{font-family:'DM Mono',monospace;font-size:9px;background:rgba(54,167,183,0.1);border:1px solid rgba(54,167,183,0.2);color:#36A7B7;padding:2px 8px;border-radius:3px;display:inline-block;margin-top:4px}
+.badge.soon{background:rgba(90,122,138,0.1);border-color:rgba(90,122,138,0.2);color:#5a7a8a}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <div class="dot"></div>
+    LLYC <span style="color:#F54963;font-weight:300"> AI Dashboards</span>
+  </div>
+  <div class="subtitle">Selecciona tu herramienta</div>
+  <div class="tools-grid">
+    <a class="tool-card" href="/campaign-intelligence/">
+      <div class="tool-tag">Paid Media</div>
+      <div class="tool-name">Campaign Intelligence</div>
+      <div class="tool-desc">Dashboard de campaña en tiempo real con análisis IA. Datos de Meta, TikTok, YouTube, Spotify, Amazon, DOOH y WeMass.</div>
+      <div class="tool-arrow">→</div>
+      <span class="badge">Disponible</span>
+    </a>
+    <div class="tool-card disabled">
+      <div class="tool-tag">Analytics</div>
+      <div class="tool-name">AI Media Impact</div>
+      <div class="tool-desc">Análisis de impacto y rendimiento de medios con inteligencia artificial.</div>
+      <div class="tool-arrow">→</div>
+      <span class="badge soon">Próximamente</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>
