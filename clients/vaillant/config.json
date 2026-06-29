@@ -107,7 +107,9 @@
     "dv360": {
       "enabled": false,
       "advertiser_id": "1169341103",
-      "_nota": "API directa via tools/dv360.py (DEC_083, deroga DEC_064 y DEC_037). enabled=false — activar en Sprint 3+ cuando se decida. advertiser_id listo."
+      "_nota": "API directa via tools/dv360.py (DEC_083, deroga DEC_064 y DEC_037). enabled=false — activar en Sprint 3+ cuando se decida. advertiser_id listo.",
+      "briefing_spreadsheet_id": "14EXv7IB-YvR0Yff0PCczzx7qmUF7X6iQklWHvA-d1oI",
+      "_briefing_nota": "ID del Google Sheet de briefing DV360 en Drive (03_CLIENTES/vaillant/). Leer con read_briefing_from_drive.py."
     },
     "shopify": {
       "enabled": false,
@@ -164,11 +166,11 @@
     "_nota": "ID de la carpeta 04_OUTPUTS/vaillant/ en Drive. Crear la carpeta y rellenar antes del primer deploy."
   },
   "pendientes": [
-{
-  "campo": "data_sources.crm_integration",
-  "owner": "Jesús López / Sara Gil",
-  "impacto": "Diferencia lead bruto (GA4) vs lead cualificado (CRM) — necesario antes de L3 para interpretar CPL real"
-}
+    {
+      "campo": "data_sources.crm_integration",
+      "owner": "Jesús López / Sara Gil",
+      "impacto": "Diferencia lead bruto (GA4) vs lead cualificado (CRM) — necesario antes de L3 para interpretar CPL real"
+    },
     {
       "campo": "operational_inputs.workbook.file_id",
       "owner": "Jesús López / Sara Gil",
