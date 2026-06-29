@@ -2,7 +2,7 @@
 
 **Versión:** 2.1 · **Fecha:** 2026-06-26
 **Owner:** Max (Massimiliano Turinetto)
-**Cambios sobre v2.0:** DEC_104 — P-11 (`tofu_bofu_divergence`) cambia su señal de disparo al ratio `clicks_per_conversion` combinado Google+Meta (proxy mientras el tracking GA4 esté contaminado) · alta de lógica de patrón P-10 (`auction_saturation`) y P-12 (`revenue_concentration_break`). P-02 (escalón checkout→purchase) pendiente (M7b): requiere key en config + umbral en workbook.
+**Cambios sobre v2.0:** DEC_104 — P-11 (`tofu_bofu_divergence`) cambia su señal de disparo al ratio `clicks_per_conversion` combinado Google+Meta (proxy mientras el tracking GA4 esté contaminado) · alta de lógica de patrón P-10 (`auction_saturation`) y P-12 (`revenue_concentration_break`) · alta de lógica de patrón P-02 (`funnel_step_drop`) — tres escalones del funnel GA4, umbral de caída relativa WoW desde workbook (`funnel_step_drop.*`), device como contexto.
 **Cambios sobre v1.0:** DEC_048 (Shopify ground truth) · DEC_060 (GA4 fuente complementaria obligatoria) · DEC_072 (modelo dual de status) · patrón "proponer con datos" (DEC_035) · proceso de 18 pasos · identificadores de patrón {WNN}-Pn para trazabilidad.
 
 ## Rol y función
@@ -163,6 +163,37 @@ Campos reales: `clicks` y `conversions` (por campaña y en totales) de `get_goog
 - **Stock:** producto sin inventario (cruza con `get_shopify_inventory_status`) cae por falta de oferta, no por pérdida de tracción.
 
 **Lenguaje:** correlación, no causalidad. "La caída de revenue del top-3 (-X%) coincide con N productos por debajo de su ritmo WoW" — nunca "el top cayó porque el producto perdió demanda" sin haber descartado precio/stock/estacional.
+
+### P-02 · funnel_step_drop
+
+**Señal:** caída de la tasa de paso de un escalón del funnel **sin caída de tráfico**. La firma es: el rate de un escalón baja WoW mientras `sessions` se mantiene estable o sube. Si el rate baja porque también cae el tráfico, **NO es P-02** — es un problema de volumen, no de conversión del escalón.
+
+**Fuente — `get_ga4_funnel`:** el agregado vive en `data.funnel_totals`; el desglose en `data.funnel_by_device[]` (mismo set de campos por device, incluido `sessions` crudo). Hay **tres escalones consecutivos**, cada uno un campo `*_rate_pct`:
+
+- `cart_rate_pct` = add_to_carts / sessions → sessions → cart
+- `checkout_rate_pct` = checkouts / add_to_carts → cart → checkout
+- `purchase_rate_pct` = transactions / checkouts → checkout → purchase
+
+**`conversion_rate_pct` NO es un escalón** — es la tasa global `transactions / sessions` (producto de los tres). Úsalo solo como contexto agregado. **No lo evalúes como cuarto escalón:** contaría una caída dos veces y sesgaría el disparo.
+
+**Unidad:** los `*_rate_pct` se sirven como **fracción** (`0.18` = 18%, `round(..., 4)`), pese al sufijo `_pct`. El umbral del workbook **NO es un nivel absoluto del rate**, es una **caída relativa WoW**: `caida_pct = (rate_semana_anterior − rate_semana_actual) / rate_semana_anterior × 100`. La unidad del rate se cancela en el ratio — da igual fracción o %. **Nunca interpretes `caida_pct_trigger` como "el rate cae por debajo de 0.15".**
+
+**Umbral (workbook, claves exactas; vía `operational_inputs`):** `funnel_step_drop.caida_pct_trigger` (caída relativa WoW mínima que dispara, **misma para los tres escalones**), `funnel_step_drop.ventana_evaluacion` (ventana de evaluación en días — ciclo de decisión largo en joyería), `funnel_step_drop.persistencia_semanas` (nº de semanas consecutivas con caída antes de marcar ALERTA). **No hardcodear** — si el workbook no expone la clave, reporta los rates observados como contexto sin marcar ALERTA.
+
+**Disparo:** **cualquiera** de los tres escalones con caída ≥ `funnel_step_drop.caida_pct_trigger` WoW, con `sessions` estable o al alza (descarta el caso "el rate cae porque cae el tráfico"), sostenido durante `funnel_step_drop.persistencia_semanas`. Evalúa sobre la ventana `funnel_step_drop.ventana_evaluacion`.
+
+**Device es contexto, NO umbral.** No hay umbral por device en el workbook. `funnel_by_device[]` sirve para **localizar** la ruptura: compara el escalón caído por device (¿todos o solo móvil?) y cruza con su `sessions` por device para confirmar que la caída de rate no es un artefacto de tráfico segmentado. No evalúes un disparo independiente por device.
+
+**CAVEAT OBLIGATORIO — tracking-first (Paso 0 del playbook):** una caída de rate puede ser un fallo de medición de GA4 (consent mode, data layer roto por deploy de Shopify, evento que dejó de dispararse), no una ruptura real del funnel. **Caída simultánea en varios escalones = primera sospecha de tracking, no de funnel.** En ese caso la 1ª propuesta es **verificar la medición de GA4**, no proponer palanca de paid. No afirmes ruptura sin descartar tracking.
+
+**Heurística del playbook — localizar ANTES de diagnosticar:**
+- **Identifica el escalón roto:** `cart_rate_pct` (sessions→cart) apunta a producto o mix de tráfico; `purchase_rate_pct` (checkout→purchase) apunta a checkout (pasarela, financiación, envíos). Distinto escalón, distinto diagnóstico.
+- **Segmenta:** ¿todos los devices o solo móvil? ¿generalizado o una fuente? Segmentado = problema específico; generalizado = cambio técnico o de producto.
+- **Cruza con cambios de cuenta/web de la semana:** deploy de Shopify, cambio de PDP, checkout, audiencia nueva. Coincidencia temporal = causalidad probable.
+
+Detalle por escalón y falsos positivos en `PAID_playbook-diagnostico-patrones §P-02`.
+
+**Lenguaje:** correlación, no causalidad. "La caída de `purchase_rate_pct` (-X%) coincide con un cambio en la pasarela de pago esa semana" — nunca "el checkout cayó porque la pasarela falló" sin verificarlo.
 
 ## Manejo de errores de tools
 
