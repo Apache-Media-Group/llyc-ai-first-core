@@ -1,0 +1,99 @@
+# naming-grammar.yaml — MOTOR (git, owner Max)
+# La GRAMÁTICA del estándar v2.0.0: orden de tokens por nivel, reglas de validación,
+# flujos de operación y contrato de output. NO contiene vocabulario ni pares ni reglas UTM
+# — esos DATOS viven en la Brújula (Sheet de operaciones) y se compilan vía sync.py.
+# Esto es lo único que cambia con un PR; el dato lo edita operaciones en el Sheet.
+
+version: "2.1.0"
+standard_ref: "META_naming-utm-agencia.md v2.0.0 (+ pares canal/plataforma, flujos B/C)"
+
+block_regex: "^[a-z0-9]+(-[a-z0-9]+)*$"
+separator: "_"
+sentinel: "x"
+
+# Orden de tokens por nivel (§3.3, §14.3). Extensiones de instance se anexan al final del nivel.
+levels:
+  campaign:
+    tier: raiz
+    backbone: [cliente, pais, region, idioma, canal, estrategia, objetivo, compra, plataforma, iniciativa, temporalidad]
+  group:
+    tier: segmento
+    backbone: [inventory, audiencia]
+  ad:
+    tier: pieza
+    backbone: [variante, creativo]
+
+native_entities:
+  meta:   { raiz: campaign, segmento: adset,                    pieza: ad }
+  google: { raiz: campaign, segmento: adgroup,                  pieza: ad }
+  dv360:  { raiz: campaign, segmento: insertion_order+line_item, pieza: creative }
+
+# "x" aceptable solo donde la dimensión es opcional (§4 col "Si no aplica")
+x_allowed:
+  cliente: false
+  pais: false
+  region: true
+  idioma: false
+  canal: false
+  estrategia: false
+  objetivo: false
+  compra: true
+  plataforma: true
+  inventory: true
+  audiencia: true
+  iniciativa: true
+  temporalidad: true
+  variante: true
+  creativo: false
+
+# De qué bloque depende el vocabulario de otro (se valida contra la Brújula)
+conditional:
+  region: pais          # región válida según país
+  inventory: plataforma # inventory válido según plataforma
+
+# Relación canal<->plataforma: many-to-many. El set de pares válidos vive en la Brújula
+# (compass/canal_platform.csv). El motor solo exige que (canal, plataforma) esté en ese set.
+canal_platform: { source: compass, enforce: true }
+
+# ---------------------------------------------------------------------------
+# FLUJOS DE OPERACIÓN — qué se genera y qué se ancla (input previo)
+# ---------------------------------------------------------------------------
+flows:
+  A_new_campaign:
+    desc: "Campaña nueva completa"
+    generates: [campaign, group, ad]
+    anchors: []
+  B_new_group:
+    desc: "Grupo nuevo en campaña existente"
+    generates: [group, ad]
+    anchors: [campaign]      # nombre de campaña existente, pegado o desde Sheet de padres
+  C_new_ad:
+    desc: "Crea nueva en campaña+grupo existentes"
+    generates: [ad]
+    anchors: [campaign, group]
+
+# Reconstrucción del path UTM (P5): utm_campaign = nombre campaña; utm_content = grupo_ad.
+# En B/C el nombre del padre viene del ancla (validado contra la gramática).
+utm_path:
+  utm_campaign: "{campaign}"
+  utm_content: "{group}_{ad}"      # cuando la plataforma es manual
+  content_group_only: "{group}"    # excepción CTW (whatsapp)
+
+# ---------------------------------------------------------------------------
+# RENDERERS DE OUTPUT — una representación interna, varios destinos
+# ---------------------------------------------------------------------------
+renderers:
+  strings:
+    applies_to: [meta, google, tiktok, linkedin, twitter, pinterest, snapchat, reddit, bing, amazon-ads, outbrain, taboola, spotify]
+    desc: "Nombres por nivel + UTM listos para pegar en la UI de la plataforma."
+  dv360_create_payload:
+    applies_to: [dv360]
+    desc: >
+      Bloque de naming/UTM que se inyecta en el payload de los scripts create_*.py de DV360
+      (DEC_069/088). Mapea: campaign.name->displayName de Campaign; group->displayName de
+      Insertion Order + Line Item; ad->displayName de Creative; UTM->tracking del Creative
+      con macros ${CAMPAIGN_NAME} / ${PLACEMENT_NAME}_${CREATIVE_NAME}.
+      NO emite SDF; reusa los scripts ya validados E2E. (Reconcilia estándar §11.1.2.)
+    payload_keys: [campaign_display_name, io_display_name, line_item_display_name, creative_display_name, tracking_url]
+  # future_creation_script: Meta/Google/TikTok no tienen script de creación hoy; si se
+  # construyen (catálogo de escritura, DEC_069), consumen la misma representación interna.
