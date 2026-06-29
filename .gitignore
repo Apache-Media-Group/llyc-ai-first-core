@@ -230,3 +230,4 @@ CLAUDE.local.md
 *.tmp
 *~
 .DS_Store
+scripts/dv360/briefings/*.json

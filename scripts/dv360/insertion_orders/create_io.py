@@ -26,7 +26,7 @@ _EUR_TO_MICROS = 1_000_000
 
 PACING_TYPES = {
     "EVEN":  "PACING_TYPE_EVEN",
-    "AHEAD": "PACING_TYPE_AHEAD",
+    "AHEAD": "PACING_TYPE_EVEN",  # AHEAD no existe en IO v4, se mapea a EVEN
     "ASAP":  "PACING_TYPE_ASAP",
 }
 
@@ -221,9 +221,12 @@ def create_io(
     kpi_type: str = None,
     kpi_value: str = None,
     dry_run: bool = False,
+    skip_confirm: bool = False,
 ) -> dict:
     """Crea un Insertion Order en DV360. Se crea siempre en DRAFT."""
     advertiser_id = get_advertiser_id(client_id)
+    if pacing.upper() == "ASAP":
+        return {"status": "error", "error": "ASAP no permitido en IOs (guardrail operativo). Usa EVEN o AHEAD.", "data": {}}
     if budget_eur > max_budget_eur:
         return {
             "status": "error",
@@ -261,7 +264,8 @@ def create_io(
         "Se crea en DRAFT."
     )
 
-    if not confirm_action(action_msg, dry_run=dry_run):
+    if not confirm_action(action_msg, dry_run=dry_run,
+        skip_confirm=skip_confirm):
         return {"status": "cancelled", "data": {}}
 
     if dry_run:
