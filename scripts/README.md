@@ -151,3 +151,19 @@ python scripts/dv360/create_campaign_from_briefing.py     --client vidal-vidal  
 - Bid: max 50 EUR (todas las vías: CPC, CPA, CPV)
 - ASAP pacing: prohibido en IOs (no soportado en API v4)
 - DEC_022: el sistema crea en DRAFT, nunca activa sin aprobación humana
+
+
+---
+
+## Flujo completo: Drive → DV360
+
+```bash
+# Paso 1: leer briefing desde Google Sheet en Drive y generar JSON
+python -m scripts.dv360.read_briefing_from_drive     --spreadsheet-id <ID_DEL_SHEET>     --client <client_id>     --output clients/<client_id>/PAID_briefing-dv360-<client_id>.json
+
+# Paso 2: ejecutar orquestador con el JSON generado
+python scripts/dv360/create_campaign_from_briefing.py     --client <client_id>     --briefing clients/<client_id>/PAID_briefing-dv360-<client_id>.json
+```
+
+El Sheet de briefing vive en Drive (`03_CLIENTES/<cliente>/`) y lo rellena el equipo operativo (Jesús/Sara).
+El script lee el Sheet, genera el JSON y el orquestador crea la estructura en DV360 con una sola confirmación.
