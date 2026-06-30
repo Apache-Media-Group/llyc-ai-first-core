@@ -1204,7 +1204,6 @@ def _derive_analysis_status(legacy_status: str) -> str:
 # ─── ENTRY POINT HTTP ─────────────────────────────────────────────────────────
 
 
-@functions_framework.http
 def _request_prose(
     anthropic_client, system_prompt, metrics_block, client_id, agent_name
 ):
@@ -1304,6 +1303,7 @@ def run_perf_monitor_l3(
     return merge_prose(deterministic, prose)
 
 
+@functions_framework.http
 def agent_executor(request):
     """
     Entry point HTTP de la Cloud Function. Dispatcher genérico.
