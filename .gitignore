@@ -230,3 +230,9 @@ CLAUDE.local.md
 *.tmp
 *~
 .DS_Store
+
+# Claude Code launch config (personal, por máquina)
+.claude/launch.json
+
+# Outputs inmutables fechados (viven en Drive 04_OUTPUTS, nunca en el repo)
+/20[0-9][0-9]-[0-1][0-9]-[0-3][0-9]_*
