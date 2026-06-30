@@ -12,26 +12,22 @@
     "performance_monitor": {
       "agent_id": null,
       "enabled": true,
-      "schedule": "0 8 * * *",
       "output_folder": "04_OUTPUTS/vaillant/performance-monitor"
     },
     "budget_pacer": {
       "agent_id": null,
       "enabled": true,
-      "schedule": "30 8 * * *",
       "output_folder": "04_OUTPUTS/vaillant/budget-pacer",
       "_schedule_nota": "08:30 informe previous-day. Guardrail intradía (17:00) se configura en Cloud Scheduler — no se duplica aquí."
     },
     "naming_utm_auditor": {
       "agent_id": null,
       "enabled": true,
-      "schedule": "0 9 * * 1",
       "output_folder": "04_OUTPUTS/vaillant/naming-utm-auditor"
     },
     "weekly_digest": {
       "agent_id": null,
       "enabled": true,
-      "schedule": "0 17 * * 5",
       "output_folder": "04_OUTPUTS/vaillant/weekly-digest"
     },
     "creative_fatigue_detector": {
