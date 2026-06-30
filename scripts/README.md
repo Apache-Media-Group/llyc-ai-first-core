@@ -114,3 +114,56 @@ Límites leídos en runtime de la pestaña `dv360_write_policy` del workbook del
 | `require_reason_on_override` | Si True, `--reason` obligatorio en overrides |
 
 Si falta la fila en el workbook, el script aplica defaults conservadores. Nunca opera sin límite.
+---
+
+## Orquestador de campaña DV360
+
+`scripts/dv360/create_campaign_from_briefing.py` — crea una campaña completa (Campaign → IOs → LIs) desde un JSON de briefing con una sola confirmación.
+
+### Flujo operativo
+
+1. Claude parsea el briefing en lenguaje natural, consulta IDs contra la API y genera el JSON
+2. El operador revisa el JSON y ejecuta el orquestador
+3. Una confirmación → estructura completa creada en DRAFT
+
+### Ubicación de briefings
+
+- `clients/_template/briefing_dv360_template.json` — template maestro con todos los campos posibles
+- `clients/<client_id>/briefing_dv360_<client_id>.json` — instancia por cliente (rellenar antes de ejecutar)
+
+### Uso
+
+```bash
+# Ejecución completa
+python scripts/dv360/create_campaign_from_briefing.py     --client vidal-vidal     --briefing clients/vidal-vidal/briefing_dv360_vidal-vidal.json
+
+# Dry-run (sin ejecutar)
+python scripts/dv360/create_campaign_from_briefing.py     --client vidal-vidal     --briefing clients/vidal-vidal/briefing_dv360_vidal-vidal.json     --dry-run
+
+# Continuar desde campaña existente (saltar creacion de Campaign)
+python scripts/dv360/create_campaign_from_briefing.py     --client vidal-vidal     --briefing clients/vidal-vidal/briefing_dv360_vidal-vidal.json     --campaign-id <campaign_id>
+```
+
+### Guardrails activos
+
+- Budget IO: max 30.000 EUR (override con `--max-budget` + `reason` en briefing)
+- Budget LI: max 5.000 EUR
+- Bid: max 50 EUR (todas las vías: CPC, CPA, CPV)
+- ASAP pacing: prohibido en IOs (no soportado en API v4)
+- DEC_022: el sistema crea en DRAFT, nunca activa sin aprobación humana
+
+
+---
+
+## Flujo completo: Drive → DV360
+
+```bash
+# Paso 1: leer briefing desde Google Sheet en Drive y generar JSON
+python -m scripts.dv360.read_briefing_from_drive     --spreadsheet-id <ID_DEL_SHEET>     --client <client_id>     --output clients/<client_id>/PAID_briefing-dv360-<client_id>.json
+
+# Paso 2: ejecutar orquestador con el JSON generado
+python scripts/dv360/create_campaign_from_briefing.py     --client <client_id>     --briefing clients/<client_id>/PAID_briefing-dv360-<client_id>.json
+```
+
+El Sheet de briefing vive en Drive (`03_CLIENTES/<cliente>/`) y lo rellena el equipo operativo (Jesús/Sara).
+El script lee el Sheet, genera el JSON y el orquestador crea la estructura en DV360 con una sola confirmación.

@@ -459,28 +459,16 @@ def build_targeting_settings(
             },
         })
 
-    if audience_inmarket:
-        for audience in audience_inmarket:
-            targeting.append({
-                "targetingType": "TARGETING_TYPE_AUDIENCE_GROUP",
-                "audienceGroupDetails": {
-                    "includedGoogleAudienceGroup": {
-                        "settings": [{"googleAudienceId": audience}]
-                    }
-                },
-            })
-
-    if audience_affinity:
-        for audience in audience_affinity:
-            targeting.append({
-                "targetingType": "TARGETING_TYPE_AUDIENCE_GROUP",
-                "audienceGroupDetails": {
-                    "includedGoogleAudienceGroup": {
-                        "settings": [{"googleAudienceId": audience}]
-                    }
-                },
-            })
-
+    google_audiences = (audience_inmarket or []) + (audience_affinity or [])
+    if google_audiences:
+        targeting.append({
+            "targetingType": "TARGETING_TYPE_AUDIENCE_GROUP",
+            "audienceGroupDetails": {
+                "includedGoogleAudienceGroup": {
+                    "settings": [{"googleAudienceId": a} for a in google_audiences]
+                }
+            },
+        })
     if genders:
         for gender in genders:
             mapped = GENDER_TYPES.get(gender.upper())
@@ -821,6 +809,7 @@ def create_line_item(
     youtube_channel_ids: list | None = None,
     youtube_video_ids: list | None = None,
     dry_run: bool = False,
+    skip_confirm: bool = False,
 ) -> dict:
     """Crea un Line Item en DV360 con soporte para Display, Video y YouTube."""
 
@@ -829,6 +818,8 @@ def create_line_item(
 
     advertiser_id = get_advertiser_id(client_id)
 
+    if bid_strategy and bid_strategy.upper() == "ASAP":
+        return {"status": "error", "error": "ASAP no permitido en LIs (guardrail operativo).", "data": {}}
     if budget_eur > max_budget_eur:
         return {
             "status": "error",
@@ -920,7 +911,7 @@ def create_line_item(
         "Se crea en DRAFT."
     )
 
-    if not confirm_action(action_msg, dry_run=dry_run):
+    if not confirm_action(action_msg, dry_run=dry_run, skip_confirm=skip_confirm):
         return {"status": "cancelled", "data": {}}
 
     if dry_run:

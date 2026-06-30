@@ -236,3 +236,6 @@ CLAUDE.local.md
 
 # Outputs inmutables fechados (viven en Drive 04_OUTPUTS, nunca en el repo)
 /20[0-9][0-9]-[0-1][0-9]-[0-3][0-9]_*
+
+# Briefings DV360 ad-hoc (los de test no van al repo; el spreadsheet_id vive en config)
+scripts/dv360/briefings/*.json

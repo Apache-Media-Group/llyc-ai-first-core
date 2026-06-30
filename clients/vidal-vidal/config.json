@@ -319,7 +319,9 @@
       "enabled": false,
       "advertiser_id": "8251184879",
       "partner_id": "5748134",
-      "_nota": "API directa via tools/dv360.py (DEC_083, deroga DEC_064 y DEC_037). enabled=false — activar en Sprint 2+ cuando se decida. advertiser_id y partner_id listos."
+      "_nota": "API directa via tools/dv360.py (DEC_083, deroga DEC_064 y DEC_037). enabled=false — activar en Sprint 2+ cuando se decida. advertiser_id y partner_id listos.",
+      "briefing_spreadsheet_id": "1c1E707HIJ2-pDuN8C4WSY-jR0DhI2CN2J3Rh0wOtZQA",
+      "_briefing_nota": "ID del Google Sheet de briefing DV360 en Drive (03_CLIENTES/vidal-vidal/). Leer con read_briefing_from_drive.py."
     },
     "shopify": {
       "enabled": true,
