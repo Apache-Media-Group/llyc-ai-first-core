@@ -2,16 +2,25 @@
 scripts/meta/campaigns/read_briefing_from_workbook.py
 Lee el tab meta_briefing del workbook del cliente y genera un JSON de briefing.
  
+El nombre del tab se configura en clients/<client_id>/config.json:
+    "workbook": {
+        "file_id": "<id>",
+        "tabs": {
+            "meta_briefing": "briefing_meta_vidal",
+            "dv360_briefing": "briefing_DV360_vidal"
+        }
+    }
+ 
 El JSON generado se guarda en clients/<client_id>/briefings/ y sirve como
 input para create_campaign_from_briefing.py. Es tambien el snapshot de
 trazabilidad en Git de lo que se ejecuto.
  
 Flujo completo:
-    1. Consultor rellena tab "meta_briefing" en el workbook del cliente
+    1. Consultor rellena el tab de meta del workbook del cliente
     2. Este script lee el tab y genera el JSON
     3. create_campaign_from_briefing.py consume el JSON
  
-Formato del tab meta_briefing (dos columnas: campo | valor):
+Formato del tab (dos columnas: campo | valor):
     campaign_name         VV_PROS_META_ADV+_2026-07
     objective             OUTCOME_SALES
     special_ad_categories (vacio si no aplica)
@@ -53,7 +62,6 @@ from scripts._common.secrets import read_secret
 CORE_PROJECT = "llyc-ai-first-core"
 WRITER_SA_SECRET = "DV360_OPS_WRITER_SA_KEY"
 SHEETS_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-TAB_NAME = "meta_briefing"
  
 # Campos obligatorios — el script falla si alguno esta vacio
 REQUIRED_FIELDS = [
@@ -73,11 +81,14 @@ REQUIRED_FIELDS = [
     "image_hash",
 ]
  
+# Campos que pueden estar vacios en dry-run (los rellena Jesus antes del E2E real)
+DRY_RUN_OPTIONAL = ["page_id", "image_hash"]
+ 
  
 # --- AUTENTICACION SHEETS -----------------------------------------------------
  
 def _build_sheets_service():
-    """Construye cliente de Google Sheets con la SA de escritura (tiene acceso al workbook)."""
+    """Construye cliente de Google Sheets con la SA de escritura."""
     sa_json = read_secret(WRITER_SA_SECRET, project_id=CORE_PROJECT)
     creds = service_account.Credentials.from_service_account_info(
         json.loads(sa_json), scopes=SHEETS_SCOPES
@@ -85,37 +96,54 @@ def _build_sheets_service():
     return build("sheets", "v4", credentials=creds, cache_discovery=False)
  
  
-# --- LECTURA DEL WORKBOOK -----------------------------------------------------
+# --- LECTURA DE CONFIG --------------------------------------------------------
  
-def _get_workbook_file_id(client_id: str) -> str:
-    """Lee el file_id del workbook desde config.json del cliente."""
+def _get_workbook_config(client_id: str) -> tuple[str, str]:
+    """
+    Lee file_id y nombre del tab meta_briefing desde config.json del cliente.
+ 
+    El nombre del tab se configura en workbook.tabs.meta_briefing.
+    Si no esta configurado, usa 'meta_briefing' como fallback.
+ 
+    Returns:
+        (file_id, tab_name)
+    """
     repo_root = pathlib.Path(__file__).parents[3]
     config_path = repo_root / "clients" / client_id / "config.json"
     if not config_path.exists():
-        raise FileNotFoundError(f"Config no encontrado para cliente '{client_id}': {config_path}")
+        raise FileNotFoundError(
+            f"Config no encontrado para cliente '{client_id}': {config_path}"
+        )
     with open(config_path, encoding="utf-8") as f:
         config = json.load(f)
-    file_id = config.get("workbook", {}).get("file_id")
+ 
+    workbook = config.get("workbook", {})
+    file_id = workbook.get("file_id")
     if not file_id:
         raise ValueError(
             f"workbook.file_id no configurado en clients/{client_id}/config.json. "
-            "Anadir: \"workbook\": {\"file_id\": \"<id>\"}."
+            "Anadir: \"workbook\": {\"file_id\": \"<id>\", \"tabs\": {\"meta_briefing\": \"<nombre_tab>\"}}."
         )
-    return file_id
+ 
+    tab_name = workbook.get("tabs", {}).get("meta_briefing", "meta_briefing")
+    return file_id, tab_name
  
  
-def read_tab(client_id: str) -> dict:
+# --- LECTURA DEL WORKBOOK -----------------------------------------------------
+ 
+def read_tab(client_id: str) -> tuple[dict, str]:
     """
     Lee el tab meta_briefing del workbook del cliente.
     Formato esperado: columna A = campo, columna B = valor.
     Lineas en blanco y filas sin valor se ignoran.
+ 
     Returns:
-        dict con todos los campos clave:valor del tab.
+        (data dict, tab_name)
     """
-    file_id = _get_workbook_file_id(client_id)
+    file_id, tab_name = _get_workbook_config(client_id)
     svc = _build_sheets_service()
  
-    range_name = f"{TAB_NAME}!A:B"
+    range_name = f"{tab_name}!A:B"
     result = (
         svc.spreadsheets()
         .values()
@@ -125,29 +153,31 @@ def read_tab(client_id: str) -> dict:
     rows = result.get("values", [])
     if not rows:
         raise ValueError(
-            f"El tab '{TAB_NAME}' esta vacio o no existe en el workbook de '{client_id}'. "
+            f"El tab '{tab_name}' esta vacio o no existe en el workbook de '{client_id}'. "
             "Asegurate de que el consultor ha rellenado el tab antes de ejecutar este script."
         )
  
     data = {}
     for row in rows:
         if len(row) < 2:
-            continue  # fila sin valor, ignorar
+            continue
         campo = str(row[0]).strip()
         valor = str(row[1]).strip()
         if not campo or campo.startswith("#"):
-            continue  # linea en blanco o comentario
+            continue
         data[campo] = valor
  
-    return data
+    return data, tab_name
  
  
 # --- VALIDACION ---------------------------------------------------------------
  
-def validate(data: dict) -> list[str]:
+def validate(data: dict, dry_run: bool = False) -> list[str]:
     """Devuelve lista de errores. Vacia = ok."""
     errors = []
     for field in REQUIRED_FIELDS:
+        if dry_run and field in DRY_RUN_OPTIONAL:
+            continue  # page_id e image_hash son opcionales en dry-run
         if not data.get(field):
             errors.append(f"Campo obligatorio vacio o ausente: '{field}'")
     return errors
@@ -155,13 +185,11 @@ def validate(data: dict) -> list[str]:
  
 # --- CONSTRUCCION DEL BRIEFING JSON ------------------------------------------
  
-def build_briefing(data: dict) -> dict:
+def build_briefing(data: dict, client_id: str, tab_name: str) -> dict:
     """Construye el dict de briefing en el formato que consume create_campaign_from_briefing.py."""
  
-    # geo_countries: "ES" o "ES,FR,PT" -> lista
     geo_countries = [c.strip() for c in data.get("geo_countries", "ES").split(",") if c.strip()]
  
-    # special_ad_categories: vacio -> []
     special_raw = data.get("special_ad_categories", "").strip()
     special_ad_categories = [s.strip() for s in special_raw.split(",") if s.strip()] if special_raw else []
  
@@ -188,7 +216,7 @@ def build_briefing(data: dict) -> dict:
             "name": data["ad_name"],
             "creative_name": data["creative_name"],
             "object_story_spec": {
-                "page_id": data["page_id"],
+                "page_id": data.get("page_id", "PENDIENTE"),
                 "link_data": {
                     "link": data["link_url"],
                     "message": data["ad_message"],
@@ -196,14 +224,14 @@ def build_briefing(data: dict) -> dict:
                     "call_to_action": {
                         "type": data["call_to_action"]
                     },
-                    "image_hash": data["image_hash"],
+                    "image_hash": data.get("image_hash", "PENDIENTE"),
                 },
             },
         },
         "_meta": {
             "generated_at": datetime.now(timezone.utc).isoformat(),
-            "source": f"workbook tab '{TAB_NAME}'",
-            "client_id": None,  # se rellena en run()
+            "source": f"workbook tab '{tab_name}'",
+            "client_id": client_id,
         },
     }
     return briefing
@@ -226,20 +254,20 @@ def save_briefing(briefing: dict, client_id: str) -> pathlib.Path:
 # --- ORQUESTADOR --------------------------------------------------------------
  
 def run(client_id: str, dry_run: bool) -> None:
-    print(f"\nLeyendo tab '{TAB_NAME}' del workbook de '{client_id}'...")
+    _, tab_name = _get_workbook_config(client_id)
+    print(f"\nLeyendo tab '{tab_name}' del workbook de '{client_id}'...")
  
-    data = read_tab(client_id)
+    data, tab_name = read_tab(client_id)
  
-    errors = validate(data)
+    errors = validate(data, dry_run=dry_run)
     if errors:
         print("\nERROR — Campos obligatorios incompletos en el workbook:")
         for e in errors:
             print(f"  - {e}")
-        print(f"\nRellena el tab '{TAB_NAME}' y vuelve a ejecutar.")
+        print(f"\nRellena el tab '{tab_name}' y vuelve a ejecutar.")
         sys.exit(1)
  
-    briefing = build_briefing(data)
-    briefing["_meta"]["client_id"] = client_id
+    briefing = build_briefing(data, client_id, tab_name)
  
     print("\nBriefing generado:")
     print(json.dumps(briefing, indent=2, ensure_ascii=False))
@@ -267,7 +295,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Muestra el JSON generado sin guardarlo",
+        help="Muestra el JSON generado sin guardarlo. page_id e image_hash opcionales.",
     )
     args = parser.parse_args()
  
