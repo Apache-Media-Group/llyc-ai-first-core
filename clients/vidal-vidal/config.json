@@ -479,5 +479,12 @@
   },
   "drive": {
     "outputs_folder_id": "1LQEXp9ZTLjLSGKOKjeVWlcTRpVN0pY6I"
+  },
+  "workbook": {
+    "file_id": "1c1E707HIJ2-pDuN8C4WSY-jR0DhI2CN2J3Rh0wOtZQA",
+    "tabs": {
+      "meta_briefing": "briefing_meta_vidal",
+      "dv360_briefing": "briefing_DV360_vidal"
+    }
   }
 }
