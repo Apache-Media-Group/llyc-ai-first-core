@@ -390,26 +390,43 @@ def get_ga4_weekly_comparison(
 
         response = client.run_report(request)
 
-        def parse_period(rows, period_index):
-            totals = {
+        # GA4 v1beta con multiples date_ranges anade la dimension implicita
+        # 'dateRange'; su valor es el name= del DateRange (this_week/last_week/
+        # same_week_last_year). MetricAggregation.TOTAL devuelve el agregado por
+        # periodo en response.totals (filas RESERVED_TOTAL), no en response.rows:
+        # se leen esos totales directamente en vez de sumar filas a mano.
+        RANGE_TO_KEY = {
+            "this_week": "this_week",
+            "last_week": "last_week",
+            "same_week_last_year": "same_week_last_year",
+        }
+
+        def empty_totals():
+            return {
                 "sessions": 0,
                 "transactions": 0,
                 "revenue_eur": 0.0,
                 "new_users": 0,
                 "active_users": 0,
             }
-            for row in rows:
-                totals["sessions"] += int(row.metric_values[period_index * 5 + 0].value)
-                totals["transactions"] += int(row.metric_values[period_index * 5 + 1].value)
-                totals["revenue_eur"] += float(row.metric_values[period_index * 5 + 2].value)
-                totals["new_users"] += int(row.metric_values[period_index * 5 + 3].value)
-                totals["active_users"] += int(row.metric_values[period_index * 5 + 4].value)
-            totals["revenue_eur"] = round(totals["revenue_eur"], 2)
-            return totals
 
-        this_week = parse_period(response.rows, 0)
-        last_week = parse_period(response.rows, 1)
-        same_week_ly = parse_period(response.rows, 2)
+        periods = {k: empty_totals() for k in RANGE_TO_KEY.values()}
+        for total_row in response.totals:
+            range_name = total_row.dimension_values[-1].value
+            key = RANGE_TO_KEY.get(range_name)
+            if key is None:
+                continue
+            periods[key] = {
+                "sessions": int(total_row.metric_values[0].value),
+                "transactions": int(total_row.metric_values[1].value),
+                "revenue_eur": round(float(total_row.metric_values[2].value), 2),
+                "new_users": int(total_row.metric_values[3].value),
+                "active_users": int(total_row.metric_values[4].value),
+            }
+
+        this_week = periods["this_week"]
+        last_week = periods["last_week"]
+        same_week_ly = periods["same_week_last_year"]
 
         def pct_change(current, previous):
             if previous == 0:
