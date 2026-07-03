@@ -15,7 +15,7 @@
           {"key": "X-Content-Type-Options", "value": "nosniff"},
           {"key": "X-XSS-Protection", "value": "1; mode=block"},
           {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"},
-          {"key": "Content-Security-Policy", "value": "default-src 'self' https:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https:;"},
+          {"key": "Content-Security-Policy", "value": "default-src 'self' https:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com https://fonts.googleapis.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https:;"},
           {"key": "Permissions-Policy", "value": "geolocation=(), microphone=(), camera=()"},
           {"key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload"},
           {"key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups"}
@@ -23,6 +23,13 @@
       }
     ],
     "rewrites": [
+      {
+        "source": "/media-impact/api**",
+        "run": {
+          "serviceId": "llyc-intelligence-api",
+          "region": "us-central1"
+        }
+      },
       {
         "source": "/api**",
         "run": {
@@ -37,6 +44,18 @@
       {
         "source": "/campaign-intelligence",
         "destination": "/dashboard-final.html"
+      },
+      {
+        "source": "/media-impact/**",
+        "destination": "/dashboard-final.html"
+      },
+      {
+        "source": "/media-impact",
+        "destination": "/dashboard-final.html"
+      },
+      {
+        "source": "/",
+        "destination": "/index.html"
       },
       {
         "source": "**",
