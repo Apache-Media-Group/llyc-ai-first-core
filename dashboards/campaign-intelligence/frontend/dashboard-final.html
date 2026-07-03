@@ -562,8 +562,9 @@ async function loadAll(forceRefresh=false){
     document.getElementById('chatSub').textContent=`${loaded.length} plataformas · datos en vivo`;
     document.getElementById('ci').disabled=false;
     document.getElementById('btnSend').disabled=false;
-    // Fetch user role from CF
+    // Detect role client-side: @llyc.global = editor, others = viewer
     try {
+      await new Promise(r => setTimeout(r, 500));
       const meRes = await gasGet({action:'me'});
       if(meRes.role) {
         _userRole = meRes.role;
@@ -827,17 +828,14 @@ function renderOverviewFilters(){
 function renderOverview(){
   let h='';
   const filteredData = getOverviewFilteredData();
-  const kpis=aggKPIs(filteredData);
-  if(kpis.length){h+='<div class="kpi-grid">';kpis.forEach(k=>h+=`<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub||''}</div></div>`);h+='</div>';}
-  h+='<div class="sec-title">Plataformas activas</div><div class="platform-grid">';
-  PLATFORMS.forEach(p=>{
-    if(!filteredData[p])return;
-    const col=PCOLORS[p]||'#888';
-    const metrics=detectMetrics(filteredData[p].headers).slice(0,4).join(' · ')||'—';
-    h+=`<div class="platform-card" onclick="switchTab('${p}')"><div class="pcard-top"><div class="pname"><div class="pdot" style="background:${col}"></div>${p}</div><div class="prows">${filteredData[p].rows.length.toLocaleString('es-ES')} filas</div></div><div class="pmetrics">${metrics}</div></div>`;
-  });
-  h+='</div><div class="sec-title">Insights IA</div>';
-  h+=`<div class="insights-grid" id="insightsGrid">${insightsCache||'<div class="ins-card info" style="grid-column:1/-1"><div class="ins-tag">⟳ Analizando</div><div class="ins-text">Generando insights con IA...</div></div>'}</div>`;
+
+  // 1. KPIs
+  const kpis = calcOverviewKPIs(filteredData);
+  h+='<div class="kpi-grid">';
+  kpis.forEach(k=>h+=`<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub||''}</div></div>`);
+  h+='</div>';
+
+  // 2. Charts
   h+='<div class="sec-title">Gráficas</div>';
   h+='<div class="chart-grid">';
   h+=`<div class="chart-card"><div class="chart-title">Impresiones vs CPM</div><div class="chart-wrap"><canvas id="chartImprCPM"></canvas></div></div>`;
@@ -845,46 +843,203 @@ function renderOverview(){
   h+=`<div class="chart-card"><div class="chart-title">Inversión vs CTR</div><div class="chart-wrap"><canvas id="chartSpendCTR"></canvas></div></div>`;
   h+=`<div class="chart-card"><div class="chart-title">Inversión por plataforma</div><div class="chart-wrap"><canvas id="chartDist"></canvas></div></div>`;
   h+='</div>';
+
+  // 3. Insights
+  h+='<div class="sec-title">Insights IA</div>';
+  h+=`<div class="insights-grid" id="insightsGrid">${insightsCache||'<div class="ins-card info" style="grid-column:1/-1"><div class="ins-tag">⟳ Analizando</div><div class="ins-text">Generando insights con IA...</div></div>'}</div>`;
+
+  // 4. Active platforms
+  h+='<div class="sec-title">Plataformas activas</div><div class="platform-grid">';
+  PLATFORMS.forEach(p=>{
+    if(!filteredData[p])return;
+    const col=PCOLORS[p]||'#888';
+    const metrics=detectMetrics(filteredData[p].headers).slice(0,4).join(' · ')||'—';
+    h+=`<div class="platform-card" onclick="switchTab('${p}')"><div class="pcard-top"><div class="pname"><div class="pdot" style="background:${col}"></div>${p}</div><div class="prows">${filteredData[p].rows.length.toLocaleString('es-ES')} filas</div></div><div class="pmetrics">${metrics}</div></div>`;
+  });
+  h+='</div>';
   return h;
 }
 
-function aggKPIs(dataSource){
+function aggKPIs(dataSource){ return calcOverviewKPIs(dataSource); }
+
+function calcOverviewKPIs(dataSource){
   const src = dataSource || allData;
-  let imp=0,clk=0,spend=0,reach=0,views=0,hI=false,hC=false,hS=false,hR=false,hV=false;
-  for(const[,d]of Object.entries(src)){
-    const H=d.headers.map(x=>(x||'').toLowerCase());
-    const fi=keys=>H.findIndex(x=>keys.some(k=>x.includes(k)));
-    const iI=fi(['impres']),iC=fi(['click']),iS=fi(['spend','cost','inver','importe']),iR=fi(['reach','alcance']),iV=fi(['view','reproduc']);
+  let imp=0, clk=0, spend=0;
+  for(const[,d] of Object.entries(src)){
+    const H = d.headers.map(x=>(x||'').toLowerCase());
+    const fi = keys => H.findIndex(x => keys.some(k => x.includes(k)));
+    const iI=fi(['impres']), iC=fi(['click']), iS=fi(['spend','cost','inver','importe']);
     d.rows.forEach(r=>{
-      if(iI>=0&&r[iI]){imp+=num(r[iI]);hI=true;}if(iC>=0&&r[iC]){clk+=num(r[iC]);hC=true;}
-      if(iS>=0&&r[iS]){spend+=num(r[iS]);hS=true;}if(iR>=0&&r[iR]){reach+=num(r[iR]);hR=true;}
-      if(iV>=0&&r[iV]){views+=num(r[iV]);hV=true;}
+      if(iI>=0&&r[iI]) imp+=num(r[iI]);
+      if(iC>=0&&r[iC]) clk+=num(r[iC]);
+      if(iS>=0&&r[iS]) spend+=num(r[iS]);
     });
   }
-  const k=[];
-  if(hI)k.push({label:'Impresiones',value:fNum(imp),sub:'todas las plataformas'});
-  if(hC)k.push({label:'Clics',value:fNum(clk),sub:hI?`CTR ${pct(clk,imp)}`:''});
-  if(hS)k.push({label:'Inversión',value:fCur(spend),sub:hI?`CPM ${fCur((spend/imp)*1000)}`:''});
-  if(hR)k.push({label:'Alcance',value:fNum(reach),sub:hI?`Freq. ${(imp/reach).toFixed(1)}x`:''});
-  if(hV)k.push({label:'Reproducciones',value:fNum(views)});
-  k.push({label:'Plataformas',value:String(Object.keys(allData).length),sub:'con datos activos'});
-  return k;
+  const cpm  = imp>0 ? (spend/imp)*1000 : 0;
+  const cpc  = clk>0 ? spend/clk : 0;
+  const ctr  = imp>0 ? (clk/imp)*100 : 0;
+  return [
+    {label:'Impresiones', value:fNum(imp),  sub:`CPM ${fCur(cpm)}`},
+    {label:'Clicks',      value:fNum(clk),  sub:`CPC ${fCur(cpc)}`},
+    {label:'CTR',         value:ctr.toFixed(2)+'%', sub:'clicks / impresiones'},
+    {label:'Inversión',   value:fCur(spend), sub:'todas las plataformas'}
+  ];
 }
 
 // ── PLATFORM ───────────────────────────────────────────────────────
 function renderPlatform(p){
   if(!allData[p])return`<div class="error-box"><p>Sin datos para ${p}</p></div>`;
-  const d=allData[p];const col=PCOLORS[p]||'#c8ff00';let h='';
-  const filteredRows=getFilteredRows(p);
-  const kpis=numKPIs(d,filteredRows);
-  if(kpis.length){
-    h+='<div class="kpi-grid">';
-    kpis.forEach(k=>h+=`<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value" style="color:${col}">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`);
-    h+='</div>';
+  const d=allData[p];
+  const col=PCOLORS[p]||'#c8ff00';
+  const allRows=d.rows;
+  let h='';
+
+  // Fixed KPIs calculated from raw data
+  const kpis = calcPlatformKPIs(d, allRows, col);
+  h+='<div class="kpi-grid">';
+  kpis.forEach(k=>h+=`<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value" style="color:${col}">${k.value}</div><div class="kpi-sub">${k.sub||''}</div></div>`);
+  h+='</div>';
+
+  // Table by campaign
+  const campTable = buildAggTable(d, 'campaign', p, 'campaign');
+  if(campTable){
+    h+=`<div class="sec-title">Por campaña</div>`;
+    h+=renderAggTable(campTable, p+'_camp');
   }
-  h+=`<div class="sec-title">${p} · ${filteredRows.length.toLocaleString('es-ES')} filas</div>`;
-  h+=renderTable(d,filteredRows,p);
+
+  // Table by ad
+  const adTable = buildAggTable(d, 'ad', p, 'ad');
+  if(adTable){
+    h+=`<div class="sec-title" style="margin-top:20px">Por anuncio</div>`;
+    h+=renderAggTable(adTable, p+'_ad');
+  }
+
   return h;
+}
+
+function calcPlatformKPIs(d, rows, col){
+  const H = d.headers.map(x=>(x||'').toLowerCase());
+  const fi = keys => H.findIndex(x => keys.some(k => x.includes(k)));
+  const iI=fi(['impres']), iC=fi(['click']), iS=fi(['spend','cost','inver','importe']);
+  let imp=0, clk=0, spend=0;
+  rows.forEach(r=>{
+    if(iI>=0&&r[iI]) imp+=num(r[iI]);
+    if(iC>=0&&r[iC]) clk+=num(r[iC]);
+    if(iS>=0&&r[iS]) spend+=num(r[iS]);
+  });
+  const cpm = imp>0 ? (spend/imp)*1000 : 0;
+  const cpc = clk>0 ? spend/clk : 0;
+  const ctr = imp>0 ? (clk/imp)*100 : 0;
+  return [
+    {label:'Impresiones', value:fNum(imp),  sub:`CPM ${fCur(cpm)}`},
+    {label:'Clicks',      value:fNum(clk),  sub:`CPC ${fCur(cpc)}`},
+    {label:'CTR',         value:ctr.toFixed(2)+'%', sub:'clicks / impresiones'},
+    {label:'Inversión',   value:fCur(spend), sub:'total plataforma'}
+  ];
+}
+
+function buildAggTable(d, groupBy, platform, tableKey){
+  const H = d.headers.map(x=>(x||'').toLowerCase());
+  const fi = keys => H.findIndex(x => keys.some(k => x.includes(k)));
+
+  // Detect columns
+  const iDate = fi(['date','fecha']);
+  const iGrp  = groupBy==='campaign'
+    ? fi(['campaign','campaña','camp_name','campaign_name'])
+    : fi(['ad_name','ad','anuncio','adname','creative']);
+  const iImp  = fi(['impres']);
+  const iClk  = fi(['click']);
+  const iSpd  = fi(['spend','cost','inver','importe']);
+  const iVid  = fi(['view','reproduc','video_view','videoview']);
+
+  if(iGrp<0) return null;
+
+  // Aggregate by group
+  const agg = {};
+  d.rows.forEach(r=>{
+    const grp = String(r[iGrp]||'').trim();
+    if(!grp || /^-?\d+$/.test(grp)) return; // skip numeric IDs
+    if(!agg[grp]) agg[grp]={imp:0, clk:0, spd:0, vid:0};
+    if(iImp>=0) agg[grp].imp += num(r[iImp])||0;
+    if(iClk>=0) agg[grp].clk += num(r[iClk])||0;
+    if(iSpd>=0) agg[grp].spd += num(r[iSpd])||0;
+    if(iVid>=0) agg[grp].vid += num(r[iVid])||0;
+  });
+
+  const hasVideo = iVid>=0 && Object.values(agg).some(v=>v.vid>0);
+  const label = groupBy==='campaign' ? 'Campaña' : 'Anuncio';
+
+  // Build rows sorted by impressions desc
+  const rows = Object.entries(agg)
+    .map(([name,v])=>{
+      const ctr = v.imp>0 ? (v.clk/v.imp)*100 : 0;
+      const cpc = v.clk>0 ? v.spd/v.clk : 0;
+      const cpm = v.imp>0 ? (v.spd/v.imp)*1000 : 0;
+      const vtr = v.imp>0 && hasVideo ? (v.vid/v.imp)*100 : null;
+      return {name, imp:v.imp, clk:v.clk, spd:v.spd, vid:v.vid, ctr, cpc, cpm, vtr};
+    })
+    .sort((a,b)=>b.imp-a.imp);
+
+  return {rows, hasVideo, label, tableKey};
+}
+
+function renderAggTable(tbl, stateKey){
+  if(!tbl||!tbl.rows.length) return '<p style="color:var(--muted);padding:12px 0">Sin datos.</p>';
+
+  const page = pageState[stateKey]||0;
+  const total = tbl.rows.length;
+  const totalPages = Math.ceil(total/PAGE_SIZE);
+  const visible = tbl.rows.slice(page*PAGE_SIZE, (page+1)*PAGE_SIZE);
+
+  let h='<div class="table-wrap"><table><thead><tr>';
+  h+=`<th class="sortable">${tbl.label}</th>`;
+  h+='<th class="sortable">Impresiones</th>';
+  h+='<th class="sortable">Clicks</th>';
+  h+='<th class="sortable">CTR</th>';
+  h+='<th class="sortable">CPC</th>';
+  h+='<th class="sortable">CPM</th>';
+  h+='<th class="sortable">Inversión</th>';
+  if(tbl.hasVideo){
+    h+='<th class="sortable">Video Views</th>';
+    h+='<th class="sortable">VTR</th>';
+  }
+  h+='</tr></thead><tbody>';
+
+  visible.forEach(r=>{
+    h+='<tr>';
+    h+=`<td>${esc(r.name)}</td>`;
+    h+=`<td class="num">${fNum(r.imp)}</td>`;
+    h+=`<td class="num">${fNum(r.clk)}</td>`;
+    h+=`<td class="num">${r.ctr.toFixed(2)}%</td>`;
+    h+=`<td class="num">${fCur(r.cpc)}</td>`;
+    h+=`<td class="num">${fCur(r.cpm)}</td>`;
+    h+=`<td class="num">${fCur(r.spd)}</td>`;
+    if(tbl.hasVideo){
+      h+=`<td class="num">${fNum(r.vid)}</td>`;
+      h+=`<td class="num">${r.vtr!==null?r.vtr.toFixed(2)+'%':'—'}</td>`;
+    }
+    h+='</tr>';
+  });
+
+  h+='</tbody></table></div>';
+
+  if(totalPages>1){
+    if(!pageState[stateKey]) pageState[stateKey]=0;
+    h+=`<div class="pagination">`;
+    h+=`<button class="pg-btn" onclick="changeAggPage('${stateKey}',-1)" ${page===0?'disabled':''}>← Anterior</button>`;
+    h+=`<span class="pg-info">Pág. ${page+1} / ${totalPages} · ${total.toLocaleString('es-ES')} filas</span>`;
+    h+=`<button class="pg-btn" onclick="changeAggPage('${stateKey}',1)" ${page>=totalPages-1?'disabled':''}>Siguiente →</button>`;
+    h+=`</div>`;
+  } else {
+    h+=`<p style="color:var(--muted);font-size:10px;font-family:'DM Mono',monospace;margin-top:8px">${total.toLocaleString('es-ES')} filas</p>`;
+  }
+  return h;
+}
+
+function changeAggPage(stateKey, dir){
+  if(!pageState[stateKey]) pageState[stateKey]=0;
+  pageState[stateKey] = Math.max(0, pageState[stateKey]+dir);
+  render();
 }
 
 function numKPIs(d, rows){
