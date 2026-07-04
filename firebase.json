@@ -47,11 +47,17 @@
       },
       {
         "source": "/media-impact/**",
-        "destination": "/dashboard-final.html"
+        "run": {
+          "serviceId": "llyc-intelligence-api",
+          "region": "us-central1"
+        }
       },
       {
         "source": "/media-impact",
-        "destination": "/dashboard-final.html"
+        "run": {
+          "serviceId": "llyc-intelligence-api",
+          "region": "us-central1"
+        }
       },
       {
         "source": "/",
