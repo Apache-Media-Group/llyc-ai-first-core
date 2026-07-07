@@ -3,4 +3,4 @@ BQ_DATASET: ODS
 TENANT_ID: lcdc
 CLIENT_SECRET_PROJECT: llyc-ai-lcdc
 KNOWN_TENANTS: lcdc
-ALLOWED_EMAILS: alberto.gonzalez@llyc.global;massimiliano.turinetto@llyc.global;sergio.alonso@llyc.global
+ALLOWED_EMAILS: sergio.alonso@llyc.global:editor;alberto.gonzalez@llyc.global:viewer;massimiliano.turinetto@llyc.global:viewer

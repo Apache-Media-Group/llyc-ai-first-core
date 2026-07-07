@@ -18,7 +18,7 @@ import json
 import hashlib
 import functions_framework
 from datetime import datetime, timezone, date
-from google.cloud import bigquery, secretmanager
+from google.cloud import bigquery, secretmanager, firestore
 import google.cloud.logging
 import logging
 import firebase_admin
@@ -71,6 +71,7 @@ TABLE_MAP = {
 
 bq_client = bigquery.Client(project=CORE_PROJECT)
 sm_client = secretmanager.SecretManagerServiceClient()
+fs_client = firestore.Client(project=CORE_PROJECT)
 
 _insights_cache = {"hash": None, "insights": None}
 _anthropic_client = None
@@ -381,6 +382,30 @@ Responde SOLO con JSON válido sin markdown:
             return json_response({**parsed, "fromCache": False})
         except Exception as e:
             log.error(f"Anthropic insights error: {e}")
+            return json_response({"error": str(e)}, 500)
+
+    # ── GET CONFIG ────────────────────────────────────────────────
+    if action == "getConfig":
+        try:
+            doc = fs_client.collection("dashboard_configs").document(req_tenant).get()
+            cfg = doc.to_dict() if doc.exists else {}
+            return json_response({"config": cfg})
+        except Exception as e:
+            log.error(f"Firestore getConfig error: {e}")
+            return json_response({"config": {}})
+
+    # ── SAVE CONFIG ───────────────────────────────────────────────
+    if action == "saveConfig" and request.method == "POST":
+        if user_role != "editor":
+            return json_response({"error": "Forbidden: editor role required"}, 403)
+        body = request.get_json(silent=True) or {}
+        cfg  = body.get("config", {})
+        try:
+            fs_client.collection("dashboard_configs").document(req_tenant).set(cfg)
+            log.info(f"Config saved for tenant {req_tenant} by {email}")
+            return json_response({"ok": True})
+        except Exception as e:
+            log.error(f"Firestore saveConfig error: {e}")
             return json_response({"error": str(e)}, 500)
 
     return json_response({"error": f"Unknown action: {action}"}, 400)

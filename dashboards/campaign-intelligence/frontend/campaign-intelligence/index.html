@@ -46,6 +46,12 @@ body{background:#081522;color:#F0F4F8;font-family:'Montserrat',sans-serif;height
   </div>
 </div>
 <script>
+// Si ya viene tenant_id en la URL, redirigir directamente al dashboard
+const _p = new URLSearchParams(window.location.search);
+if(_p.get('tenant_id')){
+  window.location.replace('/campaign-intelligence/dashboard-final.html?tenant_id=' + encodeURIComponent(_p.get('tenant_id')));
+}
+
 function goToDashboard(){
   const tenant = document.getElementById('tenantInput').value.trim().toLowerCase();
   if(!tenant){
@@ -54,7 +60,7 @@ function goToDashboard(){
     err.style.display = 'block';
     return;
   }
-  window.location.href = `/campaign-intelligence/?tenant_id=${encodeURIComponent(tenant)}`;
+  window.location.href = '/campaign-intelligence/dashboard-final.html?tenant_id=' + encodeURIComponent(tenant);
 }
 </script>
 </body>

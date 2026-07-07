@@ -221,7 +221,6 @@ textarea.ci:focus{border-color:var(--border2)}
     <div class="logo"><div class="logo-dot"></div>Campaign<span style="color:var(--llyc-red);font-weight:300"> Intelligence</span></div>
     <div class="header-center">
       <div id="clientNameHeader" style="font-family:'Montserrat',sans-serif;font-size:14px;font-weight:600;color:var(--muted2);display:none"></div>
-      <span style="font-family:'Montserrat',sans-serif;font-size:9px;color:var(--muted);letter-spacing:0.5px;margin-left:8px" id="dataStatus">Cargando...</span>
     </div>
     <div class="header-right">
       <span class="update-info" id="updateInfo">Sin conectar</span>
@@ -514,7 +513,7 @@ function applyClientContext(ctx) {
 async function loadAll(forceRefresh=false){
   if(!proxyUrl)return;
   document.getElementById('btnRefresh').disabled=true;
-  document.getElementById('dataStatus').textContent='Actualizando...';
+  
   const prevFetchedAt=window._lastFetchedAt||'';
 
   // Show loading only on first load, not on refresh attempts
@@ -527,6 +526,19 @@ async function loadAll(forceRefresh=false){
   const fmt = d => d.toISOString().split('T')[0];
   const defaultDateFrom = fmt(d28ago);
   const defaultDateTo = fmt(today);
+  // Apply default dates to overview filters too
+  overviewDateFrom = defaultDateFrom;
+  overviewDateTo = defaultDateTo;
+
+  // Load shared config from Firestore
+  try {
+    const cfgRes = await gasGet({action:'getConfig'});
+    if(cfgRes.config && Object.keys(cfgRes.config).length > 0) {
+      _cfg = {...DEFAULT_CFG, ...cfgRes.config};
+      saveCfgToStorage(_cfg);
+      applyCfgToUI();
+    }
+  } catch(e) { /* use localStorage config */ }
 
   try{
     const res=await gasGet({action:'data'});
@@ -554,25 +566,19 @@ async function loadAll(forceRefresh=false){
     // Smart refresh: if data hasn't changed, skip re-render and notify user
     if(!dataChanged && prevFetchedAt && forceRefresh){
       document.getElementById('btnRefresh').disabled=false;
-      document.getElementById('dataStatus').textContent='Sin cambios';
+      
       showToast('No hay nuevos cambios en los datos');
       return;
     }
-    document.getElementById('dataStatus').textContent=dataChanged?'Datos actualizados':'';
+    
     document.getElementById('chatSub').textContent=`${loaded.length} plataformas · datos en vivo`;
     document.getElementById('ci').disabled=false;
     document.getElementById('btnSend').disabled=false;
     // Detect role client-side: @llyc.global = editor, others = viewer
-    try {
-      await new Promise(r => setTimeout(r, 500));
-      const meRes = await gasGet({action:'me'});
-      if(meRes.role) {
-        _userRole = meRes.role;
-        if(_userRole === 'editor') {
-          document.getElementById('btnConfig').style.display = 'block';
-        }
-      }
-    } catch(e) { /* role fetch failed, default viewer */ }
+    _userRole = _userEmail && _userEmail.endsWith('@llyc.global') ? 'editor' : 'viewer';
+    if(_userRole === 'editor') {
+      document.getElementById('btnConfig').style.display = 'block';
+    }
     currentTab='OVERVIEW';render();
     if(currentTab==='OVERVIEW') renderCharts(getOverviewFilteredData());
     if(loaded.length>0){
@@ -701,6 +707,11 @@ function render(){
     ${filtersBar}
     <div class="dash-inner">${content}</div>`;
 }
+function renderAndCharts(){
+  render();
+  setTimeout(() => renderCharts(getOverviewFilteredData()), 50);
+}
+
 function buildTabs(){
   let h=`<button class="tab ${currentTab==='OVERVIEW'?'active':''}" data-p="OVERVIEW" onclick="switchTab('OVERVIEW')">Overview</button>`;
   PLATFORMS.forEach(p=>{if(allData[p])h+=`<button class="tab ${currentTab===p?'active':''}" data-p="${p}" onclick="switchTab('${p}')">${p}</button>`;});
@@ -812,16 +823,16 @@ function renderOverviewFilters(){
   return `<div class="filters-bar">
     <div class="filter-group">
       <span class="filter-label">Desde</span>
-      <input type="date" class="filter-date" value="${overviewDateFrom}" onchange="overviewDateFrom=this.value;render()">
+      <input type="date" class="filter-date" value="${overviewDateFrom}" onchange="overviewDateFrom=this.value;renderAndCharts()">
       <span class="filter-label">Hasta</span>
-      <input type="date" class="filter-date" value="${overviewDateTo}" onchange="overviewDateTo=this.value;render()">
+      <input type="date" class="filter-date" value="${overviewDateTo}" onchange="overviewDateTo=this.value;renderAndCharts()">
     </div>
     <div class="filter-sep"></div>
     <div class="filter-group">
       <span class="filter-label">Canal</span>
-      <select class="filter-select" onchange="overviewPlatform=this.value;render()">${platOpts}</select>
+      <select class="filter-select" onchange="overviewPlatform=this.value;renderAndCharts()">${platOpts}</select>
     </div>
-    ${(overviewDateFrom||overviewDateTo||overviewPlatform)?'<div class="filter-sep"></div><button class="filter-clear" onclick="overviewDateFrom=\'\';overviewDateTo=\'\';overviewPlatform=\'\';render()">✕ Limpiar</button>':''}
+    ${(overviewDateFrom||overviewDateTo||overviewPlatform)?'<div class="filter-sep"></div><button class="filter-clear" onclick="overviewDateFrom=\'\';overviewDateTo=\'\';overviewPlatform=\'\';renderAndCharts()">✕ Limpiar</button>':''}
   </div>`;
 }
 
@@ -1242,7 +1253,10 @@ function saveCfg(){
   applyCfgToUI();
   closeCfg();
   render();
-  showToast('Configuración guardada ✓');
+  // Save to Firestore so all users see the changes
+  gasPost({action:'saveConfig', config:_cfg})
+    .then(() => showToast('Configuración guardada y sincronizada ✓'))
+    .catch(() => showToast('Guardado local — error al sincronizar'));
 }
 
 function resetCfg(){
@@ -1257,13 +1271,14 @@ function resetCfg(){
 
 // ── HELPERS ────────────────────────────────────────────────────────
 function buildSummary(){
+  // Use ALL data (no date filter) for AI context — more value for insights and chat
   let s='';
   for(const[p,d]of Object.entries(allData)){
-    const filtered=getFilteredRows(p);
-    s+=`\n## ${p} (${filtered.length} filas${filtered.length!==d.rows.length?' con filtros aplicados':''})\n`;
+    const rows = d.rows; // all rows, not filtered
+    s+=`\n## ${p} (${rows.length} filas — todos los datos)\n`;
     s+=`Columnas: ${d.headers.join(', ')}\n`;
-    s+=filtered.slice(0,3).map(r=>d.headers.map((h,i)=>`${h}:${r[i]}`).join(' | ')).join('\n')+'\n';
-    const kpis=numKPIs(d,filtered);if(kpis.length)s+=`Totales: ${kpis.map(k=>`${k.label}=${k.value}`).join(', ')}\n`;
+    s+=rows.slice(0,3).map(r=>d.headers.map((h,i)=>`${h}:${r[i]}`).join(' | ')).join('\n')+'\n';
+    const kpis=numKPIs(d,rows);if(kpis.length)s+=`Totales: ${kpis.map(k=>`${k.label}=${k.value}`).join(', ')}\n`;
   }
   return s;
 }
