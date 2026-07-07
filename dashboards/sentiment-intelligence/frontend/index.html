@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentiment Intelligence — LLYC</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<style>
+:root{
+  --llyc-red:#F54963;--llyc-teal:#36A7B7;
+  --bg:#081522;--s1:#0d1f2d;--s2:#122436;--s3:#1a2f42;
+  --border:rgba(54,167,183,0.12);--border2:rgba(54,167,183,0.28);
+  --text:#F0F4F8;--muted:#5a7a8a;--muted2:#8aaabb;
+  --green:#10B981;--amber:#F59E0B;--red:#EF4444;--teal:#36A7B7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Montserrat',sans-serif;font-size:14px}
+/* AUTH */
+#authScreen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100}
+.auth-card{background:var(--s1);border:1px solid var(--border2);border-radius:12px;padding:48px 56px;max-width:420px;width:90%;text-align:center}
+.auth-logo{font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px}
+.auth-logo-dot{width:8px;height:8px;border-radius:50%;background:var(--llyc-red);animation:breathe 2.5s ease-in-out infinite}
+.auth-logo span{color:var(--llyc-red);font-weight:300}
+.auth-divider{width:40px;height:2px;background:var(--teal);margin:18px auto 22px}
+.auth-sub{color:var(--muted2);font-size:13px;line-height:1.6;margin-bottom:28px}
+.btn-google{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--s2);border:1px solid var(--border2);color:var(--text);padding:13px 20px;border-radius:6px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all .2s}
+.btn-google:hover{background:var(--s3);border-color:var(--teal)}
+.auth-error{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:10px 14px;margin-top:16px;color:#fca5a5;font-size:12px;display:none}
+/* APP */
+#appScreen{display:none;flex-direction:column;height:100vh}
+#appScreen.visible{display:flex}
+/* Header */
+header{display:flex;align-items:center;justify-content:space-between;padding:13px 28px;border-bottom:1px solid var(--border);border-top:3px solid var(--llyc-red);background:rgba(8,21,34,.98);flex-shrink:0;gap:12px}
+.logo{font-size:17px;font-weight:800;letter-spacing:-0.5px;display:flex;align-items:center;gap:10px}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--llyc-red);animation:breathe 2.5s ease-in-out infinite}
+.logo span{color:var(--llyc-red);font-weight:300}
+@keyframes breathe{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.6)}}
+.header-right{display:flex;align-items:center;gap:12px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
+.status-dot.live{background:var(--green);animation:breathe 2s ease-in-out infinite}
+.user-info{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)}
+.btn-signout{background:transparent;color:var(--muted);border:1px solid var(--border);padding:5px 12px;border-radius:3px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;cursor:pointer;transition:all .15s;text-transform:uppercase}
+.btn-signout:hover{border-color:var(--llyc-red);color:var(--llyc-red)}
+/* Filters */
+.filters-section{background:var(--s1);border-bottom:1px solid var(--border);padding:12px 28px;flex-shrink:0}
+.filters-top{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.filters-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.global-filters{display:flex;gap:8px;flex-wrap:wrap;flex:1}
+.filter-group-inline{display:flex;align-items:center;gap:6px}
+.filter-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.filter-select{background:var(--s2);border:1px solid var(--border);color:var(--muted2);padding:5px 22px 5px 8px;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a5a75'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center;transition:border-color .15s}
+.filter-select:focus{border-color:var(--border2);color:var(--text)}
+.filter-sep{width:1px;height:14px;background:var(--border);margin:0 4px}
+.btn-clear{background:transparent;border:1px solid var(--border);color:var(--muted);padding:5px 10px;border-radius:3px;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;transition:all .15s}
+.btn-clear:hover{border-color:var(--llyc-red);color:var(--llyc-red)}
+.filters-sub{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filters-sub-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.filter-count{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-left:auto}
+/* Main */
+.main-wrap{flex:1;overflow-y:auto;min-height:0}
+.inner{padding:20px 28px}
+/* KPIs */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;margin-bottom:20px}
+.kpi{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:15px 18px;transition:border-color .2s,transform .15s}
+.kpi:hover{border-color:var(--teal);transform:translateY(-1px)}
+.kpi-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px}
+.kpi-value{font-size:24px;font-weight:800;line-height:1;margin-bottom:5px}
+.kpi-sub{font-size:11px;color:var(--muted2)}
+/* Tabs */
+.tabs-bar-wrap{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.tabs-bar{display:flex;gap:3px;background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:3px}
+.tab-btn{padding:7px 16px;border-radius:4px;font-size:12px;font-weight:700;background:transparent;color:var(--muted);border:none;cursor:pointer;transition:all .15s;white-space:nowrap}
+.tab-btn.active{background:var(--llyc-red);color:#fff}
+.groupby-row{display:flex;align-items:center;gap:8px}
+.groupby-label{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)}
+.groupby-select{background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:6px 12px;font-size:12px;cursor:pointer;outline:none;font-family:'DM Mono',monospace}
+/* Charts */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.chart-card{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:20px}
+.chart-title{font-weight:700;font-size:13px;margin-bottom:4px}
+.chart-sub{color:var(--muted);font-size:11px;margin-bottom:16px}
+/* Score list */
+.score-list{display:flex;flex-direction:column;gap:11px}
+.score-row{display:grid;grid-template-columns:26px 90px 1fr 52px;align-items:center;gap:8px}
+.score-rank{font-weight:800;font-size:12px}
+.score-name{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.score-bar-wrap{display:flex;align-items:center;gap:8px}
+.score-bar-bg{flex:1;background:var(--s2);border-radius:3px;height:5px;overflow:hidden}
+.score-bar-fill{height:100%;border-radius:3px;transition:width .4s}
+.score-val{font-family:'DM Mono',monospace;font-size:12px;font-weight:700;min-width:36px;text-align:right}
+.score-count{color:var(--muted);font-size:10px;font-family:'DM Mono',monospace;text-align:right}
+/* Table */
+.table-wrap{background:var(--s1);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.table-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.table-head-title{font-weight:700;font-size:13px}
+.table-head-sub{color:var(--muted);font-size:11px;font-family:'DM Mono',monospace}
+.table-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{padding:9px 14px;text-align:left;color:var(--muted);font-weight:700;font-size:9px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--s2);font-family:'DM Mono',monospace}
+tbody td{padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.02)}
+tbody tr:hover td{background:rgba(255,255,255,.02)}
+.mono{font-family:'DM Mono',monospace}
+.badge{display:inline-block;border-radius:3px;padding:2px 8px;font-size:10px;font-weight:700;letter-spacing:.05em;white-space:nowrap}
+.legend{display:flex;gap:18px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px}
+.legend-dot{width:9px;height:9px;border-radius:50%}
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-icon{font-size:32px;margin-bottom:10px}
+.empty-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px}
+.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px;gap:14px}
+.spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--llyc-red);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
+.error-box{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:6px;padding:14px 18px}
+.error-box p{color:#fca5a5;font-size:13px;line-height:1.6}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--teal);border-radius:2px}
+select option{background:#0d1f2d}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo"><div class="auth-logo-dot"></div>Sentiment <span>Intelligence</span></div>
+    <div class="auth-divider"></div>
+    <p class="auth-sub">Accede con tu cuenta corporativa de Google para ver el análisis de sentimiento de Turespaña.</p>
+    <button class="btn-google" onclick="signIn()">
+      <svg width="18" height="18" viewBox="0 0 18 18">
+        <path d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 002.38-5.88c0-.57-.05-.66-.15-1.18z" fill="#4285F4"/>
+        <path d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 01-7.18-2.54H1.83v2.07A8 8 0 008.98 17z" fill="#34A853"/>
+        <path d="M4.5 10.52a4.8 4.8 0 010-3.04V5.41H1.83a8 8 0 000 7.18l2.67-2.07z" fill="#FBBC05"/>
+        <path d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 001.83 5.4L4.5 7.49a4.77 4.77 0 014.48-3.3z" fill="#EA4335"/>
+      </svg>
+      Continuar con Google
+    </button>
+    <div class="auth-error" id="authError"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appScreen">
+  <header>
+    <div class="logo"><div class="logo-dot"></div>Sentiment <span>Intelligence</span></div>
+    <div class="header-right">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="user-info" id="userInfo">—</span>
+      <button class="btn-signout" onclick="signOut()">Salir</button>
+    </div>
+  </header>
+
+  <div class="filters-section">
+    <div class="filters-top">
+      <span class="filters-label">Global</span>
+      <div class="global-filters" id="globalFilters"></div>
+      <div class="filter-sep"></div>
+      <button class="btn-clear" onclick="clearAllFilters()">✕ Limpiar</button>
+    </div>
+    <div class="filters-sub">
+      <span class="filters-sub-label">Campaña</span>
+      <div id="campaignFilters" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      <div class="filter-sep"></div>
+      <span class="filters-sub-label">Ad</span>
+      <div id="adFilters" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      <span class="filter-count" id="filterCount"></span>
+    </div>
+  </div>
+
+  <div class="main-wrap">
+    <div class="inner">
+      <div class="kpi-row" id="kpiRow"></div>
+      <div class="tabs-bar-wrap">
+        <div class="tabs-bar">
+          <button class="tab-btn active" id="tab-ranking"  onclick="setTab('ranking',this)">Ranking por variable</button>
+          <button class="tab-btn"        id="tab-scatter"  onclick="setTab('scatter',this)">Matriz inversión · sentimiento</button>
+          <button class="tab-btn"        id="tab-topads"   onclick="setTab('topads',this)">Top Ads</button>
+        </div>
+        <div class="groupby-row" id="groupByRow">
+          <span class="groupby-label">Agrupar por</span>
+          <select class="groupby-select" id="groupBySelect" onchange="ST.groupBy=this.value;renderContent()">
+            <option value="ad_format">Formato</option>
+            <option value="market">Mercado</option>
+            <option value="ad_audience">Audiencia</option>
+            <option value="campaign_objective">Objetivo</option>
+            <option value="provider">Plataforma</option>
+            <option value="ad_type">Tipo de Ad</option>
+            <option value="ad_language">Idioma</option>
+            <option value="ad_version">Versión</option>
+            <option value="campaign_grouping">Agrupación Camp.</option>
+          </select>
+        </div>
+      </div>
+      <div id="content"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────
+// ⚠️ Sustituye por la URL real tras el deploy
+const API_URL = 'https://europe-west1-llyc-ai-first-core.cloudfunctions.net/sentiment-api';
+
+firebase.initializeApp({
+  apiKey:            "AIzaSyCHIluDUA_iS-AFda6aWWrrKFdPFn9Z2yY",
+  authDomain:        "llyc-ai-first-core.firebaseapp.com",
+  projectId:         "llyc-ai-first-core",
+  storageBucket:     "llyc-ai-first-core.firebasestorage.app",
+  messagingSenderId: "46249705777",
+  appId:             "1:46249705777:web:2db5fb2d0a7ef946d9f010"
+});
+const auth = firebase.auth();
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+auth.onAuthStateChanged(async user => {
+  if (user) {
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('appScreen').classList.add('visible');
+    document.getElementById('userInfo').textContent = user.email;
+    await loadData();
+  } else {
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('appScreen').classList.remove('visible');
+  }
+});
+
+async function signIn() {
+  try { await auth.signInWithPopup(googleProvider); }
+  catch(e) { const el=document.getElementById('authError'); el.textContent=e.message; el.style.display='block'; }
+}
+function signOut() { auth.signOut(); }
+async function getToken() { return auth.currentUser?.getIdToken(); }
+
+// ── STATE ─────────────────────────────────────────────────────────
+const ST = {
+  all: [], filtered: [], filters: {},
+  filtersAvail: {}, benchmarks: {},
+  groupBy: 'ad_format', activeTab: 'ranking'
+};
+
+const GLOBAL_DIMS   = ['provider','market'];
+const CAMPAIGN_DIMS = ['campaign_objective','campaign_grouping'];
+const AD_DIMS       = ['ad_format','ad_type','ad_audience','ad_language','ad_version'];
+const ALL_DIMS      = [...GLOBAL_DIMS,...CAMPAIGN_DIMS,...AD_DIMS];
+const DIM_LABELS    = {
+  provider:'Plataforma', market:'Mercado', campaign_objective:'Objetivo',
+  campaign_grouping:'Agrupación', ad_format:'Formato', ad_type:'Tipo de Ad',
+  ad_audience:'Audiencia', ad_language:'Idioma', ad_version:'Versión'
+};
+
+// ── API ───────────────────────────────────────────────────────────
+async function apiGet(params={}) {
+  const token = await getToken();
+  const url = new URL(API_URL);
+  Object.entries(params).forEach(([k,v]) => v && url.searchParams.set(k,v));
+  const res = await fetch(url.toString(), { headers:{'Authorization':`Bearer ${token}`} });
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
+}
+
+// ── LOAD ──────────────────────────────────────────────────────────
+async function loadData() {
+  showLoading('Cargando datos de sentimiento...');
+  try {
+    const data = await apiGet({ action:'data' });
+    ST.all          = data.records || [];
+    ST.filtersAvail = data.filters_available || {};
+    ST.benchmarks   = data.benchmarks || {};
+    ST.filters      = {};
+    buildFilterUI();
+    applyFilters();
+    document.getElementById('statusDot').classList.add('live');
+  } catch(e) { showError(`Error al cargar datos: ${e.message}`); }
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────
+function buildFilterUI() {
+  buildGroup('globalFilters',   GLOBAL_DIMS);
+  buildGroup('campaignFilters', CAMPAIGN_DIMS);
+  buildGroup('adFilters',       AD_DIMS);
+}
+
+function buildGroup(id, dims) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  dims.forEach(dim => {
+    const vals = ST.filtersAvail[dim] || [];
+    if (!vals.length) return;
+    const w = document.createElement('div');
+    w.className = 'filter-group-inline';
+    w.innerHTML = `<label class="filter-label">${DIM_LABELS[dim]}</label>
+      <select class="filter-select" id="sel_${dim}" onchange="setFilter('${dim}',this.value)">
+        <option value="">Todos</option>
+        ${vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('')}
+      </select>`;
+    el.appendChild(w);
+  });
+}
+
+function setFilter(dim, val) {
+  if (val) ST.filters[dim]=val; else delete ST.filters[dim];
+  applyFilters();
+}
+
+function clearAllFilters() {
+  ST.filters = {};
+  ALL_DIMS.forEach(d => { const s=document.getElementById(`sel_${d}`); if(s) s.value=''; });
+  applyFilters();
+}
+
+function applyFilters() {
+  ST.filtered = ST.all.filter(r =>
+    Object.entries(ST.filters).every(([k,v]) => !v || r[k]===v)
+  );
+  document.getElementById('filterCount').textContent =
+    `${ST.filtered.length.toLocaleString('es-ES')} / ${ST.all.length.toLocaleString('es-ES')} ads`;
+  renderAll();
+}
+
+// ── RENDER ────────────────────────────────────────────────────────
+function renderAll() { renderKPIs(); renderContent(); }
+
+function setTab(tab, btn) {
+  ST.activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('groupByRow').style.display = tab==='ranking' ? 'flex' : 'none';
+  renderContent();
+}
+
+function renderContent() {
+  const el = document.getElementById('content');
+  if (!ST.filtered.length) {
+    el.innerHTML=`<div class="empty"><div class="empty-icon">🔍</div>
+      <div class="empty-title">Sin resultados</div>
+      <p>Quita algún filtro para ampliar la búsqueda.</p></div>`;
+    return;
+  }
+  if (ST.activeTab==='ranking') el.innerHTML=renderRanking();
+  else if (ST.activeTab==='scatter') el.innerHTML=renderScatterView();
+  else el.innerHTML=renderTopAds();
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────
+function renderKPIs() {
+  const data=ST.filtered;
+  if (!data.length) { document.getElementById('kpiRow').innerHTML=''; return; }
+  const tS=data.reduce((s,r)=>s+(r.emotional_score||0),0);
+  const tI=data.reduce((s,r)=>s+(r.impressions_scored||0),0);
+  const avg=tI>0?(tS/tI)*1000:0;
+  const exc=data.filter(r=>r.perf_level_sentiment==='1.Excelente').length;
+  const excPct=Math.round((exc/data.length)*100);
+  const bKey=ST.filters.provider||Object.keys(ST.benchmarks)[0]||'';
+  const bm=ST.benchmarks[bKey]||{};
+  const thrExc=bm.threshold_excellent||3.5;
+  const thrAvg=bm.threshold_avg||1.8;
+  const byFmt={};
+  data.forEach(r=>{ const k=r.ad_format||'—'; if(!byFmt[k])byFmt[k]={s:0,i:0}; byFmt[k].s+=r.emotional_score||0; byFmt[k].i+=r.impressions_scored||0; });
+  const topFmt=Object.entries(byFmt).map(([k,v])=>({k,w:v.i>0?(v.s/v.i)*1000:0})).sort((a,b)=>b.w-a.w)[0]?.k||'—';
+  const sc=s=>s>=thrExc?'var(--green)':s>=thrAvg?'var(--amber)':'var(--red)';
+  const kpis=[
+    {label:'Ads analizados',   value:data.length,      sub:'con score válido',       color:'var(--text)'},
+    {label:'Score medio',      value:fmt(avg),          sub:`umbral exc: ${thrExc}`,  color:sc(avg)},
+    {label:'% Excelentes',     value:`${excPct}%`,      sub:`${exc} ads`,             color:excPct>=25?'var(--green)':excPct>=10?'var(--amber)':'var(--red)'},
+    {label:'Mejor formato',    value:topFmt,            sub:'por score ponderado',    color:'var(--teal)'},
+    {label:'Umbral Excelente', value:fmt(thrExc),       sub:'Q75 + 1.5 × IQR',        color:'var(--green)'},
+    {label:'Umbral Alto',      value:fmt(thrAvg),       sub:'Mediana histórico',      color:'var(--amber)'},
+  ];
+  document.getElementById('kpiRow').innerHTML=kpis.map(k=>`
+    <div class="kpi">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value" style="color:${k.color}">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+}
+
+// ── RANKING ───────────────────────────────────────────────────────
+function renderRanking() {
+  const bKey=ST.filters.provider||Object.keys(ST.benchmarks)[0]||'';
+  const bm=ST.benchmarks[bKey]||{};
+  const thrExc=bm.threshold_excellent||3.5, thrAvg=bm.threshold_avg||1.8;
+  const grouped=getGrouped(ST.filtered,ST.groupBy);
+  const maxS=grouped[0]?.score_w||5;
+  const sc=s=>s>=thrExc?'var(--green)':s>=thrAvg?'var(--amber)':'var(--red)';
+  const rankRows=grouped.map((g,i)=>`
+    <div class="score-row">
+      <span class="score-rank" style="color:${i===0?'var(--amber)':i<3?'var(--muted2)':'var(--border2)'}">
+        ${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
+      <span class="score-name" title="${esc(g.name)}">${esc(g.name)}</span>
+      <div class="score-bar-wrap">
+        <div class="score-bar-bg">
+          <div class="score-bar-fill" style="width:${Math.min(100,(g.score_w/(maxS*1.1))*100).toFixed(1)}%;background:${sc(g.score_w)}"></div>
+        </div>
+        <span class="score-val" style="color:${sc(g.score_w)}">${fmt(g.score_w)}</span>
+      </div>
+      <span class="score-count">${g.count} ads</span>
+    </div>`).join('');
+  return `<div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Score emocional por ${DIM_LABELS[ST.groupBy]||ST.groupBy}</div>
+      <div class="chart-sub">Líneas de referencia: umbral Alto y Excelente del histórico</div>
+      ${barChart(grouped,thrAvg,thrExc)}
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Ranking detallado</div>
+      <div class="score-list">${rankRows}</div>
+    </div>
+  </div>`;
+}
+
+function barChart(grouped,thrAvg,thrExc) {
+  if (!grouped.length) return '';
+  const BH=32,GAP=7,ML=110,MR=72,MT=28,MB=8;
+  const W=520,H=grouped.length*(BH+GAP)+MT+MB;
+  const maxS=Math.max(...grouped.map(g=>g.score_w),thrExc*1.1);
+  const cW=W-ML-MR, xs=v=>(v/maxS)*cW;
+  const avgX=ML+xs(thrAvg), excX=ML+xs(thrExc);
+  const sc=s=>s>=thrExc?'#10B981':s>=thrAvg?'#F59E0B':'#EF4444';
+  const lines=`
+    <line x1="${avgX}" y1="${MT-14}" x2="${avgX}" y2="${H-MB}" stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="4,4"/>
+    <text x="${avgX}" y="${MT-17}" text-anchor="middle" fill="#F59E0B" font-size="9" font-family="monospace">Alto</text>
+    <line x1="${excX}" y1="${MT-14}" x2="${excX}" y2="${H-MB}" stroke="#10B981" stroke-width="1.5" stroke-dasharray="4,4"/>
+    <text x="${excX}" y="${MT-17}" text-anchor="middle" fill="#10B981" font-size="9" font-family="monospace">Excelente</text>`;
+  const bars=grouped.map((g,i)=>{
+    const y=MT+i*(BH+GAP), bW=Math.max(2,xs(g.score_w)), c=sc(g.score_w);
+    return `<text x="${ML-8}" y="${y+BH/2+4}" text-anchor="end" fill="#F0F4F8" font-size="11" font-family="system-ui" font-weight="600">${esc(g.name)}</text>
+      <rect x="${ML}" y="${y}" width="${bW}" height="${BH}" rx="3" fill="${c}"/>
+      <text x="${ML+bW+6}" y="${y+BH/2+4}" fill="${c}" font-size="11" font-family="monospace" font-weight="700">${fmt(g.score_w)}</text>
+      <text x="${W-MR+4}" y="${y+BH/2+4}" fill="#5a7a8a" font-size="9" font-family="monospace">${g.count}ads</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">${lines}${bars}</svg>`;
+}
+
+// ── SCATTER ───────────────────────────────────────────────────────
+function renderScatterView() {
+  const valid=ST.filtered.filter(d=>d.spend>0&&d.score_w_ad!=null);
+  const bKey=ST.filters.provider||Object.keys(ST.benchmarks)[0]||'';
+  const bm=ST.benchmarks[bKey]||{};
+  const thrExc=bm.threshold_excellent||3.5, thrAvg=bm.threshold_avg||1.8;
+  const ML=55,MR=65,MT=44,MB=44,W=640,H=370;
+  const iW=W-ML-MR,iH=H-MT-MB;
+  const spends=valid.map(d=>Math.log10(d.spend));
+  const minLS=Math.min(...spends),maxLS=Math.max(...spends);
+  const maxSc=Math.max(...valid.map(d=>d.score_w_ad),thrExc*1.1);
+  const xp=s=>ML+((Math.log10(s)-minLS)/(maxLS-minLS||1))*iW;
+  const yp=s=>MT+iH-(s/maxSc)*iH;
+  const avgY=yp(thrAvg),excY=yp(thrExc),midX=ML+iW/2;
+  const perfC=l=>l==='1.Excelente'?'#10B981':l==='2.Alto'?'#F59E0B':'#EF4444';
+  const circles=valid.map(d=>{
+    const cx=xp(d.spend).toFixed(1),cy=yp(d.score_w_ad).toFixed(1);
+    const r=Math.max(5,Math.min(22,Math.sqrt(Math.log10(d.impressions+1))*3.5));
+    const c=perfC(d.perf_level_sentiment);
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${c}" fill-opacity=".72" stroke="${c}" stroke-width=".5">
+      <title>${esc(d.ad_name||d.ad_id)} | Score: ${fmt(d.score_w_ad)} | €${fmtK(d.spend)} | ${fmtK(d.impressions)} imp.</title></circle>`;
+  }).join('');
+  const svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">
+    <line x1="${ML}" y1="${MT}" x2="${ML}" y2="${MT+iH}" stroke="#1a3a50" stroke-width="1"/>
+    <line x1="${ML}" y1="${MT+iH}" x2="${W-MR}" y2="${MT+iH}" stroke="#1a3a50" stroke-width="1"/>
+    <line x1="${midX}" y1="${MT}" x2="${midX}" y2="${MT+iH}" stroke="#0d2030" stroke-dasharray="3,3"/>
+    <line x1="${ML}" y1="${avgY}" x2="${W-MR}" y2="${avgY}" stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="5,4"/>
+    <text x="${W-MR+4}" y="${avgY+4}" fill="#F59E0B" font-size="9" font-family="monospace">Alto</text>
+    <line x1="${ML}" y1="${excY}" x2="${W-MR}" y2="${excY}" stroke="#10B981" stroke-width="1.5" stroke-dasharray="5,4"/>
+    <text x="${W-MR+4}" y="${excY+4}" fill="#10B981" font-size="9" font-family="monospace">Exc.</text>
+    <text x="${ML+10}" y="${MT+18}" fill="#10B981" font-size="10" font-family="system-ui" font-weight="700">⭐ Joyas de Eficiencia</text>
+    <text x="${W-MR-10}" y="${MT+18}" text-anchor="end" fill="#36A7B7" font-size="10" font-family="system-ui" font-weight="700">🔥 Motores de Marca</text>
+    <text x="${ML+10}" y="${MT+iH-8}" fill="#5a7a8a" font-size="10" font-family="system-ui" font-weight="700">🧪 Laboratorio</text>
+    <text x="${W-MR-10}" y="${MT+iH-8}" text-anchor="end" fill="#EF4444" font-size="10" font-family="system-ui" font-weight="700">⚠️ Riesgo Saturación</text>
+    <text x="${ML+iW/2}" y="${H-4}" text-anchor="middle" fill="#5a7a8a" font-size="10" font-family="monospace">Inversión €</text>
+    ${circles}
+  </svg>`;
+  return `<div class="chart-card">
+    <div class="chart-title">Matriz inversión vs sentimiento</div>
+    <div class="chart-sub">Eje X: inversión (escala log) · Eje Y: score emocional · Tamaño: impresiones. Pasa el ratón para ver detalles.</div>
+    ${svg}
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#10B981"></div>Excelente</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#F59E0B"></div>Alto</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#EF4444"></div>Bajo</div>
+    </div>
+  </div>`;
+}
+
+// ── TOP ADS ───────────────────────────────────────────────────────
+function renderTopAds() {
+  const bKey=ST.filters.provider||Object.keys(ST.benchmarks)[0]||'';
+  const bm=ST.benchmarks[bKey]||{};
+  const thrExc=bm.threshold_excellent||3.5, thrAvg=bm.threshold_avg||1.8;
+  const sorted=[...ST.filtered].sort((a,b)=>(b.score_w_ad||0)-(a.score_w_ad||0)).slice(0,50);
+  const exc=ST.filtered.filter(r=>r.perf_level_sentiment==='1.Excelente').length;
+  const sc=s=>s>=thrExc?'var(--green)':s>=thrAvg?'var(--amber)':'var(--red)';
+  const perfLabel=l=>l==='1.Excelente'?'Excelente':l==='2.Alto'?'Alto':l==='3.Bajo'?'Bajo':'Sin Score';
+  const perfC=l=>l==='1.Excelente'?'var(--green)':l==='2.Alto'?'var(--amber)':l==='3.Bajo'?'var(--red)':'var(--muted)';
+  const rows=sorted.map((r,i)=>`<tr>
+    <td class="mono" style="color:var(--muted)">${i+1}</td>
+    <td class="mono" style="color:var(--muted);font-size:10px">${esc(r.ad_id||'')}</td>
+    <td style="font-weight:700">${esc(r.provider||'')}</td>
+    <td>${esc(r.ad_format||'')}</td>
+    <td>${esc(r.market||'')}</td>
+    <td>${esc(r.ad_audience||'')}</td>
+    <td style="color:var(--muted2)">${esc(r.campaign_objective||'')}</td>
+    <td class="mono" style="font-weight:700;color:${sc(r.score_w_ad)}">${fmt(r.score_w_ad)}</td>
+    <td class="mono" style="color:var(--muted2)">${fmtK(r.impressions)}</td>
+    <td class="mono" style="color:var(--muted2)">€${fmtK(r.spend)}</td>
+    <td><span class="badge" style="background:${perfC(r.perf_level_sentiment)}22;color:${perfC(r.perf_level_sentiment)};border:1px solid ${perfC(r.perf_level_sentiment)}44">${perfLabel(r.perf_level_sentiment)}</span></td>
+  </tr>`).join('');
+  return `<div class="table-wrap">
+    <div class="table-head">
+      <span class="table-head-title">Top Ads · Score Emocional</span>
+      <span class="table-head-sub">${exc} excelentes de ${ST.filtered.length} analizados</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>#</th><th>Ad ID</th><th>Plataforma</th><th>Formato</th><th>Mercado</th><th>Audiencia</th><th>Objetivo</th><th>Score</th><th>Impresiones</th><th>Inversión</th><th>Nivel</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────
+function getGrouped(data,dim) {
+  const g={};
+  data.forEach(r=>{ const k=r[dim]||'—'; if(!g[k])g[k]={name:k,tS:0,tI:0,count:0,exc:0};
+    g[k].tS+=r.emotional_score||0; g[k].tI+=r.impressions_scored||0; g[k].count++;
+    if(r.perf_level_sentiment==='1.Excelente')g[k].exc++; });
+  return Object.values(g).map(r=>({...r,
+    score_w:r.tI>0?(r.tS/r.tI)*1000:0,
+    excellentPct:Math.round((r.exc/r.count)*100)
+  })).sort((a,b)=>b.score_w-a.score_w);
+}
+const fmt  = (n,d=2) => n==null?'—':Number(n).toFixed(d);
+const fmtK = n => n>=1e6?`${(n/1e6).toFixed(1)}M`:n>=1e3?`${(n/1e3).toFixed(0)}K`:String(Math.round(n||0));
+const esc  = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function showLoading(txt) {
+  document.getElementById('content').innerHTML=`<div class="loading-wrap"><div class="spinner"></div><div class="loading-txt">${txt}</div></div>`;
+  document.getElementById('kpiRow').innerHTML='';
+}
+function showError(msg) {
+  document.getElementById('content').innerHTML=`<div class="error-box"><p>⚠️ ${msg}</p></div>`;
+}
+</script>
+</body>
+</html>
