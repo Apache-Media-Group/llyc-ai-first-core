@@ -1,0 +1,20 @@
+{
+  "hosting": {
+    "public": "dashboards",
+    "cleanUrls": true,
+    "rewrites": [
+      {
+        "source": "/sentiment/**",
+        "destination": "/sentiment-intelligence/frontend/index.html"
+      },
+      {
+        "source": "/campaign-intelligence/**",
+        "destination": "/campaign-intelligence/frontend/dashboard-final.html"
+      },
+      {
+        "source": "/**",
+        "destination": "/hub.html"
+      }
+    ]
+  }
+}

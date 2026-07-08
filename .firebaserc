@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "llyc-ai-first-core"
+  },
+  "targets": {
+    "llyc-ai-first-core": {
+      "hosting": {
+        "main": ["llyc-ai-first-core"]
+      }
+    }
+  }
+}
