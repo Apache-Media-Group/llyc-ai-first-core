@@ -9,6 +9,8 @@
     "llyc.global"
   ],
   "allowed_emails": [
-    { "email": "sergio@llyc.global", "role": "editor" }
+    { "email": "sergio.alonso@llyc.global", "role": "editor" },
+    { "email": "alberto.gonzalez@llyc.global", "role": "viewer" },
+    { "email": "massimiliano.turinetto@llyc.global", "role": "viewer" }
   ]
 }
