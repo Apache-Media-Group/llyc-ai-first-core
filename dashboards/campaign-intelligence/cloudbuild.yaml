@@ -1,7 +1,6 @@
 # ================================================================
-# Cloud Build — Dashboards
-# Trigger: cambios en dashboards/**
-# Despliega todas las Cloud Functions de dashboards
+# Cloud Build — Campaign Intelligence API
+# Trigger: cambios en dashboards/campaign-intelligence/**
 # ================================================================
 steps:
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -23,26 +22,8 @@ steps:
       - --service-account=dashboards-sa@llyc-ai-first-core.iam.gserviceaccount.com
       - --set-env-vars=GCP_CLIENT_PROJECT=llyc-prj-lcdlc-datamart,BQ_DATASET=ODS,TENANT_ID=lcdc,CLIENT_SECRET_PROJECT=llyc-ai-lcdc
 
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: 'deploy-sentiment-api'
-    entrypoint: gcloud
-    args:
-      - functions
-      - deploy
-      - sentiment-api
-      - --gen2
-      - --runtime=python311
-      - --region=europe-west1
-      - --source=dashboards/sentiment-intelligence/api
-      - --entry-point=sentiment_api
-      - --trigger-http
-      - --no-allow-unauthenticated
-      - --memory=512MB
-      - --timeout=120s
-      - --service-account=dashboards-sa@llyc-ai-first-core.iam.gserviceaccount.com
-
 includedFiles:
-  - 'dashboards/**'
+  - 'dashboards/campaign-intelligence/**'
 
 options:
   logging: CLOUD_LOGGING_ONLY
