@@ -12,6 +12,10 @@
         "destination": "/campaign-intelligence/frontend/dashboard-final.html"
       },
       {
+        "source": "/media-impact/**",
+        "destination": "/media-impact/frontend/index.html"
+      },
+      {
         "source": "/**",
         "destination": "/hub.html"
       }
