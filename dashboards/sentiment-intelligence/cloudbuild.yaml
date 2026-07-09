@@ -16,7 +16,7 @@ steps:
       - --source=dashboards/sentiment-intelligence/api
       - --entry-point=sentiment_api
       - --trigger-http
-      - --no-allow-unauthenticated
+      - --allow-unauthenticated
       - --memory=512MB
       - --timeout=120s
       - --service-account=dashboards-sa@llyc-ai-first-core.iam.gserviceaccount.com
