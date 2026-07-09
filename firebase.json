@@ -4,6 +4,13 @@
     "cleanUrls": true,
     "rewrites": [
       {
+        "source": "/api",
+        "function": {
+          "functionId": "campaign-intelligence-api",
+          "region": "europe-west1"
+        }
+      },
+      {
         "source": "/sentiment/**",
         "destination": "/sentiment-intelligence/frontend/index.html"
       },
