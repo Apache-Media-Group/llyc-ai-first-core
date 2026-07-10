@@ -1,12 +1,10 @@
 # ================================================================
-# Cloud Build — Campaign Intelligence Dashboard
-# Path-scoped trigger: solo se ejecuta cuando hay cambios en dashboards/**
-# Deploy independiente del agent-executor (main trigger)
+# Cloud Build — Campaign Intelligence API
+# Trigger: cambios en dashboards/campaign-intelligence/**
 # ================================================================
-
 steps:
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: 'deploy-dashboard-api'
+    id: 'deploy-campaign-intelligence-api'
     entrypoint: gcloud
     args:
       - functions
@@ -24,10 +22,8 @@ steps:
       - --service-account=dashboards-sa@llyc-ai-first-core.iam.gserviceaccount.com
       - --set-env-vars=GCP_CLIENT_PROJECT=llyc-prj-lcdlc-datamart,BQ_DATASET=ODS,TENANT_ID=lcdc,CLIENT_SECRET_PROJECT=llyc-ai-lcdc
 
-# Solo se activa cuando hay cambios en dashboards/**
-# El trigger del agent-executor usa includedFiles: ['**'] excepto dashboards/
 includedFiles:
-  - 'dashboards/**'
+  - 'dashboards/campaign-intelligence/**'
 
 options:
   logging: CLOUD_LOGGING_ONLY

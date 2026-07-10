@@ -231,3 +231,4 @@ CLAUDE.local.md
 *~
 .DS_Store
 scripts/dv360/briefings/*.json
+envvars.yaml 

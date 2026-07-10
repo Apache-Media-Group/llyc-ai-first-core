@@ -1,0 +1,16 @@
+{
+  "client_name": "Turespaña",
+  "bq_table": "llyc-prj-turespana-datamart.buffalo_bid_turespana_ods.buffalo_bid_report",
+  "partner_filter": "Turespaña",
+  "allowed_origins": [
+    "https://dashboard.llyc.global"
+  ],
+  "allowed_domains": [
+    "llyc.global"
+  ],
+  "allowed_emails": [
+    { "email": "sergio.alonso@llyc.global", "role": "editor" },
+    { "email": "alberto.gonzalez@llyc.global", "role": "viewer" },
+    { "email": "massimiliano.turinetto@llyc.global", "role": "viewer" }
+  ]
+}

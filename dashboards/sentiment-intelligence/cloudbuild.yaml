@@ -1,0 +1,28 @@
+# ================================================================
+# Cloud Build — Sentiment Intelligence API
+# Trigger: cambios en dashboards/sentiment-intelligence/**
+# ================================================================
+steps:
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-sentiment-api'
+    entrypoint: gcloud
+    args:
+      - functions
+      - deploy
+      - sentiment-api
+      - --gen2
+      - --runtime=python311
+      - --region=europe-west1
+      - --source=dashboards/sentiment-intelligence/api
+      - --entry-point=sentiment_api
+      - --trigger-http
+      - --allow-unauthenticated
+      - --memory=512MB
+      - --timeout=120s
+      - --service-account=dashboards-sa@llyc-ai-first-core.iam.gserviceaccount.com
+
+includedFiles:
+  - 'dashboards/sentiment-intelligence/**'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

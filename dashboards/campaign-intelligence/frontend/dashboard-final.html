@@ -100,6 +100,17 @@ tbody tr:hover td{background:rgba(255,255,255,0.02)}
 .num{font-family:'DM Mono',monospace}
 .date-cell{font-family:'DM Mono',monospace;color:var(--muted2)}
 
+
+/* LOGIN */
+.login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;flex-direction:column}
+.login-card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:48px;max-width:400px;width:90%;text-align:center;display:flex;flex-direction:column;gap:20px}
+.login-logo{font-family:'Montserrat',sans-serif;font-size:22px;font-weight:800;display:flex;align-items:center;gap:10px;justify-content:center}
+.login-title{font-size:15px;color:var(--muted2)}
+.btn-google{background:#fff;color:#333;border:none;padding:12px 24px;border-radius:6px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;justify-content:center;transition:all 0.15s;width:100%}
+.btn-google:hover{background:#f0f0f0}
+.btn-google svg{width:20px;height:20px}
+.login-error{color:var(--accent2);font-size:12px;font-family:'DM Mono',monospace}
+
 /* LOADING / ERROR */
 .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 40px;gap:14px;flex:1}
 .spinner{width:26px;height:26px;border:2px solid var(--border);border-top-color:var(--llyc-red);border-radius:50%;animation:spin 0.7s linear infinite}
@@ -133,35 +144,95 @@ textarea.ci{flex:1;background:var(--s2);border:1px solid var(--border);color:var
 textarea.ci:focus{border-color:var(--border2)}
 .btn-send{background:var(--llyc-red);color:#fff;border:none;padding:0 16px;border-radius:6px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.15s}
 .btn-send:hover{background:var(--llyc-teal)}.btn-send:disabled{opacity:0.35;cursor:not-allowed}
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:10px 0;margin-top:4px}
+.pg-btn{background:transparent;border:1px solid var(--border);color:var(--muted2);padding:5px 12px;border-radius:3px;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;transition:all 0.15s;text-transform:uppercase}
+.pg-btn:hover:not(:disabled){border-color:var(--llyc-teal);color:var(--llyc-teal)}.pg-btn:disabled{opacity:0.3;cursor:not-allowed}
+.pg-info{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)}
+
+/* CONFIG PANEL */
+.cfg-btn{background:transparent;border:1px solid var(--border);color:var(--muted);padding:5px 10px;border-radius:3px;font-size:12px;cursor:pointer;transition:all 0.15s}
+.cfg-btn:hover{border-color:var(--llyc-teal);color:var(--llyc-teal)}
+.cfg-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:none}
+.cfg-overlay.open{display:block}
+.cfg-panel{position:fixed;right:0;top:0;bottom:0;width:360px;background:var(--s1);border-left:1px solid var(--border);z-index:201;display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s ease;overflow:hidden}
+.cfg-panel.open{transform:translateX(0)}
+.cfg-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.cfg-head-title{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700}
+.cfg-close{background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px}
+.cfg-close:hover{color:var(--text)}
+.cfg-body{flex:1;overflow-y:auto;padding:20px}
+.cfg-section{margin-bottom:24px}
+.cfg-section-title{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.cfg-section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.cfg-field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.cfg-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.8px;text-transform:uppercase}
+.cfg-input{background:var(--s2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:4px;font-family:'Montserrat',sans-serif;font-size:12px;outline:none;transition:border-color 0.15s}
+.cfg-input:focus{border-color:var(--border2)}
+.cfg-select{background:var(--s2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;outline:none;cursor:pointer}
+.cfg-color-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cfg-color-item{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted2)}
+.cfg-color-item input[type=color]{width:28px;height:28px;border:none;border-radius:4px;cursor:pointer;padding:0;background:transparent}
+.cfg-checkbox-list{display:flex;flex-direction:column;gap:6px}
+.cfg-checkbox-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted2);cursor:pointer}
+.cfg-checkbox-item input{cursor:pointer;accent-color:var(--llyc-teal)}
+.cfg-footer{padding:16px 20px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+.cfg-save{background:var(--llyc-red);color:#fff;border:none;padding:8px 16px;border-radius:4px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;cursor:pointer;flex:1;transition:all 0.15s}
+.cfg-save:hover{background:var(--llyc-teal)}
+.cfg-reset{background:transparent;border:1px solid var(--border);color:var(--muted);padding:8px 12px;border-radius:4px;font-family:'Montserrat',sans-serif;font-size:11px;cursor:pointer;transition:all 0.15s}
+.cfg-reset:hover{border-color:var(--accent2);color:var(--accent2)}
+/* CHARTS */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px}.chart-wrap{position:relative;height:180px}
+.chart-card{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:16px}
+.chart-title{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px}
+.chart-wrap{position:relative;height:200px}
 ::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--llyc-teal);opacity:0.4;border-radius:2px}
 </style>
+  <!-- Firebase Auth -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCHIluDUA_iS-AFda6aWWrrKFdPFn9Z2yY",
+      authDomain: "llyc-ai-first-core.firebaseapp.com",
+      projectId: "llyc-ai-first-core",
+      storageBucket: "llyc-ai-first-core.firebasestorage.app",
+      messagingSenderId: "46249705777",
+      appId: "1:46249705777:web:2db5fb2d0a7ef946d9f010"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    // Expose to global scope for use in main script
+    window._fbAuth = auth;
+    window._fbProvider = provider;
+    window._fbSignIn = () => signInWithPopup(auth, provider);
+    window._fbSignOut = () => signOut(auth);
+    window._fbOnAuthStateChanged = (cb) => onAuthStateChanged(auth, cb);
+  </script>
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 <div class="app">
   <header>
     <div class="logo"><div class="logo-dot"></div>Campaign<span style="color:var(--llyc-red);font-weight:300"> Intelligence</span></div>
     <div class="header-center">
-      <div class="proxy-url-wrap">
-        <span class="proxy-label">Proxy URL</span>
-        <span style="font-family:'Montserrat',sans-serif;font-size:9px;color:var(--muted);letter-spacing:0.5px" id="dataStatus">Cargando...</span>
-        <!-- URL preconfigurada en PROXY_URL_CONFIG -->
-      </div>
+      <div id="clientNameHeader" style="font-family:'Montserrat',sans-serif;font-size:14px;font-weight:600;color:var(--muted2);display:none"></div>
     </div>
     <div class="header-right">
       <span class="update-info" id="updateInfo">Sin conectar</span>
+      <button class="cfg-btn" id="btnConfig" onclick="openCfg()" style="display:none" title="Configuración">⚙</button>
       <button class="btn-refresh" id="btnRefresh" onclick="loadAll(true)" disabled>↻ Refresh</button>
     </div>
   </header>
   <div class="main">
     <div class="dashboard" id="dashboard">
       <div class="notice">
-        <h2>⚡ Setup</h2>
-        <ol>
-          <li>Abre el Google Sheet → <code>Extensions</code> → <code>Apps Script</code></li>
-          <li>Pega el código de <code>Code.gs</code>. Añade tu Anthropic API Key en la línea 4.</li>
-          <li><code>Deploy</code> → <code>New deployment</code> → Web app → Execute as: <strong>Me</strong> → Who has access: <strong>Anyone</strong> → Deploy</li>
-          <li>Copia la Web App URL y pégala arriba → <strong>Conectar</strong></li>
-        </ol>
+        <h2>⟳ Conectando...</h2>
+        <p style="color:var(--muted2);font-size:13px">Cargando datos de campaña desde BigQuery...</p>
       </div>
     </div>
     <div class="chat-panel">
@@ -184,6 +255,94 @@ textarea.ci:focus{border-color:var(--border2)}
       </div>
     </div>
   </div>
+
+
+  <!-- Config Overlay -->
+  <div class="cfg-overlay" id="cfgOverlay" onclick="closeCfg()"></div>
+
+  <!-- Config Panel -->
+  <div class="cfg-panel" id="cfgPanel">
+    <div class="cfg-head">
+      <div class="cfg-head-title">⚙ Configuración del Dashboard</div>
+      <button class="cfg-close" onclick="closeCfg()">✕</button>
+    </div>
+    <div class="cfg-body">
+
+      <!-- Cliente -->
+      <div class="cfg-section">
+        <div class="cfg-section-title">Cliente</div>
+        <div class="cfg-field">
+          <span class="cfg-label">Nombre del cliente</span>
+          <input class="cfg-input" id="cfgClientName" type="text" placeholder="Nombre que aparece en el header">
+        </div>
+      </div>
+
+      <!-- Gráficas Overview -->
+      <div class="cfg-section">
+        <div class="cfg-section-title">Gráficas Overview</div>
+        <div class="cfg-field">
+          <span class="cfg-label">Tipo de gráfica temporal</span>
+          <select class="cfg-select" id="cfgChartType">
+            <option value="line">Líneas</option>
+            <option value="bar">Barras</option>
+          </select>
+        </div>
+        <div class="cfg-field">
+          <span class="cfg-label">Métrica principal</span>
+          <select class="cfg-select" id="cfgChartMetric">
+            <option value="impressions">Impresiones</option>
+            <option value="clicks">Clicks</option>
+            <option value="spend">Inversión</option>
+            <option value="reach">Alcance</option>
+            <option value="views">Reproducciones</option>
+          </select>
+        </div>
+        <div class="cfg-field">
+          <span class="cfg-label">Gráfica de distribución</span>
+          <select class="cfg-select" id="cfgDistChart">
+            <option value="doughnut">Donut</option>
+            <option value="bar">Barras horizontales</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- KPIs Overview -->
+      <div class="cfg-section">
+        <div class="cfg-section-title">KPIs visibles en Overview</div>
+        <div class="cfg-checkbox-list" id="cfgKpiList">
+          <label class="cfg-checkbox-item"><input type="checkbox" value="impressions" checked> Impresiones</label>
+          <label class="cfg-checkbox-item"><input type="checkbox" value="clicks" checked> Clicks</label>
+          <label class="cfg-checkbox-item"><input type="checkbox" value="spend" checked> Inversión</label>
+          <label class="cfg-checkbox-item"><input type="checkbox" value="reach" checked> Alcance</label>
+          <label class="cfg-checkbox-item"><input type="checkbox" value="views" checked> Reproducciones</label>
+          <label class="cfg-checkbox-item"><input type="checkbox" value="platforms" checked> Plataformas activas</label>
+        </div>
+      </div>
+
+      <!-- Colores por plataforma -->
+      <div class="cfg-section">
+        <div class="cfg-section-title">Colores por plataforma</div>
+        <div class="cfg-color-grid" id="cfgColorGrid"></div>
+      </div>
+
+    </div>
+    <div class="cfg-footer">
+      <button class="cfg-reset" onclick="resetCfg()">Restablecer</button>
+      <button class="cfg-save" onclick="saveCfg()">Guardar cambios</button>
+    </div>
+  </div>
+  <!-- Login Screen -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-card">
+      <div class="login-logo"><div class="logo-dot"></div>Campaign<span style="color:var(--llyc-red);font-weight:300"> Intelligence</span></div>
+      <div class="login-title">Accede con tu cuenta corporativa</div>
+      <button class="btn-google" onclick="signIn()">
+        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continuar con Google
+      </button>
+      <div class="login-error" id="loginError" style="display:none"></div>
+    </div>
+  </div>
 </div>
 <script>
 const PLATFORMS=['Spotify','TikTok','YouTube','Meta','Amazon','DOOH','WeMass'];
@@ -198,33 +357,130 @@ let filters = {}; // { platform: { dateFrom, dateTo, campaign, ad } }
 let colIdx = {}; // { platform: { date, campaign, ad } }
 // Sort state per platform
 let sortState = {}; // { platform: { col, dir } }
+// Pagination state per platform
+let pageState = {}; // { platform: currentPage }
+const PAGE_SIZE = 10;
 
-// ── CONNECTION ─────────────────────────────────────────────────────
-function connect(){
-  const url=document.getElementById('proxyInput').value.trim();
-  if(!url){alert('Pega la Web App URL primero');return;}
-  proxyUrl=url;localStorage.setItem('campaignProxyUrl',url);
-  document.getElementById('btnRefresh').disabled=false;loadAll();
-}
-window.onload=()=>{
-  const saved=localStorage.getItem('campaignProxyUrl');
-  if(saved){proxyUrl=saved;document.getElementById('proxyInput').value=saved;document.getElementById('btnRefresh').disabled=false;loadAll();}
+// Overview filters
+let overviewDateFrom = '';
+let overviewDateTo = '';
+let overviewPlatform = '';
+
+// Columns to exclude (IDs, internal codes)
+const EXCLUDE_COL_PATTERNS = /(_id$|^id$|_key$|account_id|advertiser_id|campaign_id|adgroup_id|ad_id|placement_id|creative_id)/i;
+
+// ── CLOUD FUNCTION URL (via Firebase Hosting proxy) ──────────────
+const CF_URL = 'https://europe-west1-llyc-ai-first-core.cloudfunctions.net/campaign-intelligence-api';
+
+let _authToken = null;
+let _userRole = 'viewer';
+let _userEmail = '';
+
+// ── CONFIG (localStorage por tenant) ─────────────────────────────
+const DEFAULT_CFG = {
+  clientName: '',
+  chartType: 'line',
+  chartMetric: 'impressions',
+  distChart: 'doughnut',
+  kpiVisible: ['impressions','clicks','spend','reach','views','platforms'],
+  platformColors: {}
 };
+
+function getCfgKey(){ return `dashboard_cfg_${TENANT_ID}`; }
+
+function loadCfg(){
+  try {
+    const saved = localStorage.getItem(getCfgKey());
+    return saved ? {...DEFAULT_CFG, ...JSON.parse(saved)} : {...DEFAULT_CFG};
+  } catch { return {...DEFAULT_CFG}; }
+}
+
+function saveCfgToStorage(cfg){
+  localStorage.setItem(getCfgKey(), JSON.stringify(cfg));
+}
+
+let _cfg = loadCfg();
+
+// ── TENANT ────────────────────────────────────────────────────────
+// Lee tenant_id de la URL: /campaign-intelligence/?tenant_id=lcdc
+// Si no viene, usa 'lcdc' como fallback temporal
+const _urlParams = new URLSearchParams(window.location.search);
+const TENANT_ID = _urlParams.get('tenant_id') || 'lcdc';
+
+// ── AUTH ───────────────────────────────────────────────────────────
+async function signIn() {
+  try {
+    document.getElementById('loginError').style.display = 'none';
+    await window._fbSignIn();
+  } catch(e) {
+    const err = document.getElementById('loginError');
+    err.textContent = 'Error al iniciar sesión. Usa tu cuenta @llyc.global.';
+    err.style.display = 'block';
+  }
+}
+
+async function signOutUser() {
+  await window._fbSignOut();
+  _authToken = null;
+  location.reload();
+}
+
+window.onload = () => {
+  applyCfgToUI();
+  const checkAuth = setInterval(() => {
+    if (window._fbOnAuthStateChanged) {
+      clearInterval(checkAuth);
+      window._fbOnAuthStateChanged(async (user) => {
+        if (user) {
+          _authToken = await user.getIdToken();
+          _userEmail = user.email;
+          document.getElementById('loginScreen').style.display = 'none';
+          proxyUrl = CF_URL;
+          document.getElementById('btnRefresh').disabled = false;
+          loadAll();
+        } else {
+          document.getElementById('loginScreen').style.display = 'flex';
+        }
+      });
+    }
+  }, 100);
+};
+
+// Apply saved config to UI elements
+function applyCfgToUI(){
+  if(_cfg.clientName){
+    const el = document.getElementById('clientNameHeader');
+    if(el){ el.textContent = _cfg.clientName; el.style.display = 'block'; }
+  }
+  // Apply custom platform colors
+  if(_cfg.platformColors){
+    Object.entries(_cfg.platformColors).forEach(([p,c]) => {
+      document.documentElement.style.setProperty(`--${p.toLowerCase()}`, c);
+    });
+  }
+}
 
 // ── FETCH ──────────────────────────────────────────────────────────
 async function gasGet(params){
-  const url=new URL(proxyUrl);
+  const url=new URL(CF_URL, window.location.origin);
+  url.searchParams.set('tenant_id', TENANT_ID);
   Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,typeof v==='object'?JSON.stringify(v):String(v)));
-  const r=await fetch(url.toString());
+  const headers = _authToken ? {'Authorization': `Bearer ${_authToken}`} : {};
+  const r=await fetch(url.toString(), {headers});
   if(!r.ok)throw new Error(`HTTP ${r.status}`);
   const text=await r.text();
-  try{return JSON.parse(text);}catch{throw new Error('Respuesta inválida del Apps Script');}
+  try{return JSON.parse(text);}catch{throw new Error('Respuesta inválida de la API');}
 }
 async function gasPost(body){
-  const r=await fetch(proxyUrl,{method:'POST',body:JSON.stringify(body)});
+  const url=new URL(CF_URL, window.location.origin);
+  url.searchParams.set('action', body.action || 'chat');
+  url.searchParams.set('tenant_id', TENANT_ID);
+  const headers = {'Content-Type':'application/json'};
+  if (_authToken) headers['Authorization'] = `Bearer ${_authToken}`;
+  const r=await fetch(url.toString(),{method:'POST',headers,body:JSON.stringify(body)});
   if(!r.ok)throw new Error(`HTTP ${r.status}`);
   const text=await r.text();
-  try{return JSON.parse(text);}catch{throw new Error('Respuesta inválida del Apps Script');}
+  try{return JSON.parse(text);}catch{throw new Error('Respuesta inválida de la API');}
 }
 
 // ── LOAD ───────────────────────────────────────────────────────────
@@ -257,12 +513,32 @@ function applyClientContext(ctx) {
 async function loadAll(forceRefresh=false){
   if(!proxyUrl)return;
   document.getElementById('btnRefresh').disabled=true;
-  document.getElementById('dataStatus').textContent='Actualizando...';
+  
   const prevFetchedAt=window._lastFetchedAt||'';
 
   // Show loading only on first load, not on refresh attempts
   if(!prevFetchedAt) showLoading('Cargando datos...');
-  allData={};filters={};colIdx={};sortState={};
+  allData={};filters={};colIdx={};sortState={};pageState={};
+  // Default date filter: last 28 days
+  const today = new Date();
+  const d28ago = new Date(today);
+  d28ago.setDate(today.getDate() - 28);
+  const fmt = d => d.toISOString().split('T')[0];
+  const defaultDateFrom = fmt(d28ago);
+  const defaultDateTo = fmt(today);
+  // Apply default dates to overview filters too
+  overviewDateFrom = defaultDateFrom;
+  overviewDateTo = defaultDateTo;
+
+  // Load shared config from Firestore
+  try {
+    const cfgRes = await gasGet({action:'getConfig'});
+    if(cfgRes.config && Object.keys(cfgRes.config).length > 0) {
+      _cfg = {...DEFAULT_CFG, ...cfgRes.config};
+      saveCfgToStorage(_cfg);
+      applyCfgToUI();
+    }
+  } catch(e) { /* use localStorage config */ }
 
   try{
     const res=await gasGet({action:'data'});
@@ -272,8 +548,11 @@ async function loadAll(forceRefresh=false){
       if(res.data[p]&&!res.data[p].error&&res.data[p].rows?.length>0){
         allData[p]=res.data[p];
         colIdx[p]=detectColumns(res.data[p].headers);
-        filters[p]={dateFrom:'',dateTo:'',campaign:'',ad:''};
-        sortState[p]={col:-1,dir:'asc'};
+        filters[p]={dateFrom:defaultDateFrom,dateTo:defaultDateTo,campaign:'',ad:''};
+        // Default sort: date ascending
+        const dateColIdx = colIdx[p]?.date ?? -1;
+        sortState[p]={col:dateColIdx,dir:'asc'};
+        pageState[p]=0;
         loaded.push(p);
       }
     });
@@ -287,23 +566,28 @@ async function loadAll(forceRefresh=false){
     // Smart refresh: if data hasn't changed, skip re-render and notify user
     if(!dataChanged && prevFetchedAt && forceRefresh){
       document.getElementById('btnRefresh').disabled=false;
-      document.getElementById('dataStatus').textContent='Sin cambios';
+      
       showToast('No hay nuevos cambios en los datos');
       return;
     }
-    document.getElementById('dataStatus').textContent=dataChanged?'Datos actualizados':'';
+    
     document.getElementById('chatSub').textContent=`${loaded.length} plataformas · datos en vivo`;
     document.getElementById('ci').disabled=false;
     document.getElementById('btnSend').disabled=false;
+    // Detect role client-side: @llyc.global = editor, others = viewer
+    _userRole = _userEmail && _userEmail.endsWith('@llyc.global') ? 'editor' : 'viewer';
+    if(_userRole === 'editor') {
+      document.getElementById('btnConfig').style.display = 'block';
+    }
     currentTab='OVERVIEW';render();
+    if(currentTab==='OVERVIEW') renderCharts(getOverviewFilteredData());
     if(loaded.length>0){
       // Invalidate insights cache if context Doc changed
-      if(docChanged) insightsCache = '';
       setTimeout(()=>genInsights(newFetchedAt),300);
       setTimeout(()=>addMsg('bot',`✓ <strong>${loaded.join(', ')}</strong> cargadas. ¿Qué quieres analizar?`),500);
     }
   }catch(err){
-    showError(`Error: ${err.message}<br><small>Verifica que el Apps Script esté desplegado como Web App con acceso "Anyone".</small>`);
+    showError(`Error: ${err.message}<br><small>Verifica que la Cloud Function esté activa en llyc-ai-first-core.</small>`);
     document.getElementById('updateInfo').textContent='Error de conexión';
   }
   document.getElementById('btnRefresh').disabled=false;
@@ -358,6 +642,15 @@ function getFilteredRows(platform){
   if(!d)return[];
 
   return d.rows.filter(row=>{
+    // Skip rows where all non-date values are null/empty/zero
+    const hasData = d.headers.some((hdr,i) => {
+      if(isDateValue(row[i], hdr)) return false;
+      const v = row[i];
+      return v !== null && v !== undefined && v !== '' && v !== 0 && String(v).trim() !== '';
+    });
+    if(!hasData) return false;
+
+
     // Date filter
     if((f.dateFrom||f.dateTo)&&ci.date>=0){
       const rawDate=row[ci.date];
@@ -384,12 +677,19 @@ function getSortedRows(rows, platform){
   const s=sortState[platform];
   if(!s||s.col<0)return rows;
   const col=s.col;
+  const hdr = (allData[platform]?.headers||[])[col]||'';
+  const isDateCol = isDateValue(rows[0]?.[col], hdr);
   return [...rows].sort((a,b)=>{
     const av=a[col]??'', bv=b[col]??'';
-    const an=num(av), bn=num(bv);
     let cmp;
-    if(!isNaN(an)&&!isNaN(bn))cmp=an-bn;
-    else cmp=String(av).localeCompare(String(bv),'es');
+    if(isDateCol){
+      // yyyy-mm-dd sorts correctly as string
+      cmp = String(av).localeCompare(String(bv));
+    } else {
+      const an=num(av), bn=num(bv);
+      if(!isNaN(an)&&!isNaN(bn))cmp=an-bn;
+      else cmp=String(av).localeCompare(String(bv),'es');
+    }
     return s.dir==='asc'?cmp:-cmp;
   });
 }
@@ -401,18 +701,23 @@ function showError(msg){document.getElementById('dashboard').innerHTML=`<div cla
 function render(){
   if(!Object.keys(allData).length){showError('No hay datos.');return;}
   const content=currentTab==='OVERVIEW'?renderOverview():renderPlatform(currentTab);
-  const filtersBar=currentTab!=='OVERVIEW'?renderFiltersBar(currentTab):'';
+  const filtersBar=currentTab==='OVERVIEW'?renderOverviewFilters():renderFiltersBar(currentTab);
   document.getElementById('dashboard').innerHTML=`
     <div class="tabs-wrap"><div class="tabs">${buildTabs()}</div></div>
     ${filtersBar}
     <div class="dash-inner">${content}</div>`;
 }
+function renderAndCharts(){
+  render();
+  setTimeout(() => renderCharts(getOverviewFilteredData()), 50);
+}
+
 function buildTabs(){
   let h=`<button class="tab ${currentTab==='OVERVIEW'?'active':''}" data-p="OVERVIEW" onclick="switchTab('OVERVIEW')">Overview</button>`;
   PLATFORMS.forEach(p=>{if(allData[p])h+=`<button class="tab ${currentTab===p?'active':''}" data-p="${p}" onclick="switchTab('${p}')">${p}</button>`;});
   return h;
 }
-function switchTab(p){currentTab=p;render();if(p==='OVERVIEW'&&!insightsDone&&!insightsCache)genInsights();}
+function switchTab(p){currentTab=p;render();if(p==='OVERVIEW'){if(!insightsDone&&!insightsCache)genInsights();renderCharts(getOverviewFilteredData());}}
 
 // ── FILTERS BAR ────────────────────────────────────────────────────
 function renderFiltersBar(p){
@@ -441,16 +746,14 @@ function renderFiltersBar(p){
 
   let html=`<div class="filters-bar">`;
 
-  // Date range — only if date column detected
-  if(ci.date>=0){
-    html+=`<div class="filter-group">
-      <span class="filter-label">Desde</span>
-      <input type="date" class="filter-date" value="${f.dateFrom||''}" onchange="setFilter('${p}','dateFrom',this.value)">
-      <span class="filter-label">Hasta</span>
-      <input type="date" class="filter-date" value="${f.dateTo||''}" onchange="setFilter('${p}','dateTo',this.value)">
-    </div>
-    <div class="filter-sep"></div>`;
-  }
+  // Date range — always show, default last 28 days
+  html+=`<div class="filter-group">
+    <span class="filter-label">Desde</span>
+    <input type="date" class="filter-date" value="${f.dateFrom||''}" onchange="setFilter('${p}','dateFrom',this.value)">
+    <span class="filter-label">Hasta</span>
+    <input type="date" class="filter-date" value="${f.dateTo||''}" onchange="setFilter('${p}','dateTo',this.value)">
+  </div>
+  <div class="filter-sep"></div>`;
 
   // Campaign — only if column detected
   if(ci.campaign>=0){
@@ -482,6 +785,7 @@ function renderFiltersBar(p){
 function setFilter(platform, key, value){
   if(!filters[platform])filters[platform]={dateFrom:'',dateTo:'',campaign:'',ad:''};
   filters[platform][key]=value;
+  pageState[platform]=0; // reset page on filter change
   render();
 }
 function clearFilters(platform){
@@ -490,58 +794,263 @@ function clearFilters(platform){
 }
 
 // ── OVERVIEW ───────────────────────────────────────────────────────
+function getOverviewFilteredData(){
+  // Filter allData by overviewDateFrom/To and overviewPlatform
+  const result = {};
+  const platforms = overviewPlatform ? [overviewPlatform] : Object.keys(allData);
+  platforms.forEach(p => {
+    if(!allData[p]) return;
+    if(!overviewDateFrom && !overviewDateTo) { result[p] = allData[p]; return; }
+    const ci = colIdx[p] || {};
+    const rows = allData[p].rows.filter(row => {
+      if(ci.date < 0) return true;
+      const d = parseDate(row[ci.date]);
+      if(!d) return true;
+      if(overviewDateFrom){ const from=parseDate(overviewDateFrom); if(from&&d<from) return false; }
+      if(overviewDateTo){ const to=parseDate(overviewDateTo); if(to&&d>to) return false; }
+      return true;
+    });
+    result[p] = {...allData[p], rows};
+  });
+  return result;
+}
+
+function renderOverviewFilters(){
+  const platforms = Object.keys(allData);
+  let platOpts = '<option value="">Todas las plataformas</option>';
+  platforms.forEach(p => platOpts += `<option value="${p}" ${overviewPlatform===p?'selected':''}>${p}</option>`);
+
+  return `<div class="filters-bar">
+    <div class="filter-group">
+      <span class="filter-label">Desde</span>
+      <input type="date" class="filter-date" value="${overviewDateFrom}" onchange="overviewDateFrom=this.value;renderAndCharts()">
+      <span class="filter-label">Hasta</span>
+      <input type="date" class="filter-date" value="${overviewDateTo}" onchange="overviewDateTo=this.value;renderAndCharts()">
+    </div>
+    <div class="filter-sep"></div>
+    <div class="filter-group">
+      <span class="filter-label">Canal</span>
+      <select class="filter-select" onchange="overviewPlatform=this.value;renderAndCharts()">${platOpts}</select>
+    </div>
+    ${(overviewDateFrom||overviewDateTo||overviewPlatform)?'<div class="filter-sep"></div><button class="filter-clear" onclick="overviewDateFrom=\'\';overviewDateTo=\'\';overviewPlatform=\'\';renderAndCharts()">✕ Limpiar</button>':''}
+  </div>`;
+}
+
 function renderOverview(){
   let h='';
-  const kpis=aggKPIs();
-  if(kpis.length){h+='<div class="kpi-grid">';kpis.forEach(k=>h+=`<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub||''}</div></div>`);h+='</div>';}
+  const filteredData = getOverviewFilteredData();
+
+  // 1. KPIs
+  const kpis = calcOverviewKPIs(filteredData);
+  h+='<div class="kpi-grid">';
+  kpis.forEach(k=>h+=`<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div><div class="kpi-sub">${k.sub||''}</div></div>`);
+  h+='</div>';
+
+  // 2. Charts
+  h+='<div class="sec-title">Gráficas</div>';
+  h+='<div class="chart-grid">';
+  h+=`<div class="chart-card"><div class="chart-title">Impresiones vs CPM</div><div class="chart-wrap"><canvas id="chartImprCPM"></canvas></div></div>`;
+  h+=`<div class="chart-card"><div class="chart-title">Clicks vs CPC</div><div class="chart-wrap"><canvas id="chartClicksCPC"></canvas></div></div>`;
+  h+=`<div class="chart-card"><div class="chart-title">Inversión vs CTR</div><div class="chart-wrap"><canvas id="chartSpendCTR"></canvas></div></div>`;
+  h+=`<div class="chart-card"><div class="chart-title">Inversión por plataforma</div><div class="chart-wrap"><canvas id="chartDist"></canvas></div></div>`;
+  h+='</div>';
+
+  // 3. Insights
+  h+='<div class="sec-title">Insights IA</div>';
+  h+=`<div class="insights-grid" id="insightsGrid">${insightsCache||'<div class="ins-card info" style="grid-column:1/-1"><div class="ins-tag">⟳ Analizando</div><div class="ins-text">Generando insights con IA...</div></div>'}</div>`;
+
+  // 4. Active platforms
   h+='<div class="sec-title">Plataformas activas</div><div class="platform-grid">';
   PLATFORMS.forEach(p=>{
-    if(!allData[p])return;
+    if(!filteredData[p])return;
     const col=PCOLORS[p]||'#888';
-    const metrics=detectMetrics(allData[p].headers).slice(0,4).join(' · ')||'—';
-    h+=`<div class="platform-card" onclick="switchTab('${p}')"><div class="pcard-top"><div class="pname"><div class="pdot" style="background:${col}"></div>${p}</div><div class="prows">${allData[p].rows.length.toLocaleString('es-ES')} filas</div></div><div class="pmetrics">${metrics}</div></div>`;
+    const metrics=detectMetrics(filteredData[p].headers).slice(0,4).join(' · ')||'—';
+    h+=`<div class="platform-card" onclick="switchTab('${p}')"><div class="pcard-top"><div class="pname"><div class="pdot" style="background:${col}"></div>${p}</div><div class="prows">${filteredData[p].rows.length.toLocaleString('es-ES')} filas</div></div><div class="pmetrics">${metrics}</div></div>`;
   });
-  h+='</div><div class="sec-title">Insights IA</div>';
-  h+=`<div class="insights-grid" id="insightsGrid">${insightsCache||'<div class="ins-card info" style="grid-column:1/-1"><div class="ins-tag">⟳ Analizando</div><div class="ins-text">Generando insights con IA...</div></div>'}</div>`;
+  h+='</div>';
   return h;
 }
 
-function aggKPIs(){
-  let imp=0,clk=0,spend=0,reach=0,views=0,hI=false,hC=false,hS=false,hR=false,hV=false;
-  for(const[,d]of Object.entries(allData)){
-    const H=d.headers.map(x=>(x||'').toLowerCase());
-    const fi=keys=>H.findIndex(x=>keys.some(k=>x.includes(k)));
-    const iI=fi(['impres']),iC=fi(['click']),iS=fi(['spend','cost','inver','importe']),iR=fi(['reach','alcance']),iV=fi(['view','reproduc']);
+function aggKPIs(dataSource){ return calcOverviewKPIs(dataSource); }
+
+function calcOverviewKPIs(dataSource){
+  const src = dataSource || allData;
+  let imp=0, clk=0, spend=0;
+  for(const[,d] of Object.entries(src)){
+    const H = d.headers.map(x=>(x||'').toLowerCase());
+    const fi = keys => H.findIndex(x => keys.some(k => x.includes(k)));
+    const iI=fi(['impres']), iC=fi(['click']), iS=fi(['spend','cost','inver','importe']);
     d.rows.forEach(r=>{
-      if(iI>=0&&r[iI]){imp+=num(r[iI]);hI=true;}if(iC>=0&&r[iC]){clk+=num(r[iC]);hC=true;}
-      if(iS>=0&&r[iS]){spend+=num(r[iS]);hS=true;}if(iR>=0&&r[iR]){reach+=num(r[iR]);hR=true;}
-      if(iV>=0&&r[iV]){views+=num(r[iV]);hV=true;}
+      if(iI>=0&&r[iI]) imp+=num(r[iI]);
+      if(iC>=0&&r[iC]) clk+=num(r[iC]);
+      if(iS>=0&&r[iS]) spend+=num(r[iS]);
     });
   }
-  const k=[];
-  if(hI)k.push({label:'Impresiones',value:fNum(imp),sub:'todas las plataformas'});
-  if(hC)k.push({label:'Clics',value:fNum(clk),sub:hI?`CTR ${pct(clk,imp)}`:''});
-  if(hS)k.push({label:'Inversión',value:fCur(spend),sub:hI?`CPM ${fCur((spend/imp)*1000)}`:''});
-  if(hR)k.push({label:'Alcance',value:fNum(reach),sub:hI?`Freq. ${(imp/reach).toFixed(1)}x`:''});
-  if(hV)k.push({label:'Reproducciones',value:fNum(views)});
-  k.push({label:'Plataformas',value:String(Object.keys(allData).length),sub:'con datos activos'});
-  return k;
+  const cpm  = imp>0 ? (spend/imp)*1000 : 0;
+  const cpc  = clk>0 ? spend/clk : 0;
+  const ctr  = imp>0 ? (clk/imp)*100 : 0;
+  return [
+    {label:'Impresiones', value:fNum(imp),  sub:`CPM ${fCur(cpm)}`},
+    {label:'Clicks',      value:fNum(clk),  sub:`CPC ${fCur(cpc)}`},
+    {label:'CTR',         value:ctr.toFixed(2)+'%', sub:'clicks / impresiones'},
+    {label:'Inversión',   value:fCur(spend), sub:'todas las plataformas'}
+  ];
 }
 
 // ── PLATFORM ───────────────────────────────────────────────────────
 function renderPlatform(p){
   if(!allData[p])return`<div class="error-box"><p>Sin datos para ${p}</p></div>`;
-  const d=allData[p];const col=PCOLORS[p]||'#c8ff00';let h='';
-  const filteredRows=getFilteredRows(p);
-  const kpis=numKPIs(d,filteredRows);
-  if(kpis.length){
-    h+='<div class="kpi-grid">';
-    kpis.forEach(k=>h+=`<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value" style="color:${col}">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`);
-    h+='</div>';
+  const d=allData[p];
+  const col=PCOLORS[p]||'#c8ff00';
+  const allRows=d.rows;
+  let h='';
+
+  // Fixed KPIs calculated from raw data
+  const kpis = calcPlatformKPIs(d, allRows, col);
+  h+='<div class="kpi-grid">';
+  kpis.forEach(k=>h+=`<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value" style="color:${col}">${k.value}</div><div class="kpi-sub">${k.sub||''}</div></div>`);
+  h+='</div>';
+
+  // Table by campaign
+  const campTable = buildAggTable(d, 'campaign', p, 'campaign');
+  if(campTable){
+    h+=`<div class="sec-title">Por campaña</div>`;
+    h+=renderAggTable(campTable, p+'_camp');
   }
-  h+=`<div class="sec-title">${p} · ${filteredRows.length.toLocaleString('es-ES')} filas</div>`;
-  h+=renderTable(d,filteredRows,p,200);
+
+  // Table by ad
+  const adTable = buildAggTable(d, 'ad', p, 'ad');
+  if(adTable){
+    h+=`<div class="sec-title" style="margin-top:20px">Por anuncio</div>`;
+    h+=renderAggTable(adTable, p+'_ad');
+  }
+
   return h;
+}
+
+function calcPlatformKPIs(d, rows, col){
+  const H = d.headers.map(x=>(x||'').toLowerCase());
+  const fi = keys => H.findIndex(x => keys.some(k => x.includes(k)));
+  const iI=fi(['impres']), iC=fi(['click']), iS=fi(['spend','cost','inver','importe']);
+  let imp=0, clk=0, spend=0;
+  rows.forEach(r=>{
+    if(iI>=0&&r[iI]) imp+=num(r[iI]);
+    if(iC>=0&&r[iC]) clk+=num(r[iC]);
+    if(iS>=0&&r[iS]) spend+=num(r[iS]);
+  });
+  const cpm = imp>0 ? (spend/imp)*1000 : 0;
+  const cpc = clk>0 ? spend/clk : 0;
+  const ctr = imp>0 ? (clk/imp)*100 : 0;
+  return [
+    {label:'Impresiones', value:fNum(imp),  sub:`CPM ${fCur(cpm)}`},
+    {label:'Clicks',      value:fNum(clk),  sub:`CPC ${fCur(cpc)}`},
+    {label:'CTR',         value:ctr.toFixed(2)+'%', sub:'clicks / impresiones'},
+    {label:'Inversión',   value:fCur(spend), sub:'total plataforma'}
+  ];
+}
+
+function buildAggTable(d, groupBy, platform, tableKey){
+  const H = d.headers.map(x=>(x||'').toLowerCase());
+  const fi = keys => H.findIndex(x => keys.some(k => x.includes(k)));
+
+  // Detect columns
+  const iDate = fi(['date','fecha']);
+  const iGrp  = groupBy==='campaign'
+    ? fi(['campaign','campaña','camp_name','campaign_name'])
+    : fi(['ad_name','ad','anuncio','adname','creative']);
+  const iImp  = fi(['impres']);
+  const iClk  = fi(['click']);
+  const iSpd  = fi(['spend','cost','inver','importe']);
+  const iVid  = fi(['view','reproduc','video_view','videoview']);
+
+  if(iGrp<0) return null;
+
+  // Aggregate by group
+  const agg = {};
+  d.rows.forEach(r=>{
+    const grp = String(r[iGrp]||'').trim();
+    if(!grp || /^-?\d+$/.test(grp)) return; // skip numeric IDs
+    if(!agg[grp]) agg[grp]={imp:0, clk:0, spd:0, vid:0};
+    if(iImp>=0) agg[grp].imp += num(r[iImp])||0;
+    if(iClk>=0) agg[grp].clk += num(r[iClk])||0;
+    if(iSpd>=0) agg[grp].spd += num(r[iSpd])||0;
+    if(iVid>=0) agg[grp].vid += num(r[iVid])||0;
+  });
+
+  const hasVideo = iVid>=0 && Object.values(agg).some(v=>v.vid>0);
+  const label = groupBy==='campaign' ? 'Campaña' : 'Anuncio';
+
+  // Build rows sorted by impressions desc
+  const rows = Object.entries(agg)
+    .map(([name,v])=>{
+      const ctr = v.imp>0 ? (v.clk/v.imp)*100 : 0;
+      const cpc = v.clk>0 ? v.spd/v.clk : 0;
+      const cpm = v.imp>0 ? (v.spd/v.imp)*1000 : 0;
+      const vtr = v.imp>0 && hasVideo ? (v.vid/v.imp)*100 : null;
+      return {name, imp:v.imp, clk:v.clk, spd:v.spd, vid:v.vid, ctr, cpc, cpm, vtr};
+    })
+    .sort((a,b)=>b.imp-a.imp);
+
+  return {rows, hasVideo, label, tableKey};
+}
+
+function renderAggTable(tbl, stateKey){
+  if(!tbl||!tbl.rows.length) return '<p style="color:var(--muted);padding:12px 0">Sin datos.</p>';
+
+  const page = pageState[stateKey]||0;
+  const total = tbl.rows.length;
+  const totalPages = Math.ceil(total/PAGE_SIZE);
+  const visible = tbl.rows.slice(page*PAGE_SIZE, (page+1)*PAGE_SIZE);
+
+  let h='<div class="table-wrap"><table><thead><tr>';
+  h+=`<th class="sortable">${tbl.label}</th>`;
+  h+='<th class="sortable">Impresiones</th>';
+  h+='<th class="sortable">Clicks</th>';
+  h+='<th class="sortable">CTR</th>';
+  h+='<th class="sortable">CPC</th>';
+  h+='<th class="sortable">CPM</th>';
+  h+='<th class="sortable">Inversión</th>';
+  if(tbl.hasVideo){
+    h+='<th class="sortable">Video Views</th>';
+    h+='<th class="sortable">VTR</th>';
+  }
+  h+='</tr></thead><tbody>';
+
+  visible.forEach(r=>{
+    h+='<tr>';
+    h+=`<td>${esc(r.name)}</td>`;
+    h+=`<td class="num">${fNum(r.imp)}</td>`;
+    h+=`<td class="num">${fNum(r.clk)}</td>`;
+    h+=`<td class="num">${r.ctr.toFixed(2)}%</td>`;
+    h+=`<td class="num">${fCur(r.cpc)}</td>`;
+    h+=`<td class="num">${fCur(r.cpm)}</td>`;
+    h+=`<td class="num">${fCur(r.spd)}</td>`;
+    if(tbl.hasVideo){
+      h+=`<td class="num">${fNum(r.vid)}</td>`;
+      h+=`<td class="num">${r.vtr!==null?r.vtr.toFixed(2)+'%':'—'}</td>`;
+    }
+    h+='</tr>';
+  });
+
+  h+='</tbody></table></div>';
+
+  if(totalPages>1){
+    if(!pageState[stateKey]) pageState[stateKey]=0;
+    h+=`<div class="pagination">`;
+    h+=`<button class="pg-btn" onclick="changeAggPage('${stateKey}',-1)" ${page===0?'disabled':''}>← Anterior</button>`;
+    h+=`<span class="pg-info">Pág. ${page+1} / ${totalPages} · ${total.toLocaleString('es-ES')} filas</span>`;
+    h+=`<button class="pg-btn" onclick="changeAggPage('${stateKey}',1)" ${page>=totalPages-1?'disabled':''}>Siguiente →</button>`;
+    h+=`</div>`;
+  } else {
+    h+=`<p style="color:var(--muted);font-size:10px;font-family:'DM Mono',monospace;margin-top:8px">${total.toLocaleString('es-ES')} filas</p>`;
+  }
+  return h;
+}
+
+function changeAggPage(stateKey, dir){
+  if(!pageState[stateKey]) pageState[stateKey]=0;
+  pageState[stateKey] = Math.max(0, pageState[stateKey]+dir);
+  render();
 }
 
 function numKPIs(d, rows){
@@ -562,14 +1071,39 @@ function numKPIs(d, rows){
   return kpis.slice(0,8);
 }
 
-function renderTable(d, rows, platform, maxRows=200){
+function isIdColumn(hdr) {
+  return EXCLUDE_COL_PATTERNS.test(hdr||'');
+}
+
+function isNumericDominantColumn(hdr, rows, colIndex) {
+  // Detect text columns (by name) that contain mostly numeric values (API IDs)
+  const hl = (hdr||'').toLowerCase();
+  const textDimCols = ['campaign','adgroup','ad','creative','placement'];
+  if(!textDimCols.some(dim => hl === dim)) return false;
+  // Check if >70% of non-empty values are purely numeric
+  const nonEmpty = rows.filter(r => r[colIndex] !== null && r[colIndex] !== undefined && r[colIndex] !== '');
+  if(nonEmpty.length === 0) return false;
+  const numericCount = nonEmpty.filter(r => /^-?[0-9]+$/.test(String(r[colIndex]||'').trim())).length;
+  return (numericCount / nonEmpty.length) > 0.7;
+}
+
+function renderTable(d, rows, platform){
   const sorted=getSortedRows(rows,platform);
-  const visible=sorted.slice(0,maxRows);
-  if(!visible.length)return'<p style="color:var(--muted);padding:12px 0">Sin resultados para los filtros aplicados.</p>';
+  if(!sorted.length)return'<p style="color:var(--muted);padding:12px 0">Sin resultados para los filtros aplicados.</p>';
+
+  // Pagination
+  const currentPage = pageState[platform] || 0;
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+  const visible = sorted.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+
+  // Filter out ID columns and numeric-dominant text columns (API IDs)
+  const visibleCols = d.headers.map((hdr,i) => ({hdr,i})).filter(({hdr,i}) => 
+    !isIdColumn(hdr) && !isNumericDominantColumn(hdr, sorted, i)
+  );
 
   const ss=sortState[platform]||{col:-1,dir:'asc'};
   let h='<div class="table-wrap"><table><thead><tr>';
-  d.headers.forEach((hdr,i)=>{
+  visibleCols.forEach(({hdr,i})=>{
     const cls=ss.col===i?`sortable sort-${ss.dir}`:'sortable';
     h+=`<th class="${cls}" onclick="toggleSort('${platform}',${i})">${esc(hdr)||'—'}</th>`;
   });
@@ -577,7 +1111,7 @@ function renderTable(d, rows, platform, maxRows=200){
 
   visible.forEach(row=>{
     h+='<tr>';
-    d.headers.forEach((hdr,i)=>{
+    visibleCols.forEach(({hdr,i})=>{
       const v=row[i]??'';
       const isDate=isDateValue(v,hdr);
       const n=isDate?NaN:num(v);
@@ -594,8 +1128,25 @@ function renderTable(d, rows, platform, maxRows=200){
   });
 
   h+='</tbody></table></div>';
-  if(sorted.length>maxRows)h+=`<p style="color:var(--muted);font-size:10px;font-family:'DM Mono',monospace;margin-top:8px">Mostrando ${maxRows} de ${sorted.length} filas</p>`;
+
+  // Pagination controls
+  if(totalPages > 1){
+    h+=`<div class="pagination">`;
+    h+=`<button class="pg-btn" onclick="changePage('${platform}',-1)" ${currentPage===0?'disabled':''}>← Anterior</button>`;
+    h+=`<span class="pg-info">Pág. ${currentPage+1} / ${totalPages} · ${sorted.length.toLocaleString('es-ES')} filas</span>`;
+    h+=`<button class="pg-btn" onclick="changePage('${platform}',1)" ${currentPage>=totalPages-1?'disabled':''}>Siguiente →</button>`;
+    h+=`</div>`;
+  } else {
+    h+=`<p style="color:var(--muted);font-size:10px;font-family:'DM Mono',monospace;margin-top:8px">${sorted.length.toLocaleString('es-ES')} filas</p>`;
+  }
   return h;
+}
+
+function changePage(platform, direction){
+  const filtered = getSortedRows(getFilteredRows(platform), platform);
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  pageState[platform] = Math.max(0, Math.min((pageState[platform]||0) + direction, totalPages-1));
+  render();
 }
 
 function toggleSort(platform, colIndex){
@@ -628,7 +1179,6 @@ async function genInsights(fetchedAt=''){
 function sq(q){document.getElementById('ci').value=q;sc();}
 function ck(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sc();}}
 async function sc(){
-  if(!proxyUrl)return;
   const inp=document.getElementById('ci');const q=inp.value.trim();if(!q)return;
   inp.value='';document.getElementById('btnSend').disabled=true;
   document.getElementById('quickQs').style.display='none';
@@ -660,15 +1210,75 @@ function addMsg(role,html){
   document.getElementById('chatMsgs').appendChild(div);document.getElementById('chatMsgs').scrollTop=99999;return div;
 }
 
+// ── CONFIG PANEL ──────────────────────────────────────────────────
+function openCfg(){
+  if(_userRole !== 'editor') return;
+  document.getElementById('cfgClientName').value = _cfg.clientName || '';
+  document.getElementById('cfgChartType').value = _cfg.chartType || 'line';
+  document.getElementById('cfgChartMetric').value = _cfg.chartMetric || 'impressions';
+  document.getElementById('cfgDistChart').value = _cfg.distChart || 'doughnut';
+
+  const kpiChecks = document.querySelectorAll('#cfgKpiList input[type=checkbox]');
+  kpiChecks.forEach(cb => { cb.checked = (_cfg.kpiVisible || DEFAULT_CFG.kpiVisible).includes(cb.value); });
+
+  const colorGrid = document.getElementById('cfgColorGrid');
+  colorGrid.innerHTML = '';
+  PLATFORMS.forEach(p => {
+    const currentColor = _cfg.platformColors?.[p] || PCOLORS[p] || '#888';
+    colorGrid.innerHTML += `<div class="cfg-color-item"><input type="color" value="${currentColor}" id="cfgColor_${p}" title="${p}"><span>${p}</span></div>`;
+  });
+
+  document.getElementById('cfgOverlay').classList.add('open');
+  document.getElementById('cfgPanel').classList.add('open');
+}
+
+function closeCfg(){
+  document.getElementById('cfgOverlay').classList.remove('open');
+  document.getElementById('cfgPanel').classList.remove('open');
+}
+
+function saveCfg(){
+  const kpiChecks = document.querySelectorAll('#cfgKpiList input[type=checkbox]');
+  const kpiVisible = [...kpiChecks].filter(cb => cb.checked).map(cb => cb.value);
+  const platformColors = {};
+  PLATFORMS.forEach(p => { const inp = document.getElementById(`cfgColor_${p}`); if(inp) platformColors[p] = inp.value; });
+  _cfg = {
+    clientName: document.getElementById('cfgClientName').value.trim(),
+    chartType: document.getElementById('cfgChartType').value,
+    chartMetric: document.getElementById('cfgChartMetric').value,
+    distChart: document.getElementById('cfgDistChart').value,
+    kpiVisible, platformColors
+  };
+  saveCfgToStorage(_cfg);
+  applyCfgToUI();
+  closeCfg();
+  render();
+  // Save to Firestore so all users see the changes
+  gasPost({action:'saveConfig', config:_cfg})
+    .then(() => showToast('Configuración guardada y sincronizada ✓'))
+    .catch(() => showToast('Guardado local — error al sincronizar'));
+}
+
+function resetCfg(){
+  if(!confirm('¿Restablecer la configuración por defecto?')) return;
+  localStorage.removeItem(getCfgKey());
+  _cfg = {...DEFAULT_CFG};
+  applyCfgToUI();
+  closeCfg();
+  render();
+  showToast('Configuración restablecida');
+}
+
 // ── HELPERS ────────────────────────────────────────────────────────
 function buildSummary(){
+  // Use ALL data (no date filter) for AI context — more value for insights and chat
   let s='';
   for(const[p,d]of Object.entries(allData)){
-    const filtered=getFilteredRows(p);
-    s+=`\n## ${p} (${filtered.length} filas${filtered.length!==d.rows.length?' con filtros aplicados':''})\n`;
+    const rows = d.rows; // all rows, not filtered
+    s+=`\n## ${p} (${rows.length} filas — todos los datos)\n`;
     s+=`Columnas: ${d.headers.join(', ')}\n`;
-    s+=filtered.slice(0,3).map(r=>d.headers.map((h,i)=>`${h}:${r[i]}`).join(' | ')).join('\n')+'\n';
-    const kpis=numKPIs(d,filtered);if(kpis.length)s+=`Totales: ${kpis.map(k=>`${k.label}=${k.value}`).join(', ')}\n`;
+    s+=rows.slice(0,3).map(r=>d.headers.map((h,i)=>`${h}:${r[i]}`).join(' | ')).join('\n')+'\n';
+    const kpis=numKPIs(d,rows);if(kpis.length)s+=`Totales: ${kpis.map(k=>`${k.label}=${k.value}`).join(', ')}\n`;
   }
   return s;
 }
@@ -692,6 +1302,122 @@ function fCell(v,hdr){
 function pct(a,b){return b?((a/b)*100).toFixed(2)+'%':'—';}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
+
+// ── CHARTS ────────────────────────────────────────────────────────
+function renderCharts(filteredData){
+  setTimeout(() => {
+    renderDualChart('chartImprCPM', filteredData, 'impressions', 'cpm', 'Impresiones', 'CPM (€)');
+    renderDualChart('chartClicksCPC', filteredData, 'clicks', 'cpc', 'Clicks', 'CPC (€)');
+    renderDualChart('chartSpendCTR', filteredData, 'spend', 'ctr', 'Inversión (€)', 'CTR (%)');
+    renderDistChart(filteredData);
+  }, 80);
+}
+
+function renderDualChart(canvasId, filteredData, metric1Key, metric2Key, label1, label2){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  if(canvas._ci) canvas._ci.destroy();
+
+  const metric2Patterns = {
+    cpm: /cpm/i, cpc: /cpc/i, ctr: /ctr/i,
+    impressions:/impres/i, clicks:/click/i, spend:/spend|cost|inver|importe/i
+  };
+
+  // Aggregate data across all platforms by date
+  const byDate1 = {}, byDate2 = {};
+
+  Object.entries(filteredData).forEach(([platform, d]) => {
+    if(!d) return;
+    const ci = colIdx[platform] || {};
+    if(ci.date < 0) return;
+    const idx1 = getMetricIdx(d.headers, metric1Key);
+    const pat2 = metric2Patterns[metric2Key];
+    const idx2 = pat2 ? d.headers.findIndex(h => pat2.test(h)) : -1;
+
+    d.rows.forEach(row => {
+      const dt = row[ci.date]; if(!dt) return;
+      const v1 = num(row[idx1]) || 0;
+      const v2 = idx2 >= 0 ? (num(row[idx2]) || 0) : 0;
+      byDate1[dt] = (byDate1[dt] || 0) + v1;
+      if(v2 > 0) byDate2[dt] = (byDate2[dt] || []).concat(v2);
+    });
+  });
+
+  const dates = Object.keys(byDate1).sort();
+  if(!dates.length) return;
+
+  const data1 = dates.map(d => byDate1[d] || 0);
+  const data2 = dates.map(d => {
+    const vals = byDate2[d];
+    return vals && vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+  });
+
+  const labels = dates.map(d => d.substring(5));
+
+  canvas._ci = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: label1, data: data1, borderColor: '#36A7B7', backgroundColor: 'rgba(54,167,183,0.1)',
+          borderWidth: 2, pointRadius: 1, tension: 0.3, yAxisID: 'y', fill: true },
+        { label: label2, data: data2, borderColor: '#F54963', backgroundColor: 'rgba(245,73,99,0.05)',
+          borderWidth: 2, pointRadius: 1, tension: 0.3, yAxisID: 'y2', fill: false, borderDash: [4,3] }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#8aaabb', font: { size: 10 }, boxWidth: 12 } }
+      },
+      scales: {
+        x: { ticks: { color: '#5a7a8a', font: { size: 9 }, maxTicksLimit: 6 }, grid: { color: 'rgba(54,167,183,0.06)' } },
+        y: { position: 'left', ticks: { color: '#36A7B7', font: { size: 9 } }, grid: { color: 'rgba(54,167,183,0.06)' },
+             title: { display: true, text: label1, color: '#36A7B7', font: { size: 9 } } },
+        y2: { position: 'right', ticks: { color: '#F54963', font: { size: 9 } }, grid: { drawOnChartArea: false },
+              title: { display: true, text: label2, color: '#F54963', font: { size: 9 } } }
+      }
+    }
+  });
+}
+
+function getMetricIdx(headers, metricKey){
+  const patterns = {
+    impressions:/impres/i, clicks:/click/i,
+    spend:/spend|cost|inver|importe/i, reach:/reach|alcance/i, views:/view|reproduc/i
+  };
+  const pat = patterns[metricKey];
+  if(!pat) return -1;
+  return headers.findIndex(h => pat.test(h));
+}
+
+function renderDistChart(filteredData){
+  const canvas = document.getElementById('chartDist');
+  if(!canvas) return;
+  if(canvas._ci) canvas._ci.destroy();
+  const chartType = _cfg.distChart || 'doughnut';
+  const labels=[], data=[], colors=[];
+  Object.entries(filteredData).forEach(([platform, d]) => {
+    if(!d) return;
+    const idx = getMetricIdx(d.headers, 'spend');
+    if(idx < 0) return;
+    const total = d.rows.reduce((s,r) => s + (num(r[idx])||0), 0);
+    if(total <= 0) return;
+    labels.push(platform); data.push(total);
+    colors.push(_cfg.platformColors?.[platform] || PCOLORS[platform] || '#888');
+  });
+  if(!data.length) return;
+  const isHBar = chartType === 'bar';
+  canvas._ci = new Chart(canvas, { type: isHBar ? 'bar' : 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth:0 }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      indexAxis: isHBar ? 'y' : undefined,
+      plugins: { legend: { display:!isHBar, labels:{color:'#8aaabb',font:{size:10}} },
+        tooltip: { callbacks: { label: ctx => ` ${fCur(isHBar ? ctx.parsed.x : ctx.parsed)}` } } },
+      scales: isHBar ? { x:{ticks:{color:'#5a7a8a',font:{size:9}},grid:{color:'rgba(54,167,183,0.06)'}},
+                         y:{ticks:{color:'#5a7a8a',font:{size:9}},grid:{display:false}} } : undefined } });
+}
 
 // ── TOAST NOTIFICATION ────────────────────────────────────────────
 function showToast(msg){

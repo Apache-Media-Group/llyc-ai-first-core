@@ -1,0 +1,31 @@
+{
+  "hosting": {
+    "public": "dashboards",
+    "cleanUrls": true,
+    "rewrites": [
+      {
+        "source": "/api",
+        "function": {
+          "functionId": "campaign-intelligence-api",
+          "region": "europe-west1"
+        }
+      },
+      {
+        "source": "/sentiment/**",
+        "destination": "/sentiment-intelligence/frontend/index.html"
+      },
+      {
+        "source": "/campaign-intelligence/**",
+        "destination": "/campaign-intelligence/frontend/dashboard-final.html"
+      },
+      {
+        "source": "/media-impact/**",
+        "destination": "/media-impact/frontend/index.html"
+      },
+      {
+        "source": "/**",
+        "destination": "/hub.html"
+      }
+    ]
+  }
+}
