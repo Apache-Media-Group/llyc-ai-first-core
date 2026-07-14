@@ -209,7 +209,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--client", required=True, help="ID del cliente (ej. vidal-vidal)")
     parser.add_argument("--briefing", required=True, help="Ruta al JSON generado por read_briefing_from_workbook.py")
-    parser.add_argument("--dry-run", action="store_true", help="Simula sin ejecutar")
+    parser.add_argument("--live", action="store_true", help="Ejecucion real (por defecto: dry-run)")
     args = parser.parse_args()
  
-    run(client_id=args.client, briefing_path=args.briefing, dry_run=args.dry_run)
+    run(client_id=args.client, briefing_path=args.briefing, dry_run=not args.live)

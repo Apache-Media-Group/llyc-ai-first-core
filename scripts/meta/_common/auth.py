@@ -87,7 +87,7 @@ def build_meta_client(client_id: str) -> AdAccount:
         google.api_core.exceptions.NotFound: si el secret no existe en SM.
     """
     project_id = _get_client_project(client_id)
-    access_token = read_secret("META_ACCESS_TOKEN", project_id=project_id)
+    access_token = read_secret("meta-access-token-ops", project_id=project_id)
 
     FacebookAdsApi.init(access_token=access_token)
 
