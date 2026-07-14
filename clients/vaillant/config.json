@@ -39,7 +39,7 @@
     "_nota": "DEC_075 — el workbook (Drive Operativo) es la fuente de verdad de budget dinámico y tolerancias KPI, editable por Jesús/Sara sin PR. main.py lo lee por Sheets API (operational_inputs.py). Este bloque declara solo el puntero y el fallback degradado.",
     "workbook": {
       "file_id": "PENDIENTE",
-      "_nota": "PAID_parametros-operativos-vaillant. Compartir como Viewer con llyc-agents-sa@llyc-ai-first-core.iam.gserviceaccount.com. file_id a rellenar por Jesús cuando el workbook esté creado."
+      "_nota": "PAID_parametros-operativos-vaillant. Compartir como Viewer con llyc-agents-sa@llyc-ai-first-core.iam.gserviceaccount.com. file_id a rellenar por Jesus cuando el workbook este creado. El workbook incorpora ademas el tab de leads reales (verdad async, DEC_116): pases comerciales offline cargados por Jesus/Sara para recalibracion CPL."
     },
     "timezone": "Europe/Madrid",
     "fallback": {
@@ -91,10 +91,10 @@
       "campaigns_nota": "Sin restricción — el agente monitoriza todas las campañas activas"
     },
     "ga4": {
-      "enabled": true,
+      "enabled": false,
       "property_id": "417918775",
       "data_stream_id": "6423800780",
-      "rol": "fuente de verdad primaria de leads y comportamiento web (DEC_074/075). GA4 events = fuente primaria online para Vaillant — no es ecomm."
+      "_nota": "GA4 NO disponible: Vaillant DE (matriz) no habilita usuario para el token. Fuera de runtime, sin rol de fuente de verdad (DEC_116). property/stream conservados solo como referencia."
     },
     "tiktok": {
       "enabled": false,
@@ -113,13 +113,18 @@
     }
   },
   "data_sources": {
-    "leads": "ga4",
-    "_leads_nota": "Fuente primaria L1 = eventos GA4 (lead bruto). Validación cualitativa vía CRM del cliente pendiente — DEC_074, pre-L3. No interpretar el CPL como coste por lead cualificado hasta integrar CRM.",
-    "comportamiento_web": "ga4",
-    "sesiones": "ga4",
-    "atribucion": "ga4",
-    "validacion_cualitativa": "salesforce",
-    "_salesforce_nota": "Salesforce como validación batch de pases comerciales (DEC_074/075). Cadencia exacta pendiente de confirmar con Sara. No leído en runtime Sprint 2 — validación cualitativa manual por el equipo."
+    "_nota": "Vaillant sin GA4 (DEC_116). Optimizacion runtime = solo plataforma. Verdad de leads = async via workbook.",
+    "optimizacion_runtime": [
+      "meta",
+      "google_ads"
+    ],
+    "leads_runtime": "platform_conversions",
+    "_leads_runtime_nota": "Conversiones Meta/Google Ads como CPL-PROXY, no lead cualificado. Etiquetar como proxy en todo output.",
+    "leads_verdad": "workbook_async",
+    "_leads_verdad_nota": "Leads reales cargados por Jesus/Sara en tab del workbook. Lectura async para recalibracion, no runtime.",
+    "comportamiento_web": null,
+    "atribucion": "platform",
+    "validacion_cualitativa": "workbook_async"
   },
   "notifications": {
     "canal": "email",
@@ -180,6 +185,11 @@
       "campo": "notifications.alert_recipients",
       "owner": "Jesús López",
       "impacto": "Confirmar si hay contacto de cuenta Vaillant adicional"
+    },
+    {
+      "campo": "operational_inputs.workbook.tab_leads_reales",
+      "owner": "Jesus Lopez / Sara Gil",
+      "impacto": "Tab de leads reales (pases comerciales offline) en workbook — fuente async de verdad de leads para recalibracion CPL (DEC_116). Mismo workbook que parametros operativos."
     }
   ],
   "_metadata": {
