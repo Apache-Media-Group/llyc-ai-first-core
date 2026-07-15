@@ -62,6 +62,11 @@ header{display:flex;align-items:center;justify-content:space-between;padding:13p
 /* Main */
 .main-wrap{flex:1;overflow-y:auto;min-height:0}
 .inner{padding:20px 28px}
+/* Info text */
+.info-text{background:var(--s1);border-left:3px solid var(--teal);border-radius:0 6px 6px 0;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--muted2);line-height:1.7}
+.info-text strong{color:var(--text);font-weight:700}
+.info-text p{margin-bottom:8px}
+.info-text p:last-child{margin-bottom:0}
 /* KPIs */
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;margin-bottom:20px}
 .kpi{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:15px 18px;transition:border-color .2s,transform .15s}
@@ -107,6 +112,24 @@ tbody tr:hover td{background:rgba(255,255,255,.02)}
 .legend{display:flex;gap:18px;justify-content:center;margin-top:10px;flex-wrap:wrap}
 .legend-item{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px}
 .legend-dot{width:9px;height:9px;border-radius:50%}
+/* Glossary */
+.glossary-wrap{padding:0 0 24px 0}
+.glossary-section{margin-bottom:28px}
+.glossary-section-title{font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.glossary-section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.glossary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.glossary-card{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:16px 18px}
+.glossary-card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px}
+.glossary-item{display:flex;gap:10px;margin-bottom:7px;font-size:12px;line-height:1.5}
+.glossary-item:last-child{margin-bottom:0}
+.glossary-score{font-family:'DM Mono',monospace;font-size:11px;font-weight:700;white-space:nowrap;min-width:52px;text-align:right;flex-shrink:0}
+.glossary-desc{color:var(--muted2)}
+.glossary-quadrant{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:16px 18px;display:flex;gap:12px;align-items:flex-start}
+.glossary-quadrant-icon{font-size:22px;flex-shrink:0}
+.glossary-quadrant-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:5px}
+.glossary-quadrant-desc{font-size:12px;color:var(--muted2);line-height:1.5}
+.platform-inactive{opacity:.5}
+/* Empty/loading */
 .empty{text-align:center;padding:60px 20px;color:var(--muted)}
 .empty-icon{font-size:32px;margin-bottom:10px}
 .empty-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px}
@@ -173,12 +196,19 @@ select option{background:#0d1f2d}
 
   <div class="main-wrap">
     <div class="inner">
+      <!-- Texto explicativo -->
+      <div class="info-text">
+        <p>Se ha llevado a cabo una estrategia de <strong>Scoring Emocional</strong> basada en las reacciones y comentarios de los anuncios de las campañas. Cada interacción recibe una puntuación según su naturaleza — cuanto más positiva, mayor puntuación — y permite clasificar las piezas creativas en función de la aceptación real por parte de la audiencia.</p>
+        <p>El análisis utiliza <strong>estadística robusta (IQR)</strong> para calcular umbrales dinámicos que comparan cada pieza contra el histórico real de la cuenta y plataforma. El <strong>Umbral de Excelencia</strong> (Q75 + 1.5×IQR, regla de Tukey) actúa como filtro dinámico: solo las piezas que lo superan se clasifican como "Excelente", ya que demuestran una conexión emocional significativamente superior a la tendencia habitual.</p>
+        <p><strong>Sentimiento:</strong> suma de todos los puntos de interacción emocional dividida por cada 1.000 impresiones, para que piezas con distinto volumen sean comparables. <strong>Ranking Relativo:</strong> los niveles se establecen según el impacto real, independientemente del alcance masivo de la campaña.</p>
+      </div>
       <div class="kpi-row" id="kpiRow"></div>
       <div class="tabs-bar-wrap">
         <div class="tabs-bar">
           <button class="tab-btn active" id="tab-ranking"  onclick="setTab('ranking',this)">Ranking por variable</button>
           <button class="tab-btn"        id="tab-scatter"  onclick="setTab('scatter',this)">Matriz inversión · sentimiento</button>
           <button class="tab-btn"        id="tab-topads"   onclick="setTab('topads',this)">Top Ads</button>
+          <button class="tab-btn"        id="tab-glosario" onclick="setTab('glosario',this)">Glosario</button>
         </div>
         <div class="groupby-row" id="groupByRow">
           <span class="groupby-label">Agrupar por</span>
@@ -201,8 +231,6 @@ select option{background:#0d1f2d}
 </div>
 
 <script>
-// ── CONFIG ────────────────────────────────────────────────────────
-// ⚠️ Sustituye por la URL real tras el deploy
 const API_URL = 'https://europe-west1-llyc-ai-first-core.cloudfunctions.net/sentiment-api';
 
 firebase.initializeApp({
@@ -329,11 +357,13 @@ function setTab(tab, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('groupByRow').style.display = tab==='ranking' ? 'flex' : 'none';
+  document.getElementById('kpiRow').style.display = tab==='glosario' ? 'none' : 'grid';
   renderContent();
 }
 
 function renderContent() {
   const el = document.getElementById('content');
+  if (ST.activeTab==='glosario') { el.innerHTML=renderGlosario(); return; }
   if (!ST.filtered.length) {
     el.innerHTML=`<div class="empty"><div class="empty-icon">🔍</div>
       <div class="empty-title">Sin resultados</div>
@@ -517,6 +547,112 @@ function renderTopAds() {
         <thead><tr><th>#</th><th>Ad ID</th><th>Plataforma</th><th>Formato</th><th>Mercado</th><th>Audiencia</th><th>Objetivo</th><th>Score</th><th>Impresiones</th><th>Inversión</th><th>Nivel</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
+    </div>
+  </div>`;
+}
+
+// ── GLOSARIO ──────────────────────────────────────────────────────
+function renderGlosario() {
+  const sc = s => s > 0 ? 'var(--green)' : s < 0 ? 'var(--red)' : 'var(--muted)';
+  const sl = s => (s > 0 ? '+' : '') + s;
+  const item = (label, score, desc) => `
+    <div class="glossary-item">
+      <span class="glossary-score" style="color:${sc(score)}">${sl(score)} pts</span>
+      <span class="glossary-desc"><strong style="color:var(--text)">${label}</strong> — ${desc}</span>
+    </div>`;
+
+  return `<div class="glossary-wrap">
+    <div class="glossary-section">
+      <div class="glossary-section-title">Clasificación de rendimiento</div>
+      <div class="glossary-grid">
+        <div class="glossary-card">
+          <div class="glossary-card-title">🏆 Excelente (Top Creativo)</div>
+          <p class="glossary-desc" style="font-size:12px;line-height:1.6">Supera el <strong style="color:var(--green)">Umbral de Excelencia</strong> (Q75 + 1.5×IQR, regla de Tukey). Piezas "fuera de serie" con una conexión emocional muy superior a la tendencia histórica de la cuenta. Candidatos prioritarios para escalar.</p>
+        </div>
+        <div class="glossary-card">
+          <div class="glossary-card-title">🚀 Alto (Rendimiento Sólido)</div>
+          <p class="glossary-desc" style="font-size:12px;line-height:1.6">Puntuación por encima de la <strong style="color:var(--amber)">Mediana histórica</strong>. Indica capacidad de generar engagement cualitativo superior a lo considerado normal para el mercado y canal.</p>
+        </div>
+        <div class="glossary-card">
+          <div class="glossary-card-title">⚠️ Bajo (Baja Eficiencia)</div>
+          <p class="glossary-desc" style="font-size:12px;line-height:1.6">Rendimiento emocional por debajo de la mediana. Frecuente en campañas de alcance masivo donde el volumen de impresiones diluye la tasa de respuesta. <strong style="color:var(--text)">No significa necesariamente que la pieza sea mala</strong> — requiere análisis contextual.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="glossary-section">
+      <div class="glossary-section-title">Matriz inversión · sentimiento</div>
+      <div class="glossary-grid">
+        <div class="glossary-quadrant">
+          <div class="glossary-quadrant-icon">⭐</div>
+          <div><div class="glossary-quadrant-name">Joyas de Eficiencia <span style="color:var(--muted);font-size:10px;font-weight:400">(Arriba-Izquierda)</span></div>
+          <div class="glossary-quadrant-desc">Alto impacto emocional con inversión optimizada. Superan los umbrales de éxito con pocos recursos. Candidatos ideales para escalar.</div></div>
+        </div>
+        <div class="glossary-quadrant">
+          <div class="glossary-quadrant-icon">🔥</div>
+          <div><div class="glossary-quadrant-name">Motores de Marca <span style="color:var(--muted);font-size:10px;font-weight:400">(Arriba-Derecha)</span></div>
+          <div class="glossary-quadrant-desc">Gran alcance que mantiene alta conexión emocional. Escenario ideal donde cobertura masiva coincide con relevancia creativa.</div></div>
+        </div>
+        <div class="glossary-quadrant">
+          <div class="glossary-quadrant-icon">🧪</div>
+          <div><div class="glossary-quadrant-name">Laboratorio / Aprendizaje <span style="color:var(--muted);font-size:10px;font-weight:400">(Abajo-Izquierda)</span></div>
+          <div class="glossary-quadrant-desc">Poca inversión y bajo scoring. Común en fases de testeo o anuncios que aún no han generado respuesta clara.</div></div>
+        </div>
+        <div class="glossary-quadrant">
+          <div class="glossary-quadrant-icon">⚠️</div>
+          <div><div class="glossary-quadrant-name">Riesgo de Saturación <span style="color:var(--muted);font-size:10px;font-weight:400">(Abajo-Derecha)</span></div>
+          <div class="glossary-quadrant-desc">Mucha inversión, baja conexión emocional. Alto riesgo de fatiga publicitaria e ineficiencia creativa.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="glossary-section">
+      <div class="glossary-section-title">Scoring emocional por plataforma</div>
+      <div class="glossary-grid">
+        <div class="glossary-card">
+          <div class="glossary-card-title">Meta</div>
+          ${item('Compartir (Share)', 4, 'Máximo alcance orgánico. Mayor impacto positivo en la plataforma.')}
+          ${item('Comentario Positivo', 3, 'Engagement de alta calidad. Refuerza conversación de marca.')}
+          ${item('Love', 2, 'Demuestra afinidad emocional con la marca o el contenido.')}
+          ${item('Like / Wow', 1, 'Interés estándar. Indica aprobación básica.')}
+          ${item('Haha', 0.5, 'Reacción de entretenimiento, bajo impacto estratégico.')}
+          ${item('Sad', -1, 'Sentimiento negativo leve hacia el contenido.')}
+          ${item('Angry', -2, 'Rechazo claro hacia la marca o el mensaje.')}
+          ${item('Comentario Negativo', -3, 'Detracción activa y pública en la conversación.')}
+        </div>
+        <div class="glossary-card">
+          <div class="glossary-card-title">TikTok</div>
+          ${item('Compartir', 4, 'Distribución del contenido; representa alta viralidad.')}
+          ${item('Guardar (Favorites)', 3, 'Alto valor o intención de volver a consumir el contenido.')}
+          ${item('Comentario Positivo', 3, 'Participación activa y construcción de comunidad.')}
+          ${item('Like (Corazón)', 1, 'Feedback rápido de aprobación.')}
+          ${item('Comentario Negativo', -3, 'Críticas o señales de desinterés explícito.')}
+        </div>
+        <div class="glossary-card platform-inactive">
+          <div class="glossary-card-title">X (Twitter) <span style="font-size:10px;color:var(--muted);font-weight:400">· referencia</span></div>
+          ${item('Repost (Retweet)', 4, 'Máximo apoyo público. Equivale a compartir con la propia audiencia.')}
+          ${item('Cita (Quote)', 3, 'Genera conversación adicional y alto valor de engagement.')}
+          ${item('Respuesta Positiva', 3, 'Interacción directa de calidad.')}
+          ${item('Like', 1, 'Señal básica de interés.')}
+          ${item('Respuesta Negativa', -3, 'Crítica pública visible; representa detracción.')}
+        </div>
+        <div class="glossary-card platform-inactive">
+          <div class="glossary-card-title">YouTube <span style="font-size:10px;color:var(--muted);font-weight:400">· referencia</span></div>
+          ${item('Compartir', 4, 'Genera tráfico externo hacia el vídeo.')}
+          ${item('Añadir a Playlist', 3, 'Intención de consumo recurrente.')}
+          ${item('Comentario Positivo', 3, 'Feedback detallado que fortalece engagement.')}
+          ${item('Like', 1, 'Aprobación general del espectador.')}
+          ${item('Dislike', -2, 'Desaprobación clara del contenido.')}
+          ${item('Comentario Negativo', -3, 'Crítica directa en la sección de comentarios.')}
+        </div>
+        <div class="glossary-card platform-inactive">
+          <div class="glossary-card-title">Google Search/Display <span style="font-size:10px;color:var(--muted);font-weight:400">· referencia</span></div>
+          ${item('Conversión (Lead/Venta)', 5, 'Máximo éxito en intención y resultado.')}
+          ${item('Llamada desde anuncio', 4, 'Alta intención de contacto inmediato.')}
+          ${item('Click en Ubicación', 2, 'Indica intención de visita física.')}
+          ${item('Rebote inmediato', -1, 'Click erróneo o falta de relevancia del contenido.')}
+        </div>
+      </div>
     </div>
   </div>`;
 }
