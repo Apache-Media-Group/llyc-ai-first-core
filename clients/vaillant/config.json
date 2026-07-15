@@ -1,0 +1,205 @@
+{
+  "client": {
+    "id": "vaillant",
+    "name": "Vaillant",
+    "sector": "calderas_clima_residencial",
+    "country": "ES",
+    "language": "es",
+    "timezone": "Europe/Madrid",
+    "currency": "EUR"
+  },
+  "agents": {
+    "performance_monitor": {
+      "agent_id": null,
+      "enabled": true,
+      "output_folder": "04_OUTPUTS/vaillant/performance-monitor"
+    },
+    "budget_pacer": {
+      "agent_id": null,
+      "enabled": true,
+      "output_folder": "04_OUTPUTS/vaillant/budget-pacer",
+      "_schedule_nota": "08:30 informe previous-day. Guardrail intradía (17:00) se configura en Cloud Scheduler — no se duplica aquí."
+    },
+    "naming_utm_auditor": {
+      "agent_id": null,
+      "enabled": true,
+      "output_folder": "04_OUTPUTS/vaillant/naming-utm-auditor"
+    },
+    "weekly_digest": {
+      "agent_id": null,
+      "enabled": true,
+      "output_folder": "04_OUTPUTS/vaillant/weekly-digest"
+    },
+    "creative_fatigue_detector": {
+      "enabled": false,
+      "_nota": "Desactivado — Sprint 2. Activar cuando entre en roadmap."
+    }
+  },
+  "operational_inputs": {
+    "_nota": "DEC_075 — el workbook (Drive Operativo) es la fuente de verdad de budget dinámico y tolerancias KPI, editable por Jesús/Sara sin PR. main.py lo lee por Sheets API (operational_inputs.py). Este bloque declara solo el puntero y el fallback degradado.",
+    "workbook": {
+      "file_id": "1GAONRfJ2f5rqzcE-raKkgjA3PIsxD9uEvtH5zwhmWvc",
+      "_nota": "PAID_parametros-operativos-vaillant. Compartir como Viewer con llyc-agents-sa@llyc-ai-first-core.iam.gserviceaccount.com. file_id a rellenar por Jesus cuando el workbook este creado. El workbook incorpora ademas el tab de leads reales (verdad async, DEC_116): pases comerciales offline cargados por Jesus/Sara para recalibracion CPL."
+    },
+    "timezone": "Europe/Madrid",
+    "fallback": {
+      "_nota": "Modo degradado: solo si el workbook no está disponible. Importes a 0 — no se hardcodean valores que derivan del workbook (DEC_075). Con importes 0 budget-pacer reporta N/A y avisa del fallback. Tolerancias KPI conservadas para que performance-monitor siga alertando.",
+      "currency": "EUR",
+      "budget": {
+        "base_eur": 0,
+        "incremental_max_eur": 0
+      },
+      "kpis": [
+        {
+          "nivel": "cuenta",
+          "metrica": "cpl",
+          "parametro": "tolerancia_desviacion_pct",
+          "valor": 20,
+          "ventana": "7d",
+          "enabled": true
+        },
+        {
+          "nivel": "cuenta",
+          "metrica": "pacing",
+          "parametro": "tolerancia_desviacion_pct",
+          "valor": 10,
+          "ventana": "mensual",
+          "enabled": true
+        }
+      ]
+    }
+  },
+  "platforms": {
+    "meta": {
+      "enabled": true,
+      "ad_account_id": "3145475265690106",
+      "business_manager_id": "542534059266449",
+      "utm_medium": "paid_social",
+      "campaigns_in_scope": [],
+      "campaigns_nota": "Sin restricción — el agente monitoriza todas las campañas activas"
+    },
+    "google_ads": {
+      "enabled": true,
+      "customer_id": "6531369988",
+      "manager_id": "6572886766",
+      "utm_medium": [
+        "paid_search",
+        "paid_shopping",
+        "paid_pmax"
+      ],
+      "campaigns_in_scope": [],
+      "campaigns_nota": "Sin restricción — el agente monitoriza todas las campañas activas"
+    },
+    "ga4": {
+      "enabled": false,
+      "property_id": "417918775",
+      "data_stream_id": "6423800780",
+      "_nota": "GA4 NO disponible: Vaillant DE (matriz) no habilita usuario para el token. Fuera de runtime, sin rol de fuente de verdad (DEC_116). property/stream conservados solo como referencia."
+    },
+    "tiktok": {
+      "enabled": false,
+      "_nota": "Descartado — DEC_043"
+    },
+    "dv360": {
+      "enabled": false,
+      "advertiser_id": "1169341103",
+      "_nota": "API directa via tools/dv360.py (DEC_083, deroga DEC_064 y DEC_037). enabled=false — activar en Sprint 3+ cuando se decida. advertiser_id listo.",
+      "briefing_spreadsheet_id": "14EXv7IB-YvR0Yff0PCczzx7qmUF7X6iQklWHvA-d1oI",
+      "_briefing_nota": "ID del Google Sheet de briefing DV360 en Drive (03_CLIENTES/vaillant/). Leer con read_briefing_from_drive.py."
+    },
+    "shopify": {
+      "enabled": false,
+      "_nota": "No aplica — Vaillant no es ecommerce."
+    }
+  },
+  "data_sources": {
+    "_nota": "Vaillant sin GA4 (DEC_116). Optimizacion runtime = solo plataforma. Verdad de leads = async via workbook.",
+    "optimizacion_runtime": [
+      "meta",
+      "google_ads"
+    ],
+    "leads_runtime": "platform_conversions",
+    "_leads_runtime_nota": "Conversiones Meta/Google Ads como CPL-PROXY, no lead cualificado. Etiquetar como proxy en todo output.",
+    "leads_verdad": "workbook_async",
+    "_leads_verdad_nota": "Leads reales cargados por Jesus/Sara en tab del workbook. Lectura async para recalibracion, no runtime.",
+    "comportamiento_web": null,
+    "atribucion": "platform",
+    "validacion_cualitativa": "workbook_async"
+  },
+  "notifications": {
+    "canal": "email",
+    "alert_recipients": [
+      "jesus.lopez@llyc.global",
+      "massimiliano.turinetto@llyc.global"
+    ],
+    "alert_levels": [
+      "ALERTA",
+      "ERROR",
+      "PARTIAL",
+      "NORMAL"
+    ]
+  },
+  "credentials": {
+    "meta_access_token": "META_ACCESS_TOKEN",
+    "meta_app_id": "META_APP_ID",
+    "meta_app_secret": "META_APP_SECRET",
+    "google_ads_developer_token": "GOOGLE_ADS_DEVELOPER_TOKEN",
+    "google_ads_client_id": "GOOGLE_ADS_CLIENT_ID",
+    "google_ads_client_secret": "GOOGLE_ADS_CLIENT_SECRET",
+    "google_ads_refresh_token": "GOOGLE_ADS_REFRESH_TOKEN",
+    "_gmail_nota": "Gmail secrets viven en llyc-ai-first-core Secret Manager — no son credenciales del cliente (DEC_026).",
+    "_shopify_nota": "No aplica — Vaillant no es ecommerce."
+  },
+  "gcp": {
+    "project_id": "llyc-ai-vaillant",
+    "region": "europe-west1",
+    "function_name": "agent-executor-vaillant",
+    "secret_manager_project": "llyc-ai-vaillant",
+    "secret_manager_core_project": "llyc-ai-first-core",
+    "_anthropic_api_key_nota": "main.py deriva dinámicamente el nombre del secret con el patrón anthropic-api-key-{agent_name}-{client_id} (DEC_058)."
+  },
+  "drive": {
+    "outputs_folder_id": "12ygnoQKuYtAyOLqL_RPGsPIWwTA1Dm_1",
+    "_nota": "ID de la carpeta 04_OUTPUTS/vaillant/ en Drive. Crear la carpeta y rellenar antes del primer deploy."
+  },
+  "pendientes": [
+    {
+      "campo": "data_sources.crm_integration",
+      "owner": "Jesús López / Sara Gil",
+      "impacto": "Diferencia lead bruto (GA4) vs lead cualificado (CRM) — necesario antes de L3 para interpretar CPL real"
+    },
+    {
+      "campo": "operational_inputs.workbook.file_id",
+      "owner": "Jesús López / Sara Gil",
+      "impacto": "Bloquea budget-pacer y naming-utm-auditor — sin workbook operan en fallback"
+    },
+    {
+      "campo": "drive.outputs_folder_id",
+      "owner": "Alberto González",
+      "impacto": "Bloquea escritura de outputs en Drive"
+    },
+    {
+      "campo": "notifications.alert_recipients",
+      "owner": "Jesús López",
+      "impacto": "Confirmar si hay contacto de cuenta Vaillant adicional"
+    },
+    {
+      "campo": "operational_inputs.workbook.tab_leads_reales",
+      "owner": "Jesus Lopez / Sara Gil",
+      "impacto": "Tab de leads reales (pases comerciales offline) en workbook — fuente async de verdad de leads para recalibracion CPL (DEC_116). Mismo workbook que parametros operativos."
+    }
+  ],
+  "_metadata": {
+    "version": "1.0",
+    "fecha_creacion": "2026-06-09",
+    "creado_por": "Alberto González",
+    "decisiones_referencia": [
+      "DEC_074 — Vaillant como piloto Sprint 2, lead-gen, fuente de verdad GA4+Salesforce",
+      "DEC_075 — capa de parámetros operativos, workbook como fuente de verdad operativa",
+      "DEC_058 — patrón de API keys por agente+cliente",
+      "DEC_043 — TikTok descartado",
+      "DEC_026 — Gmail secrets en core"
+    ],
+    "proxima_revision": "Cuando Jesús complete los IDs de plataformas y el workbook esté creado"
+  }
+}
