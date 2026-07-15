@@ -1,0 +1,33 @@
+# Ignorar entornos virtuales de Python
+venv/
+.venv/
+env/
+ENV/
+
+# Ignorar archivos compilados de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorar archivos locales de base de datos e historial
+*.db
+ga4_history.db
+ga4_history.db-journal
+
+# Ignorar archivos de registro locales (logs)
+*.log
+backend.log
+frontend.log
+
+# Ignorar claves privadas y credenciales locales de GCP
+*-keys.json
+media-impact-*.json
+*.json.key
+.env
+.env.*
+
+# Ignorar directorios de pruebas locales
+tests/
+comments/
+legacy/

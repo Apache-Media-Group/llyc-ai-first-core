@@ -1,0 +1,22 @@
+# ================================================================
+# Cloud Build — Media Impact API
+# Trigger: cambios en dashboards/media-impact/**
+# ================================================================
+steps:
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-media-impact-api'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - llyc-intelligence-api
+      - --source=dashboards/media-impact/api
+      - --region=us-central1
+      - --allow-unauthenticated
+      - --quiet
+
+includedFiles:
+  - 'dashboards/media-impact/**'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
