@@ -70,17 +70,16 @@ def get_ad_account_id(client_id: str) -> str:
 
 def build_meta_client(client_id: str) -> AdAccount:
     """
-    Inicializa la Meta Marketing API y devuelve el AdAccount del cliente.
-
-    Lee META_ACCESS_TOKEN desde Secret Manager del proyecto cliente.
-    El token debe tener permisos: ads_management, ads_read (DEC_026).
-
+    Inicializa la Meta Marketing API para el path de escritura (ops) y devuelve
+    el AdAccount del cliente.
+    Lee el secreto write-scoped meta-access-token-ops desde Secret Manager del
+    proyecto cliente, accesible únicamente por llyc-ops-writer-sa (DEC_114).
+    Esta función NUNCA debe invocarse desde el runtime de agentes
+    (llyc-agents-sa) ni desde el dispatcher del loop tool_use (DEC_115).
     Args:
         client_id: ID del cliente (ej. vidal-vidal).
-
     Returns:
         AdAccount inicializado y listo para operar.
-
     Raises:
         FileNotFoundError: si config.json del cliente no existe.
         ValueError: si ad_account_id no esta configurado.
