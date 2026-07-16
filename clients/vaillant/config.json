@@ -39,7 +39,7 @@
     "_nota": "DEC_075 — el workbook (Drive Operativo) es la fuente de verdad de budget dinámico y tolerancias KPI, editable por Jesús/Sara sin PR. main.py lo lee por Sheets API (operational_inputs.py). Este bloque declara solo el puntero y el fallback degradado.",
     "workbook": {
       "file_id": "1GAONRfJ2f5rqzcE-raKkgjA3PIsxD9uEvtH5zwhmWvc",
-      "_nota": "PAID_parametros-operativos-vaillant. Compartir como Viewer con llyc-agents-sa@llyc-ai-first-core.iam.gserviceaccount.com. file_id a rellenar por Jesus cuando el workbook este creado. El workbook incorpora ademas el tab de leads reales (verdad async, DEC_116): pases comerciales offline cargados por Jesus/Sara para recalibracion CPL."
+      "_nota": "PAID_parametros-operativos-vaillant. Compartir como Viewer con llyc-agents-sa@llyc-ai-first-core.iam.gserviceaccount.com. El workbook incorpora ademas el tab de leads reales (verdad async, DEC_116): pases comerciales offline cargados por Jesus/Sara para recalibracion CPL."
     },
     "timezone": "Europe/Madrid",
     "fallback": {
@@ -167,16 +167,6 @@
       "campo": "data_sources.crm_integration",
       "owner": "Jesús López / Sara Gil",
       "impacto": "Diferencia lead bruto (GA4) vs lead cualificado (CRM) — necesario antes de L3 para interpretar CPL real"
-    },
-    {
-      "campo": "operational_inputs.workbook.file_id",
-      "owner": "Jesús López / Sara Gil",
-      "impacto": "Bloquea budget-pacer y naming-utm-auditor — sin workbook operan en fallback"
-    },
-    {
-      "campo": "drive.outputs_folder_id",
-      "owner": "Alberto González",
-      "impacto": "Bloquea escritura de outputs en Drive"
     },
     {
       "campo": "notifications.alert_recipients",
