@@ -1,0 +1,1133 @@
+{
+  "vocab": {
+    "pais": {
+      "values": [
+        "es",
+        "pt",
+        "fr",
+        "it",
+        "de",
+        "uk",
+        "us",
+        "mx",
+        "col",
+        "arg",
+        "chl",
+        "per",
+        "bra",
+        "latam",
+        "eu",
+        "apac",
+        "mena"
+      ],
+      "prefixes": [],
+      "patterns": [],
+      "by_parent": {}
+    },
+    "region": {
+      "values": [
+        "mad",
+        "cat",
+        "and",
+        "lev",
+        "gal",
+        "pv",
+        "cnr",
+        "lis",
+        "por",
+        "bog",
+        "cdmx",
+        "baires"
+      ],
+      "prefixes": [],
+      "patterns": [],
+      "by_parent": {
+        "es": [
+          "mad",
+          "cat",
+          "and",
+          "lev",
+          "gal",
+          "pv",
+          "cnr"
+        ],
+        "pt": [
+          "lis",
+          "por"
+        ],
+        "col": [
+          "bog"
+        ],
+        "mx": [
+          "cdmx"
+        ],
+        "arg": [
+          "baires"
+        ]
+      }
+    },
+    "idioma": {
+      "values": [
+        "es",
+        "pt",
+        "fr",
+        "en",
+        "ca",
+        "gl",
+        "eu",
+        "it",
+        "de",
+        "multi"
+      ],
+      "prefixes": [],
+      "patterns": [],
+      "by_parent": {}
+    },
+    "canal": {
+      "values": [
+        "sad",
+        "sem",
+        "prg",
+        "vid",
+        "nat",
+        "app",
+        "rmn",
+        "ctv",
+        "eml",
+        "aff",
+        "infl",
+        "push",
+        "sms",
+        "chat",
+        "tv",
+        "rad",
+        "ooh",
+        "dooh",
+        "prn",
+        "mlg"
+      ],
+      "prefixes": [],
+      "patterns": [],
+      "by_parent": {}
+    },
+    "estrategia": {
+      "values": [
+        "pro",
+        "rtg",
+        "all",
+        "brand",
+        "perf"
+      ],
+      "prefixes": [],
+      "patterns": [],
+      "by_parent": {}
+    },
+    "objetivo": {
+      "values": [
+        "awa",
+        "cons",
+        "tra",
+        "lead",
+        "conv",
+        "ret",
+        "app-inst",
+        "app-eng"
+      ],
+      "prefixes": [],
+      "patterns": [],
+      "by_parent": {}
+    },
+    "compra": {
+      "values": [
+        "cpc",
+        "cpm",
+        "cpv",
+        "vcpm",
+        "cpa",
+        "cpi",
+        "cpcv",
+        "cpl",
+        "flat"
+      ],
+      "prefixes": [],
+      "patterns": [],
+      "by_parent": {}
+    },
+    "plataforma": {
+      "values": [
+        "meta",
+        "tiktok",
+        "linkedin",
+        "twitter",
+        "pinterest",
+        "snapchat",
+        "reddit",
+        "google",
+        "bing",
+        "yahoo",
+        "apple-search",
+        "dv360",
+        "xandr",
+        "criteo",
+        "thetradedesk",
+        "mediamath",
+        "adform",
+        "spotify",
+        "roku",
+        "samsung-ads",
+        "fire-tv",
+        "apple-tv",
+        "amazon-ads",
+        "carrefour-media",
+        "walmart-connect",
+        "el-corte-ingles-media",
+        "outbrain",
+        "taboola",
+        "ligatus",
+        "klaviyo",
+        "mailchimp",
+        "salesforce-mc",
+        "hubspot",
+        "sendinblue",
+        "awin",
+        "tradedoubler",
+        "impact",
+        "cj",
+        "rakuten",
+        "whatsapp",
+        "telegram",
+        "appsflyer",
+        "adjust",
+        "branch",
+        "singular",
+        "kochava",
+        "airbridge",
+        "influencer"
+      ],
+      "prefixes": [],
+      "patterns": [],
+      "by_parent": {}
+    },
+    "inventory": {
+      "values": [
+        "search",
+        "shopping",
+        "pmax",
+        "dgen",
+        "discovery",
+        "advplus",
+        "manual",
+        "reels",
+        "stories",
+        "feed",
+        "marketplace",
+        "audience-network",
+        "in-stream",
+        "instream",
+        "topview",
+        "spark",
+        "brand-takeover",
+        "branded-mission",
+        "branded-effect",
+        "single-image",
+        "carousel",
+        "video",
+        "message-ad",
+        "text-ad",
+        "event-ad",
+        "conversation-ad",
+        "dv-deal",
+        "dv-openauction",
+        "dv-guaranteed",
+        "display",
+        "audio",
+        "ctv",
+        "sponsored-products",
+        "sponsored-brands",
+        "sponsored-display",
+        "dsp-display",
+        "dsp-video",
+        "today-tab",
+        "search-results",
+        "in-feed",
+        "recommendation"
+      ],
+      "prefixes": [],
+      "patterns": [],
+      "by_parent": {
+        "google": [
+          "search",
+          "shopping",
+          "pmax",
+          "dgen",
+          "discovery"
+        ],
+        "meta": [
+          "advplus",
+          "manual",
+          "reels",
+          "stories",
+          "feed",
+          "marketplace",
+          "audience-network",
+          "in-stream"
+        ],
+        "tiktok": [
+          "instream",
+          "topview",
+          "spark",
+          "brand-takeover",
+          "branded-mission",
+          "branded-effect"
+        ],
+        "linkedin": [
+          "single-image",
+          "carousel",
+          "video",
+          "message-ad",
+          "text-ad",
+          "event-ad",
+          "conversation-ad"
+        ],
+        "dv360": [
+          "dv-deal",
+          "dv-openauction",
+          "dv-guaranteed",
+          "display",
+          "audio",
+          "ctv"
+        ],
+        "amazon-ads": [
+          "sponsored-products",
+          "sponsored-brands",
+          "sponsored-display",
+          "dsp-display",
+          "dsp-video"
+        ],
+        "apple-search": [
+          "today-tab",
+          "search-results"
+        ],
+        "outbrain": [
+          "in-feed",
+          "recommendation"
+        ]
+      }
+    },
+    "audiencia": {
+      "values": [
+        "broad",
+        "interest",
+        "demographic",
+        "lookalike",
+        "custom",
+        "crm",
+        "web",
+        "app",
+        "rtg-web",
+        "rtg-app",
+        "rtg-cart",
+        "rtg-view",
+        "geo",
+        "keywords",
+        "contextual",
+        "topics",
+        "post",
+        "micro",
+        "macro",
+        "mega"
+      ],
+      "prefixes": [],
+      "patterns": [],
+      "by_parent": {}
+    },
+    "iniciativa": {
+      "values": [
+        "aon",
+        "brand",
+        "bf",
+        "cm",
+        "xmas",
+        "mother",
+        "father",
+        "valentine",
+        "summersale",
+        "wintersale",
+        "newcoll",
+        "winback",
+        "welcome",
+        "crosssell",
+        "upsell",
+        "cro-test",
+        "tactical",
+        "recovery"
+      ],
+      "prefixes": [
+        "launch-",
+        "webinar-"
+      ],
+      "patterns": [],
+      "by_parent": {}
+    },
+    "temporalidad": {
+      "values": [
+        "summ",
+        "wint",
+        "spr",
+        "aut",
+        "aon"
+      ],
+      "prefixes": [],
+      "patterns": [
+        "^[0-9]{4}-q[1-4]$",
+        "^[0-9]{4}-h[1-2]$",
+        "^[0-9]{4}-(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)$",
+        "^[0-9]{4}-w[0-9]{2}$",
+        "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      ],
+      "by_parent": {}
+    },
+    "variante": {
+      "values": [
+        "ctrl",
+        "var-a",
+        "var-b",
+        "var-c",
+        "var-d",
+        "holdout"
+      ],
+      "prefixes": [
+        "var-creative-",
+        "var-audience-",
+        "var-bidding-"
+      ],
+      "patterns": [],
+      "by_parent": {}
+    }
+  },
+  "canal_platform": [
+    [
+      "sad",
+      "meta"
+    ],
+    [
+      "sad",
+      "tiktok"
+    ],
+    [
+      "sad",
+      "linkedin"
+    ],
+    [
+      "sad",
+      "twitter"
+    ],
+    [
+      "sad",
+      "pinterest"
+    ],
+    [
+      "sad",
+      "snapchat"
+    ],
+    [
+      "sad",
+      "reddit"
+    ],
+    [
+      "sem",
+      "google"
+    ],
+    [
+      "sem",
+      "bing"
+    ],
+    [
+      "sem",
+      "yahoo"
+    ],
+    [
+      "sem",
+      "apple-search"
+    ],
+    [
+      "prg",
+      "dv360"
+    ],
+    [
+      "prg",
+      "xandr"
+    ],
+    [
+      "prg",
+      "criteo"
+    ],
+    [
+      "prg",
+      "thetradedesk"
+    ],
+    [
+      "prg",
+      "mediamath"
+    ],
+    [
+      "prg",
+      "adform"
+    ],
+    [
+      "prg",
+      "spotify"
+    ],
+    [
+      "vid",
+      "google"
+    ],
+    [
+      "vid",
+      "dv360"
+    ],
+    [
+      "ctv",
+      "dv360"
+    ],
+    [
+      "ctv",
+      "roku"
+    ],
+    [
+      "ctv",
+      "samsung-ads"
+    ],
+    [
+      "ctv",
+      "fire-tv"
+    ],
+    [
+      "ctv",
+      "apple-tv"
+    ],
+    [
+      "nat",
+      "outbrain"
+    ],
+    [
+      "nat",
+      "taboola"
+    ],
+    [
+      "nat",
+      "ligatus"
+    ],
+    [
+      "rmn",
+      "amazon-ads"
+    ],
+    [
+      "rmn",
+      "carrefour-media"
+    ],
+    [
+      "rmn",
+      "walmart-connect"
+    ],
+    [
+      "rmn",
+      "el-corte-ingles-media"
+    ],
+    [
+      "eml",
+      "klaviyo"
+    ],
+    [
+      "eml",
+      "mailchimp"
+    ],
+    [
+      "eml",
+      "salesforce-mc"
+    ],
+    [
+      "eml",
+      "hubspot"
+    ],
+    [
+      "eml",
+      "sendinblue"
+    ],
+    [
+      "aff",
+      "awin"
+    ],
+    [
+      "aff",
+      "tradedoubler"
+    ],
+    [
+      "aff",
+      "impact"
+    ],
+    [
+      "aff",
+      "cj"
+    ],
+    [
+      "aff",
+      "rakuten"
+    ],
+    [
+      "chat",
+      "whatsapp"
+    ],
+    [
+      "chat",
+      "telegram"
+    ],
+    [
+      "chat",
+      "meta"
+    ],
+    [
+      "app",
+      "meta"
+    ],
+    [
+      "app",
+      "google"
+    ],
+    [
+      "app",
+      "tiktok"
+    ],
+    [
+      "app",
+      "apple-search"
+    ],
+    [
+      "app",
+      "appsflyer"
+    ],
+    [
+      "app",
+      "adjust"
+    ],
+    [
+      "app",
+      "branch"
+    ],
+    [
+      "app",
+      "singular"
+    ],
+    [
+      "app",
+      "kochava"
+    ],
+    [
+      "app",
+      "airbridge"
+    ],
+    [
+      "infl",
+      "influencer"
+    ]
+  ],
+  "utm_rules": {
+    "meta": {
+      "plataforma": "meta",
+      "utm_source": "meta",
+      "utm_medium": "paid_social",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "FBCLID",
+      "campaign_macro": "{{campaign.name}}",
+      "content_macro": "{{adset.name}}_{{ad.name}}",
+      "id_macro": "{{campaign.id}}"
+    },
+    "tiktok": {
+      "plataforma": "tiktok",
+      "utm_source": "tiktok",
+      "utm_medium": "paid_social",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "TTCLID",
+      "campaign_macro": "__CAMPAIGN_NAME__",
+      "content_macro": "__AID_NAME__",
+      "id_macro": "__CAMPAIGN_ID__"
+    },
+    "linkedin": {
+      "plataforma": "linkedin",
+      "utm_source": "linkedin",
+      "utm_medium": "paid_social",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "LI_FAT_ID",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "twitter": {
+      "plataforma": "twitter",
+      "utm_source": "twitter",
+      "utm_medium": "paid_social",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "TWCLID",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "pinterest": {
+      "plataforma": "pinterest",
+      "utm_source": "pinterest",
+      "utm_medium": "paid_social",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "EPIK",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "snapchat": {
+      "plataforma": "snapchat",
+      "utm_source": "snapchat",
+      "utm_medium": "paid_social",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "ScCID",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "reddit": {
+      "plataforma": "reddit",
+      "utm_source": "reddit",
+      "utm_medium": "paid_social",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "RDT_CID",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "google": {
+      "plataforma": "google",
+      "utm_source": "google",
+      "utm_medium": "cpc",
+      "mode": "autotag",
+      "content": "",
+      "clickid": "GCLID",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "bing": {
+      "plataforma": "bing",
+      "utm_source": "bing",
+      "utm_medium": "cpc",
+      "mode": "autotag",
+      "content": "",
+      "clickid": "MSCLKID",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "apple-search": {
+      "plataforma": "apple-search",
+      "utm_source": "apple-search",
+      "utm_medium": "cpc",
+      "mode": "none",
+      "content": "",
+      "clickid": "iAd",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "dv360": {
+      "plataforma": "dv360",
+      "utm_source": "dv360",
+      "utm_medium": "display",
+      "mode": "sdf",
+      "content": "group_ad",
+      "clickid": "DCLID",
+      "campaign_macro": "${CAMPAIGN_NAME}",
+      "content_macro": "${PLACEMENT_NAME}_${CREATIVE_NAME}",
+      "id_macro": "${CAMPAIGN_ID}"
+    },
+    "spotify": {
+      "plataforma": "spotify",
+      "utm_source": "spotify",
+      "utm_medium": "audio",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "amazon-ads": {
+      "plataforma": "amazon-ads",
+      "utm_source": "amazon-ads",
+      "utm_medium": "cpc",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "AmazonAttribution",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "outbrain": {
+      "plataforma": "outbrain",
+      "utm_source": "outbrain",
+      "utm_medium": "native",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "OBID",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "taboola": {
+      "plataforma": "taboola",
+      "utm_source": "taboola",
+      "utm_medium": "native",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "TBL_CLICK_ID",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "klaviyo": {
+      "plataforma": "klaviyo",
+      "utm_source": "klaviyo",
+      "utm_medium": "email",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "mailchimp": {
+      "plataforma": "mailchimp",
+      "utm_source": "mailchimp",
+      "utm_medium": "email",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "salesforce-mc": {
+      "plataforma": "salesforce-mc",
+      "utm_source": "salesforce-mc",
+      "utm_medium": "email",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "hubspot": {
+      "plataforma": "hubspot",
+      "utm_source": "hubspot",
+      "utm_medium": "email",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "awin": {
+      "plataforma": "awin",
+      "utm_source": "awin",
+      "utm_medium": "affiliate",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "clickref",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "tradedoubler": {
+      "plataforma": "tradedoubler",
+      "utm_source": "tradedoubler",
+      "utm_medium": "affiliate",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "epi",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "influencer": {
+      "plataforma": "influencer",
+      "utm_source": "influencer",
+      "utm_medium": "referral",
+      "mode": "manual",
+      "content": "group_ad",
+      "clickid": "",
+      "campaign_macro": "",
+      "content_macro": "",
+      "id_macro": ""
+    },
+    "whatsapp": {
+      "plataforma": "whatsapp",
+      "utm_source": "meta",
+      "utm_medium": "paid_social",
+      "mode": "manual",
+      "content": "group",
+      "clickid": "FBCLID",
+      "campaign_macro": "{{campaign.name}}",
+      "content_macro": "{{adset.name}}",
+      "id_macro": "{{campaign.id}}"
+    }
+  },
+  "instances": {
+    "kidsnus": {
+      "cliente_code": "kidsnus",
+      "cliente_nombre": "Kids&Us",
+      "platforms": [
+        {
+          "name": "meta",
+          "ga4_linked": true
+        },
+        {
+          "name": "google",
+          "ga4_linked": true
+        }
+      ],
+      "countries": {
+        "es": {
+          "regiones": [
+            "x"
+          ],
+          "idiomas": [
+            "es"
+          ]
+        }
+      },
+      "creativo": [],
+      "iniciativas": [],
+      "extensions": [],
+      "domains": [
+        "kidsandus.com"
+      ]
+    },
+    "lcdc": {
+      "cliente_code": "lcdc",
+      "cliente_nombre": "La Casa de las Carcasas",
+      "platforms": [
+        {
+          "name": "meta",
+          "ga4_linked": true
+        },
+        {
+          "name": "google",
+          "ga4_linked": true
+        }
+      ],
+      "countries": {
+        "es": {
+          "regiones": [
+            "x"
+          ],
+          "idiomas": [
+            "es"
+          ]
+        }
+      },
+      "creativo": [],
+      "iniciativas": [],
+      "extensions": [],
+      "domains": [
+        "lacasadelascarcasas.com"
+      ]
+    },
+    "turespana": {
+      "cliente_code": "turespana",
+      "cliente_nombre": "Turespaña",
+      "platforms": [
+        {
+          "name": "meta",
+          "ga4_linked": true
+        },
+        {
+          "name": "google",
+          "ga4_linked": true
+        }
+      ],
+      "countries": {
+        "fr": {
+          "regiones": [
+            "x"
+          ],
+          "idiomas": [
+            "fr"
+          ]
+        },
+        "de": {
+          "regiones": [
+            "x"
+          ],
+          "idiomas": [
+            "de"
+          ]
+        },
+        "uk": {
+          "regiones": [
+            "x"
+          ],
+          "idiomas": [
+            "en"
+          ]
+        },
+        "it": {
+          "regiones": [
+            "x"
+          ],
+          "idiomas": [
+            "it"
+          ]
+        }
+      },
+      "creativo": [
+        "cr-playa",
+        "cr-citybreak",
+        "cr-gastro"
+      ],
+      "iniciativas": [
+        "aon"
+      ],
+      "extensions": [],
+      "domains": [
+        "spain.info"
+      ]
+    },
+    "vaillant": {
+      "cliente_code": "vaillant",
+      "cliente_nombre": "Vaillant",
+      "platforms": [
+        {
+          "name": "meta",
+          "ga4_linked": true
+        },
+        {
+          "name": "google",
+          "ga4_linked": true
+        }
+      ],
+      "countries": {
+        "es": {
+          "regiones": [
+            "x"
+          ],
+          "idiomas": [
+            "es"
+          ]
+        }
+      },
+      "creativo": [
+        "cr-brandtext",
+        "cr-promo-acs",
+        "cr-promo-cal"
+      ],
+      "iniciativas": [
+        "aon",
+        "bf",
+        "cm",
+        "xmas"
+      ],
+      "extensions": [
+        {
+          "nombre": "producto",
+          "nivel": "campaign",
+          "posicion": "sufijo",
+          "vocabulario": [
+            "acs",
+            "calefaccion",
+            "cross"
+          ]
+        }
+      ],
+      "domains": [
+        "vaillant.es"
+      ]
+    },
+    "vv": {
+      "cliente_code": "vv",
+      "cliente_nombre": "Vidal & Vidal",
+      "platforms": [
+        {
+          "name": "meta",
+          "ga4_linked": true
+        },
+        {
+          "name": "google",
+          "ga4_linked": true
+        }
+      ],
+      "countries": {
+        "es": {
+          "regiones": [
+            "x"
+          ],
+          "idiomas": [
+            "es"
+          ]
+        }
+      },
+      "creativo": [
+        "cr-oferta15s",
+        "cr-promo",
+        "cr-brand"
+      ],
+      "iniciativas": [
+        "bf",
+        "aon",
+        "cm",
+        "xmas",
+        "valentine"
+      ],
+      "extensions": [],
+      "domains": [
+        "vidal-vidal.com"
+      ]
+    }
+  },
+  "legacy": {
+    "utm_source": {
+      "facebook": "meta",
+      "fb": "meta",
+      "fb_ads": "meta",
+      "goo": "google",
+      "g": "google",
+      "google_ads": "google",
+      "ytb": "google",
+      "youtube": "google",
+      "tk": "tiktok",
+      "tt": "tiktok",
+      "li": "linkedin",
+      "lkdn": "linkedin",
+      "dv": "dv360",
+      "snap": "snapchat",
+      "sc": "snapchat",
+      "pin": "pinterest",
+      "amz": "amazon-ads",
+      "tw": "twitter",
+      "x": "twitter"
+    },
+    "utm_medium": {
+      "paid_pmax": "cpc",
+      "social": "paid_social",
+      "display_paid": "display",
+      "mail": "email",
+      "e-mail": "email",
+      "aff": "affiliate",
+      "ref": "referral"
+    }
+  }
+}
