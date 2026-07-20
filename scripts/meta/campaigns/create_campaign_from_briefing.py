@@ -11,16 +11,16 @@ Contrato DEC_100: una confirmacion al inicio + dry-run previo obligatorio.
 Owner: Alberto Gonzalez | Reviewer: Max | E2E: Jesus Lopez
  
 Uso:
-    # Paso 1: dry-run (obligatorio antes del real)
-    python -m scripts.meta.campaigns.create_campaign_from_briefing \\
-        --client vidal-vidal \\
-        --briefing clients/vidal-vidal/briefings/meta_2026-07-01_1430.json \\
-        --dry-run
- 
-    # Paso 2: ejecucion real (tras validar dry-run)
-    python -m scripts.meta.campaigns.create_campaign_from_briefing \\
-        --client vidal-vidal \\
+    # Paso 1: dry-run (obligatorio antes del real, es el comportamiento por defecto)
+    python -m scripts.meta.campaigns.create_campaign_from_briefing \
+        --client vidal-vidal \
         --briefing clients/vidal-vidal/briefings/meta_2026-07-01_1430.json
+
+    # Paso 2: ejecucion real (tras validar dry-run) — requiere --live
+    python -m scripts.meta.campaigns.create_campaign_from_briefing \
+        --client vidal-vidal \
+        --briefing clients/vidal-vidal/briefings/meta_2026-07-01_1430.json \
+        --live
 """
 from __future__ import annotations
  
