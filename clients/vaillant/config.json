@@ -2,6 +2,7 @@
   "client": {
     "id": "vaillant",
     "name": "Vaillant",
+    "naming_code": "vaillant",
     "sector": "calderas_clima_residencial",
     "country": "ES",
     "language": "es",
