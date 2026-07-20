@@ -39,7 +39,7 @@ from googleapiclient.discovery import build
 from scripts._common.secrets import read_secret
  
 CORE_PROJECT = "llyc-ai-first-core"
-WRITER_SA_SECRET = "DV360_OPS_WRITER_SA_KEY"
+WRITER_SA_SECRET = "OPS_WRITER_SA_KEY"
 SHEETS_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
  
 # Campos obligatorios por sección
