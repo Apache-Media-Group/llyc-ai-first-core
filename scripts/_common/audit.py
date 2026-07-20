@@ -81,18 +81,13 @@ def confirm_action(message: str, dry_run: bool = False) -> bool:
     En dry-run devuelve True sin pedir input.
     """
     if dry_run:
-        print(f"
-[DRY-RUN] Se ejecutaria: {message}")
+        print(f"\n[DRY-RUN] Se ejecutaria: {message}")
         return True
-
-    print(f"
-⚠️  ACCION REQUERIDA: {message}")
+    print(f"\n⚠️  ACCION REQUERIDA: {message}")
     print("Escribe si para confirmar, cualquier otra cosa para cancelar: ", end="", flush=True)
     response = input().strip().lower()
-
     if response == "si":
         return True
-
     print("Cancelado.")
     return False
 
@@ -103,12 +98,10 @@ def confirm_destructive(message: str, client_id: str, dry_run: bool = False) -> 
     El usuario debe escribir confirmo y luego el client_id exacto.
     """
     if dry_run:
-        print(f"
-[DRY-RUN] Accion destructiva que se ejecutaria: {message}")
+        print(f"\n[DRY-RUN] Accion destructiva que se ejecutaria: {message}")
         return True
 
-    print(f"
-🔴 ACCION DESTRUCTIVA: {message}")
+    print(f"\n🔴 ACCION DESTRUCTIVA: {message}")
     print("Esta accion no se puede deshacer facilmente.")
     print("Primera confirmacion — escribe confirmo: ", end="", flush=True)
     r1 = input().strip().lower()
