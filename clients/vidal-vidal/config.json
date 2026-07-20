@@ -2,6 +2,7 @@
   "client": {
     "id": "vidal-vidal",
     "name": "Vidal & Vidal",
+    "naming_code": "vv",
     "sector": "joyeria_ecommerce",
     "country": "ES",
     "language": "es",
