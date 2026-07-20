@@ -21,9 +21,6 @@ from facebook_business.adobjects.adaccount import AdAccount
 
 from scripts._common.secrets import read_secret
 
-# Proyecto GCP por defecto — puede sobreescribirse si el secret vive en el proyecto cliente
-CORE_PROJECT = "llyc-ai-first-core"
-
 
 def _get_client_project(client_id: str) -> str:
     """
@@ -37,7 +34,13 @@ def _get_client_project(client_id: str) -> str:
         )
     with open(config_path, encoding="utf-8") as f:
         config = json.load(f)
-    return config.get("gcp", {}).get("project_id", CORE_PROJECT)
+    project_id = config.get("gcp", {}).get("project_id")
+    if not project_id:
+        raise ValueError(
+            f"Completar clients/{client_id}/config.json gcp.project_id — "
+            f"sin este campo no se puede resolver el proyecto GCP del secret Meta."
+        )
+    return project_id
 
 
 def get_ad_account_id(client_id: str) -> str:
