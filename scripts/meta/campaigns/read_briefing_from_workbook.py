@@ -16,13 +16,17 @@ Estructura del tab (secciones con cabecera #):
     # AD_1 (de AD_SET_1) — primer ad del ad set 1
     # AD_SET_2        — segundo ad set (opcional)
     # AD_1 (de AD_SET_2) — primer ad del ad set 2
- 
+
 Columna A = campo, Columna B = valor. Filas con # en col A = cabecera de sección.
- 
+
+Campo campaign_daily_budget_eur (seccion CAMPAIGN): obligatorio solo si
+cbo_enabled=true. Define el presupuesto diario a nivel de campana (CBO).
+Si cbo_enabled=false, el presupuesto se define por ad set (daily_budget_eur).
+
 Uso:
     python -m scripts.meta.campaigns.read_briefing_from_workbook \\
         --client vidal-vidal \\
-        [--dry-run]
+        [--preview]
 """
 from __future__ import annotations
  
@@ -52,7 +56,7 @@ REQUIRED_AD = [
     "ad_name", "creative_type", "page_id",
     "link_url", "ad_message", "call_to_action",
 ]
-# Opcionales en dry-run (requieren datos de Jesús)
+# Opcionales en preview (requieren datos de Jesús)
 DRY_RUN_OPTIONAL = ["page_id", "pixel_id", "image_hash", "video_id"]
  
 # Valores válidos (validación básica antes de llamar a la API)
@@ -166,7 +170,7 @@ def _parse_sections(rows: list[list[str]]) -> dict[str, dict[str, str]]:
  
 # --- VALIDACION ---------------------------------------------------------------
  
-def _validate(sections: dict, dry_run: bool) -> list[str]:
+def _validate(sections: dict, preview: bool) -> list[str]:
     errors = []
  
     # CAMPAIGN
@@ -179,6 +183,10 @@ def _validate(sections: dict, dry_run: bool) -> list[str]:
             f"[CAMPAIGN] objective '{camp['objective']}' no valido. "
             f"Opciones: {sorted(VALID_OBJECTIVES)}"
         )
+    if camp.get("cbo_enabled", "false").lower() == "true" and not camp.get("campaign_daily_budget_eur"):
+        errors.append(
+            "[CAMPAIGN] cbo_enabled=true requiere 'campaign_daily_budget_eur'."
+        )
  
     # AD_SETs
     adset_keys = sorted([k for k in sections if re.match(r"AD_SET_\d+$", k)])
@@ -188,7 +196,7 @@ def _validate(sections: dict, dry_run: bool) -> list[str]:
     for adset_key in adset_keys:
         adset = sections.get(adset_key, {})
         for f in REQUIRED_AD_SET:
-            if not adset.get(f) and not (dry_run and f in DRY_RUN_OPTIONAL):
+            if not adset.get(f) and not (preview and f in DRY_RUN_OPTIONAL):
                 errors.append(f"[{adset_key}] Campo obligatorio vacio: '{f}'")
         if adset.get("bid_strategy") and adset["bid_strategy"].upper() not in VALID_BID_STRATEGIES:
             errors.append(
@@ -208,7 +216,7 @@ def _validate(sections: dict, dry_run: bool) -> list[str]:
         for ad_key in ad_keys:
             ad = sections.get(ad_key, {})
             for f in REQUIRED_AD:
-                if not ad.get(f) and not (dry_run and f in DRY_RUN_OPTIONAL):
+                if not ad.get(f) and not (preview and f in DRY_RUN_OPTIONAL):
                     errors.append(f"[{ad_key}] Campo obligatorio vacio: '{f}'")
  
     return errors
@@ -317,13 +325,20 @@ def build_briefing(sections: dict, client_id: str, tab_name: str) -> dict:
  
     special_raw = camp_data.get("special_ad_categories", "").strip()
     special_ad_categories = [s.strip().upper() for s in special_raw.split(",") if s.strip()] if special_raw else []
- 
+
+    cbo_enabled = camp_data.get("cbo_enabled", "false").lower() == "true"
+    campaign_budget_cents = (
+        int(float(camp_data.get("campaign_daily_budget_eur", 0)) * 100)
+        if cbo_enabled else None
+    )
+
     campaign = {
         "name": camp_data["campaign_name"],
         "objective": camp_data.get("objective", "").upper(),
         "special_ad_categories": special_ad_categories,
         "buying_type": camp_data.get("buying_type", "AUCTION").upper(),
-        "cbo_enabled": camp_data.get("cbo_enabled", "false").lower() == "true",
+        "cbo_enabled": cbo_enabled,
+        "campaign_budget_cents": campaign_budget_cents,
     }
  
     # Ad Sets ordenados
@@ -342,7 +357,7 @@ def build_briefing(sections: dict, client_id: str, tab_name: str) -> dict:
  
     return {
         "client": client_id,
-        "dry_run": False,
+        "preview": False,
         "campaign": campaign,
         "ad_sets": ad_sets,
         "_meta": {
@@ -367,14 +382,14 @@ def save_briefing(briefing: dict, client_id: str) -> pathlib.Path:
  
 # --- ORQUESTADOR --------------------------------------------------------------
  
-def run(client_id: str, dry_run: bool) -> None:
+def run(client_id: str, preview: bool) -> None:
     _, tab_name = _get_workbook_config(client_id)
     print(f"\nLeyendo tab '{tab_name}' del workbook de '{client_id}'...")
  
     rows, tab_name = _read_raw_rows(client_id)
     sections = _parse_sections(rows)
  
-    errors = _validate(sections, dry_run=dry_run)
+    errors = _validate(sections, preview=preview)
     if errors:
         print("\nERROR — Campos incompletos o invalidos en el workbook:")
         for e in errors:
@@ -393,8 +408,8 @@ def run(client_id: str, dry_run: bool) -> None:
     print("\nBriefing completo:")
     print(json.dumps(briefing, indent=2, ensure_ascii=False))
  
-    if dry_run:
-        print(f"\n[DRY-RUN] JSON no guardado. Ejecuta sin --dry-run para guardar.")
+    if preview:
+        print(f"\n[PREVIEW] JSON no guardado. Ejecuta sin --preview para guardar.")
         return
  
     out_path = save_briefing(briefing, client_id)
@@ -411,7 +426,7 @@ if __name__ == "__main__":
         description="Lee tab meta_briefing del workbook y genera JSON de briefing."
     )
     parser.add_argument("--client", required=True)
-    parser.add_argument("--dry-run", action="store_true",
+    parser.add_argument("--preview", action="store_true",
                         help="Muestra JSON sin guardar. page_id/pixel_id/image_hash opcionales.")
     args = parser.parse_args()
-    run(client_id=args.client, dry_run=args.dry_run)
+    run(client_id=args.client, preview=args.preview)
