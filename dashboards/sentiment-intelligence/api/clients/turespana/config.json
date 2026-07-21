@@ -5,12 +5,13 @@
   "allowed_origins": [
     "https://dashboard.llyc.global"
   ],
-  "allowed_domains": [
-    "llyc.global"
-  ],
   "allowed_emails": [
-    { "email": "sergio.alonso@llyc.global", "role": "editor" },
-    { "email": "alberto.gonzalez@llyc.global", "role": "viewer" },
-    { "email": "massimiliano.turinetto@llyc.global", "role": "viewer" }
+    { "email": "sergio.alonso@llyc.global",      "role": "editor" },
+    { "email": "alberto.gonzalez@llyc.global",   "role": "viewer" },
+    { "email": "massimiliano.turinetto@llyc.global", "role": "viewer" },
+    { "email": "yvonne.campderros@llyc.global",  "role": "viewer" },
+    { "email": "adriana.gonzalez@llyc.global",   "role": "viewer" },
+    { "email": "german.sarmiento@llyc.global",   "role": "viewer" },
+    { "email": "claudia.pico@llyc.global",       "role": "viewer" }
   ]
 }
