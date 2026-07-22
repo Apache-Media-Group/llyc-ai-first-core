@@ -54,7 +54,10 @@ from operational_inputs import (  # DEC_075
 )
 from orchestrator import orchestrate_l3  # T4 L3
 from output_registry import OUTPUT_REGISTRY  # T2 L3
-from output_assembler import assemble, overwrite_budget_pacer  # T3 L3 / T10 budget-pacer
+from output_assembler import (
+    assemble,
+    overwrite_budget_pacer,
+)  # T3 L3 / T10 budget-pacer
 from narrative import build_metrics_block, merge_prose  # T5 L3
 
 # ─── BOOTSTRAP ────────────────────────────────────────────────────────────────
@@ -860,7 +863,11 @@ def run_agent(
                     )
                     error_result = {"status": "error", "message": str(e)}
                     captured_tool_results.append(
-                        {"tool": block.name, "input": block.input, "result": error_result}
+                        {
+                            "tool": block.name,
+                            "input": block.input,
+                            "result": error_result,
+                        }
                     )
                     tool_results.append(
                         {
@@ -1197,7 +1204,9 @@ def _derive_analysis_status(legacy_status: str) -> str:
 
 
 @functions_framework.http
-def _request_prose(anthropic_client, system_prompt, metrics_block, client_id, agent_name):
+def _request_prose(
+    anthropic_client, system_prompt, metrics_block, client_id, agent_name
+):
     """Una sola llamada al LLM (sin tools): recibe el BLOQUE DE MÉTRICAS y
     devuelve SOLO el JSON de prosa. Degrada a {} si no parsea — los números
     deterministas se mantienen intactos (garantía L3)."""
@@ -1292,6 +1301,56 @@ def run_perf_monitor_l3(
         )
     )
     return merge_prose(deterministic, prose)
+
+
+def run_naming_utm_auditor(handler, config, analysis_date, client_id):
+    """Ruta determinista del naming-utm-auditor v4.0 (DEC_098 + DEC_120).
+
+    Sin LLM: el executor recupera los inventarios via tools de plataforma y el
+    veredicto lo da naming_engine (mismo compiled.json que el generador, DEC_096).
+    El contrato JSON lo monta audit_assembler (backward-compatible v3.1).
+    """
+    import pathlib as _pl
+    from audit_assembler import assemble as assemble_naming_audit
+
+    naming_code = (config.get("client") or {}).get("naming_code")
+    if not naming_code:
+        raise ValueError(
+            f"client.naming_code ausente en config de '{client_id}' — "
+            "requerido por naming-utm-auditor (DEC_120)"
+        )
+    compiled_path = _pl.Path(__file__).parent / "naming_engine" / "compiled.json"
+
+    def _ads(res):
+        """ok -> lista de ads; error de fuente -> None (assembler degrada a PARTIAL)."""
+        if not isinstance(res, dict) or res.get("status") != "ok":
+            return None
+        data = res.get("data") or {}
+        ads = data.get("ads")
+        return ads if isinstance(ads, list) else None
+
+    platforms_cfg = config.get("platforms", {})
+    inventories = {}
+    if (platforms_cfg.get("meta") or {}).get("enabled"):
+        acct = str(platforms_cfg["meta"].get("ad_account_id") or "").removeprefix(
+            "act_"
+        )
+        inventories["meta"] = _ads(
+            handler("get_meta_active_ad_urls", {"ad_account_id": acct})
+        )
+    if (platforms_cfg.get("google_ads") or {}).get("enabled"):
+        cid = str(platforms_cfg["google_ads"].get("customer_id") or "").replace("-", "")
+        inventories["google_ads"] = _ads(
+            handler("get_google_ads_active_ad_urls", {"customer_id": cid})
+        )
+
+    return assemble_naming_audit(
+        client_name=config["client"]["name"],
+        client_code=naming_code,
+        analysis_date=analysis_date,
+        compiled_path=compiled_path,
+        inventories=inventories,
+    )
 
 
 def agent_executor(request):
@@ -1394,7 +1453,9 @@ def agent_executor(request):
         # ── 6. Cargar system_prompt + tools client-side (DEC_065) ─────────────
         # Antes vivía server-side asociado al agent_id. Ahora se construye en
         # cada invocación: static prompt del repo + contexto dinámico del config.
-        static_prompt = load_static_prompt(agent_name)
+        # DEC_098/DEC_120: naming-utm-auditor es 100% determinista — sin prompt ni LLM.
+        deterministic_auditor = agent_name == "naming-utm-auditor"
+        static_prompt = "" if deterministic_auditor else load_static_prompt(agent_name)
         dynamic_context = build_dynamic_context(config, agent_name)
 
         # DEC_075: capa de parámetros operativos. Lee el workbook operativo del
@@ -1426,10 +1487,10 @@ def agent_executor(request):
         user_message = build_user_message(
             agent_name, config, analysis_date, run_profile
         )
-        if agent_name == "performance-monitor":
-            enabled_paid = [
-                p for p in ("meta", "google_ads") if p in enabled_platforms
-            ]
+        if deterministic_auditor:
+            output = run_naming_utm_auditor(handler, config, analysis_date, client_id)
+        elif agent_name == "performance-monitor":
+            enabled_paid = [p for p in ("meta", "google_ads") if p in enabled_platforms]
             output = run_perf_monitor_l3(
                 anthropic_client,
                 system_prompt,

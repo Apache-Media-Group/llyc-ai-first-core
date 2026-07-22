@@ -61,3 +61,28 @@ def test_correct_utm_no_false_positive():
     tags = ("utm_source=meta&utm_medium=paid_social&utm_id={{campaign.id}}"
             "&utm_source_platform=meta&utm_content={{adset.name}}_{{ad.name}}")
     assert a.audit_utm("vv", "meta", "https://www.vidal-vidal.com/x", tags, "C", "G", "A") == []
+
+
+# ── DEC_120: compiled.json empaquetado en repo ──────────────────────────────
+COMPILED_RUNTIME = REPO / "naming_engine" / "compiled.json"
+# Hash del compiled sincronizado desde el generador (feature/iteration-2 @ 4016366).
+# Si cambia sin re-sincronizar via `python sync.py` en el generador, este test salta.
+EXPECTED_COMPILED_SHA256 = "c233c2f657c6e658b8459cb8b488ce58e5d2dce6d5d43bc49c046ea384ba7fc3"
+
+
+def test_compiled_runtime_present():
+    assert COMPILED_RUNTIME.exists(), "falta naming_engine/compiled.json (DEC_120)"
+
+
+def test_compiled_runtime_parity():
+    assert _sha(COMPILED_RUNTIME) == EXPECTED_COMPILED_SHA256, (
+        "el compiled.json del repo diverge del sincronizado desde el generador — "
+        "regenerar con sync.py y actualizar el hash (DEC_120)"
+    )
+
+
+def test_compiled_runtime_instances():
+    import json
+    c = json.loads(COMPILED_RUNTIME.read_text())
+    for code in ("vv", "vaillant", "lcdc"):
+        assert code in c["instances"], f"instancia {code} ausente del compiled"
