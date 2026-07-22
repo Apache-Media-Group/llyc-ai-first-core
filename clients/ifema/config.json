@@ -1,0 +1,50 @@
+{
+  "client": {
+    "id": "ifema",
+    "name": "IFEMA",
+    "sector": "eventos_ferias",
+    "country": "ES",
+    "language": "es",
+    "timezone": "Europe/Madrid",
+    "currency": "EUR"
+  },
+  "dashboard": {
+    "enabled": true,
+    "datasources": ["cm360"],
+    "drive_folder_id": "PENDIENTE",
+    "windows": {
+      "default_days": 30,
+      "comparison_days": 7
+    },
+    "ptc_analyzer": {
+      "enabled": true,
+      "data_source": {
+        "type": "csv_manual",
+        "note": "Puente temporal (aprobado por Max, 22/07/2026) — migrar type a 'bigquery' cuando Sergio Rico Lucena confirme en primera persona el fix del join en PathToConv. No dejar como ingesta permanente.",
+        "bigquery_target": {
+          "project": "apache-ifema-datamart",
+          "dataset": "ODS",
+          "table": "CM_PathToConv_new",
+          "status": "pendiente_confirmacion_sergio_rico"
+        }
+      }
+    }
+  },
+  "gcp": {
+    "project_id": "llyc-ai-ifema",
+    "region": "europe-west1",
+    "secret_manager_project": "llyc-ai-ifema",
+    "secret_manager_core_project": "llyc-ai-first-core"
+  },
+  "_metadata": {
+    "version": "1.0",
+    "fecha_creacion": "2026-07-22",
+    "creado_por": "Sergio Alonso",
+    "decisiones_referencia": [
+      "DEC_089 — dashboard campaign-intelligence, modelo workload por cliente",
+      "DEC_113 — PTC Analyzer, proyecto GCP por cliente",
+      "DEC_119 — alta de tenant no dispara migración a DEC_117",
+      "DEC_058 — API keys en proyecto del cliente"
+    ]
+  }
+}
