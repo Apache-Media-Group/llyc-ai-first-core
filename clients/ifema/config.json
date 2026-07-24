@@ -10,7 +10,7 @@
   },
   "dashboard": {
     "enabled": true,
-    "datasources": ["cm360"],
+    "datasources": [],
     "drive_folder_id": "PENDIENTE",
     "windows": {
       "default_days": 30,
