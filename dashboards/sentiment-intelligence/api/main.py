@@ -56,6 +56,8 @@ BQ_TABLE        = CONFIG["bq_table"]
 PARTNER_FILTER  = CONFIG["partner_filter"]
 ALLOWED_ORIGINS = CONFIG.get("allowed_origins", ["https://dashboard.llyc.global"])
 
+# Columnas expuestas al frontend
+# impressions, clicks, impressions_scored son FLOAT64 en BQ → se castean a INT64
 SELECT_COLS = """
     provider,
     market,
@@ -81,9 +83,17 @@ SELECT_COLS = """
     CAST(ROUND(COALESCE(clicks, 0)) AS INT64)                          AS clicks
 """
 
+# Dimensiones filtrables — provider es el filtro de plataforma (META, TIKTOK...)
 FILTER_DIMS = [
-    "provider", "market", "campaign_objective", "campaign_grouping",
-    "ad_format", "ad_type", "ad_audience", "ad_language", "ad_version",
+    "provider",
+    "market",
+    "campaign_objective",
+    "campaign_grouping",
+    "ad_format",
+    "ad_type",
+    "ad_audience",
+    "ad_language",
+    "ad_version",
 ]
 
 FILTER_LABELS = {
@@ -129,6 +139,12 @@ def _verify_token(request: Request) -> tuple[Optional[dict], Optional[str]]:
 
 
 def _get_user_role(email: str) -> Optional[str]:
+    """
+    Soporta:
+      - string "user@llyc.global"            → viewer
+      - dict {"email": "...", "role": "..."}  → role definido
+      - allowed_domains ["llyc.global"]       → viewer para todo el dominio
+    """
     for entry in CONFIG.get("allowed_emails", []):
         if isinstance(entry, str):
             if entry == email:
@@ -136,15 +152,24 @@ def _get_user_role(email: str) -> Optional[str]:
         elif isinstance(entry, dict):
             if entry.get("email") == email:
                 return entry.get("role", "viewer")
+
     domain = email.split("@")[1] if "@" in email else ""
     for allowed_domain in CONFIG.get("allowed_domains", []):
         if allowed_domain == domain:
             return "viewer"
+
     return None
 
 
 # ── BIGQUERY ──────────────────────────────────────────────────────────────────
 def _build_where(params: dict) -> tuple[str, list]:
+    """
+    WHERE base:
+      - partner_name = 'Turespaña'  (siempre — aísla el cliente)
+      - emotional_score > 0          (siempre — excluye ads sin score real)
+    Filtros opcionales: cualquier dimensión de FILTER_DIMS.
+    Usa parámetros nombrados para evitar SQL injection.
+    """
     conditions = [
         "partner_name = @partner_name",
         "emotional_score > 0",
@@ -152,11 +177,13 @@ def _build_where(params: dict) -> tuple[str, list]:
     bq_params = [
         bigquery.ScalarQueryParameter("partner_name", "STRING", PARTNER_FILTER),
     ]
+
     for dim in FILTER_DIMS:
         val = params.get(dim)
         if val:
             conditions.append(f"{dim} = @{dim}")
             bq_params.append(bigquery.ScalarQueryParameter(dim, "STRING", val))
+
     return " AND ".join(conditions), bq_params
 
 
@@ -200,6 +227,7 @@ def _handle_me(email: str, role: str, headers: dict):
 
 
 def _handle_filters(headers: dict):
+    """Valores disponibles para cada dimensión — query ligera sin traer registros."""
     dims_sql = ", ".join(FILTER_DIMS)
     query = f"""
         SELECT DISTINCT {dims_sql}
@@ -231,9 +259,11 @@ def _handle_filters(headers: dict):
 
 
 def _handle_data(request: Request, headers: dict):
+    """Registros filtrados + benchmarks por plataforma + valores de filtro disponibles."""
     params = request.args
     where, bq_params = _build_where(params)
 
+    # ── Query principal ────────────────────────────────────────────
     data_query = f"""
         SELECT {SELECT_COLS}
         FROM `{BQ_TABLE}`
@@ -249,6 +279,10 @@ def _handle_data(request: Request, headers: dict):
         logger.error("BQ data error: %s", e)
         return make_response(jsonify({"error": f"BigQuery error: {e}"}), 500, headers)
 
+    # ── Benchmarks por plataforma ──────────────────────────────────
+    # threshold_avg y threshold_excellent son constantes por partner+provider.
+    # Se devuelven agrupados para que el frontend muestre el umbral correcto
+    # según la plataforma activa en el filtro.
     benchmarks_by_provider: dict = {}
     for row in rows:
         p = row.provider
@@ -258,6 +292,7 @@ def _handle_data(request: Request, headers: dict):
                 "threshold_excellent": float(row.threshold_excellent or 0),
             }
 
+    # ── Filtros disponibles (universo completo, sin los filtros activos) ──
     dims_sql = ", ".join(FILTER_DIMS)
     filters_query = f"""
         SELECT DISTINCT {dims_sql}
@@ -296,7 +331,9 @@ def _handle_data(request: Request, headers: dict):
 
 # ── ANTHROPIC ─────────────────────────────────────────────────────────────────
 def _get_anthropic_client() -> anthropic.Anthropic:
-    """Lazy init — carga la key desde Secret Manager una sola vez por instancia."""
+    """Lazy init — carga la key desde Secret Manager una sola vez por instancia.
+    Key en proyecto cliente llyc-ai-turespana (DEC_058/DEC_089 — no en core).
+    """
     global _anthropic_client
     if _anthropic_client is not None:
         return _anthropic_client
@@ -310,13 +347,15 @@ def _get_anthropic_client() -> anthropic.Anthropic:
 
 
 def _build_summary_payload(rows: list[dict]) -> str:
-    """Construye estadísticas agregadas para el LLM. Nunca envía el dataset completo."""
+    """Construye estadísticas agregadas para el LLM.
+    Nunca envía el dataset completo — solo métricas por grupo.
+    """
     if not rows:
         return "No hay datos para analizar con los filtros seleccionados."
 
-    levels: dict = {}
-    by_format:   dict = {}
-    by_market:   dict = {}
+    levels: dict      = {}
+    by_format: dict   = {}
+    by_market: dict   = {}
     by_audience: dict = {}
     total_spend = 0.0
     total_imp   = 0
@@ -348,6 +387,7 @@ def _build_summary_payload(rows: list[dict]) -> str:
                   for k, v in store.items() if k != "—"]
         return sorted(ranked, key=lambda x: -x[1])[:n]
 
+    # Top/bottom 5 ads individuales
     scored = [r for r in rows if r.get("score_w_ad") is not None]
     top5   = sorted(scored, key=lambda r: -(r["score_w_ad"] or 0))[:5]
     bot5   = sorted(
@@ -355,6 +395,7 @@ def _build_summary_payload(rows: list[dict]) -> str:
         key=lambda r: (r["score_w_ad"] or 0)
     )[:5]
 
+    # Umbral de referencia (del primer registro con benchmark)
     thr_exc = next((r["threshold_excellent"] for r in rows if r.get("threshold_excellent")), 0)
     thr_avg = next((r["threshold_avg"] for r in rows if r.get("threshold_avg")), 0)
 
@@ -401,7 +442,10 @@ def _build_summary_payload(rows: list[dict]) -> str:
 
 
 def _handle_summary(request: Request, headers: dict):
-    """Genera un resumen ejecutivo IA del dataset filtrado actual."""
+    """Genera un resumen ejecutivo IA del dataset filtrado actual.
+    Llama a la API de Anthropic (claude-sonnet-4-6) con estadísticas agregadas.
+    Nunca envía el dataset completo al LLM — solo métricas por grupo.
+    """
     params = request.args
     where, bq_params = _build_where(params)
     data_query = f"""
@@ -455,6 +499,7 @@ Señala dónde hay margen de mejora, con foco en redistribución de presupuesto 
         )
         summary_text = message.content[0].text
     except RuntimeError as e:
+        # Key no disponible todavía (pendiente de provisionar)
         logger.warning("Anthropic key unavailable: %s", e)
         return make_response(jsonify({
             "error": "API key de Anthropic pendiente de configurar. Contacta con el equipo técnico."
