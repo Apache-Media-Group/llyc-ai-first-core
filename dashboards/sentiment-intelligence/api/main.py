@@ -13,6 +13,7 @@ Endpoints:
   GET ?action=me         → email + role del usuario
   GET ?action=filters    → valores disponibles para dropdowns
   GET ?action=data&...   → registros filtrados + benchmarks por plataforma
+  GET ?action=summary&.. → resumen ejecutivo IA del dataset filtrado
 """
 
 import json
@@ -25,7 +26,8 @@ import functions_framework
 from flask import Request, jsonify, make_response
 import firebase_admin
 from firebase_admin import auth as firebase_auth
-from google.cloud import bigquery
+from google.cloud import bigquery, secretmanager
+import anthropic
 
 # ── INIT ──────────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
@@ -35,6 +37,15 @@ if not firebase_admin._apps:
     firebase_admin.initialize_app()
 
 bq_client = bigquery.Client()
+sm_client = secretmanager.SecretManagerServiceClient()
+
+# Nombre del secret de Anthropic (DEC_058 / DEC_089)
+# Proyecto cliente separado — no core (guardrail DEC_058)
+ANTHROPIC_SECRET = (
+    "projects/llyc-ai-turespana/secrets/"
+    "anthropic-api-key-sentiment_intelligence-turespana/versions/latest"
+)
+_anthropic_client: Optional[anthropic.Anthropic] = None   # lazy init
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "clients", "turespana", "config.json")
@@ -318,6 +329,193 @@ def _handle_data(request: Request, headers: dict):
     }), 200, headers)
 
 
+# ── ANTHROPIC ─────────────────────────────────────────────────────────────────
+def _get_anthropic_client() -> anthropic.Anthropic:
+    """Lazy init — carga la key desde Secret Manager una sola vez por instancia.
+    Key en proyecto cliente llyc-ai-turespana (DEC_058/DEC_089 — no en core).
+    """
+    global _anthropic_client
+    if _anthropic_client is not None:
+        return _anthropic_client
+    try:
+        response = sm_client.access_secret_version(name=ANTHROPIC_SECRET)
+        api_key  = response.payload.data.decode("utf-8").strip()
+        _anthropic_client = anthropic.Anthropic(api_key=api_key)
+        return _anthropic_client
+    except Exception as e:
+        raise RuntimeError(f"No se pudo cargar la API key de Anthropic: {e}")
+
+
+def _build_summary_payload(rows: list[dict]) -> str:
+    """Construye estadísticas agregadas para el LLM.
+    Nunca envía el dataset completo — solo métricas por grupo.
+    """
+    if not rows:
+        return "No hay datos para analizar con los filtros seleccionados."
+
+    levels: dict      = {}
+    by_format: dict   = {}
+    by_market: dict   = {}
+    by_audience: dict = {}
+    total_spend = 0.0
+    total_imp   = 0
+
+    for r in rows:
+        lvl = r.get("perf_level_sentiment", "Sin Score")
+        if lvl not in levels:
+            levels[lvl] = {"count": 0, "spend": 0.0, "score_sum": 0.0, "imp": 0}
+        levels[lvl]["count"]     += 1
+        levels[lvl]["spend"]     += r.get("spend", 0) or 0
+        levels[lvl]["score_sum"] += r.get("score_w_ad") or 0
+        levels[lvl]["imp"]       += r.get("impressions", 0) or 0
+        total_spend += r.get("spend", 0) or 0
+        total_imp   += r.get("impressions", 0) or 0
+
+        for dim, store in [("ad_format", by_format),
+                           ("market",    by_market),
+                           ("ad_audience", by_audience)]:
+            key = r.get(dim) or "—"
+            if key not in store:
+                store[key] = {"count": 0, "score_sum": 0.0, "imp": 0, "spend": 0.0}
+            store[key]["count"]     += 1
+            store[key]["score_sum"] += r.get("score_w_ad") or 0
+            store[key]["imp"]       += r.get("impressions", 0) or 0
+            store[key]["spend"]     += r.get("spend", 0) or 0
+
+    def top_by_score(store: dict, n: int = 5) -> list:
+        ranked = [(k, v["score_sum"] / max(v["count"], 1), v["spend"], v["count"])
+                  for k, v in store.items() if k != "—"]
+        return sorted(ranked, key=lambda x: -x[1])[:n]
+
+    # Top/bottom 5 ads individuales
+    scored = [r for r in rows if r.get("score_w_ad") is not None]
+    top5   = sorted(scored, key=lambda r: -(r["score_w_ad"] or 0))[:5]
+    bot5   = sorted(
+        [r for r in scored if (r.get("spend") or 0) > 50],
+        key=lambda r: (r["score_w_ad"] or 0)
+    )[:5]
+
+    # Umbral de referencia (del primer registro con benchmark)
+    thr_exc = next((r["threshold_excellent"] for r in rows if r.get("threshold_excellent")), 0)
+    thr_avg = next((r["threshold_avg"] for r in rows if r.get("threshold_avg")), 0)
+
+    def fmt_level(lvl):
+        d = levels.get(lvl, {})
+        n = d.get("count", 0)
+        s = d.get("spend", 0)
+        avg_sc = d["score_sum"] / n if n else 0
+        return f"{n} ads | €{s:,.0f} inversión | score medio {avg_sc:.2f}"
+
+    lines = [
+        f"TOTAL: {len(rows)} ads analizados | €{total_spend:,.0f} inversión | {total_imp:,} impresiones",
+        f"Umbral Excelente: {thr_exc:.2f} | Umbral Alto: {thr_avg:.2f}",
+        "",
+        "DISTRIBUCIÓN POR NIVEL:",
+        f"  1.Excelente (Top): {fmt_level('1.Excelente (Top)')}",
+        f"  2.Alto:            {fmt_level('2.Alto')}",
+        f"  3.Bajo:            {fmt_level('3.Bajo')}",
+        f"  0.Sin Score:       {fmt_level('0.Sin Score')}",
+        "",
+        "TOP 5 FORMATOS por score medio:",
+    ] + [f"  {k}: score={sc:.2f} | €{sp:,.0f} | {n} ads"
+         for k, sc, sp, n in top_by_score(by_format)] + [
+        "",
+        "TOP 5 MERCADOS por score medio:",
+    ] + [f"  {k}: score={sc:.2f} | €{sp:,.0f} | {n} ads"
+         for k, sc, sp, n in top_by_score(by_market)] + [
+        "",
+        "TOP 5 AUDIENCIAS por score medio:",
+    ] + [f"  {k}: score={sc:.2f} | €{sp:,.0f} | {n} ads"
+         for k, sc, sp, n in top_by_score(by_audience)] + [
+        "",
+        "TOP 5 ADS INDIVIDUALES (mayor score):",
+    ] + [f"  [{r.get('provider','')} | {r.get('ad_format','')} | {r.get('market','')}] "
+         f"score={r['score_w_ad']:.2f} | €{r.get('spend',0):,.0f} | {r.get('ad_name','')[:60]}"
+         for r in top5] + [
+        "",
+        "5 ADS CON MAYOR INVERSIÓN Y BAJO RENDIMIENTO:",
+    ] + [f"  [{r.get('provider','')} | {r.get('ad_format','')} | {r.get('market','')}] "
+         f"score={r['score_w_ad']:.2f} | €{r.get('spend',0):,.0f} | {r.get('ad_name','')[:60]}"
+         for r in bot5]
+
+    return "\n".join(lines)
+
+
+def _handle_summary(request: Request, headers: dict):
+    """Genera un resumen ejecutivo IA del dataset filtrado actual.
+    Llama a la API de Anthropic (claude-sonnet-4-6) con estadísticas agregadas.
+    Nunca envía el dataset completo al LLM — solo métricas por grupo.
+    """
+    params = request.args
+    where, bq_params = _build_where(params)
+    data_query = f"""
+        SELECT {SELECT_COLS}
+        FROM `{BQ_TABLE}`
+        WHERE {where}
+        ORDER BY score_w_ad DESC NULLS LAST
+        LIMIT 10000
+    """
+    job_config = bigquery.QueryJobConfig(query_parameters=bq_params)
+    try:
+        rows = [_row_to_dict(r) for r in
+                bq_client.query(data_query, job_config=job_config).result()]
+    except Exception as e:
+        logger.error("BQ summary error: %s", e)
+        return make_response(jsonify({"error": f"BigQuery error: {e}"}), 500, headers)
+
+    active_filters = {k: v for k, v in params.items() if k in FILTER_DIMS and v}
+    filter_ctx = ", ".join(f"{k}={v}" for k, v in active_filters.items()) or "sin filtros"
+
+    payload = _build_summary_payload(rows)
+    prompt  = f"""Eres el analista creativo senior de LLYC, especializado en campañas de paid media para clientes de turismo y marca país.
+
+Cliente: {PARTNER_FILTER}
+Filtros activos: {filter_ctx}
+
+Datos agregados del análisis de scoring emocional:
+
+{payload}
+
+Redacta un informe ejecutivo en español con estas cuatro secciones. Usa un tono estratégico y constructivo — el objetivo es identificar oportunidades y priorizar acciones, no señalar problemas. Evita lenguaje alarmista. Apóyate en los datos pero habla en términos de negocio, no de métricas técnicas:
+
+**1. Situación del portfolio creativo**
+Describe el estado general de las campañas de forma equilibrada. Menciona el volumen total, la distribución de niveles y el dato más relevante para el equipo. Máximo 4 líneas.
+
+**2. Señales creativas positivas**
+Identifica los formatos, mercados o audiencias que destacan por su conexión emocional. Explica qué tienen en común las piezas que mejor funcionan y por qué son relevantes para la estrategia. Máximo 5 líneas.
+
+**3. Oportunidades de optimización**
+Señala dónde hay margen de mejora, con foco en redistribución de presupuesto o ajuste creativo. Sé específico pero constructivo — no es un juicio, es una oportunidad. Máximo 4 líneas.
+
+**4. Próximos pasos recomendados**
+3 acciones concretas y priorizadas que el equipo puede ejecutar en los próximos días. Cada una en una línea, con formato: acción → impacto esperado."""
+
+    try:
+        client = _get_anthropic_client()
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1500,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        summary_text = message.content[0].text
+    except RuntimeError as e:
+        # Key no disponible todavía (pendiente de provisionar)
+        logger.warning("Anthropic key unavailable: %s", e)
+        return make_response(jsonify({
+            "error": "API key de Anthropic pendiente de configurar. Contacta con el equipo técnico."
+        }), 503, headers)
+    except Exception as e:
+        logger.error("Anthropic API error: %s", e)
+        return make_response(jsonify({"error": f"Error generando resumen: {e}"}), 500, headers)
+
+    return make_response(jsonify({
+        "summary":      summary_text,
+        "ads_count":    len(rows),
+        "filters":      active_filters,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }), 200, headers)
+
+
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
 @functions_framework.http
 def sentiment_api(request: Request):
@@ -347,5 +545,6 @@ def sentiment_api(request: Request):
     if action == "me":      return _handle_me(email, role, headers)
     if action == "filters": return _handle_filters(headers)
     if action == "data":    return _handle_data(request, headers)
+    if action == "summary": return _handle_summary(request, headers)
 
     return make_response(jsonify({"error": f"Unknown action: {action}"}), 400, headers)
