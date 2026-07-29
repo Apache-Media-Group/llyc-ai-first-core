@@ -121,12 +121,6 @@ class PeecService(AnalyticsService):
         if self.project_id:
             property_id = self.project_id
         else:
-            # Corrección de Project ID: El ID almacenado en BD/config original (or_04b37997) estaba incorrecto/vacío. 
-            # El verdadero proyecto de Vidal & Vidal con datos configurados es or_592a64bf-010a-4be7-a71c-53dbc491d2bb
-            if self.tenant_id == "vidal-vidal" or property_id.startswith("or_04b37997"):
-                property_id = "or_592a64bf-010a-4be7-a71c-53dbc491d2bb"
-                logger.info(f"Peec: Usando el project_id real de Vidal & Vidal ({property_id}).")
-            
         dim_headers = request.dimensions
         met_headers = request.metrics
 
@@ -157,7 +151,7 @@ class PeecService(AnalyticsService):
             }
             async with aiohttp.ClientSession() as session:
                 # 1. Obtenemos el nombre del proyecto para filtrar su marca
-                project_name = "Vidal & Vidal"
+                project_name = None
                 async with session.get(f"{self.base_url}/projects", headers=headers) as p_resp:
                     if p_resp.status == 200:
                         p_data = await p_resp.json()
@@ -184,8 +178,12 @@ class PeecService(AnalyticsService):
                         raw_data = data.get("data", [])
                         live_data_fetched = True
                         
-                        # Filtramos por el nombre del proyecto exacto (Vidal & Vidal)
-                        main_brand_data = [item for item in raw_data if item.get("brand", {}).get("name") == project_name]
+                        # Filtramos por el nombre del proyecto
+                        if project_name:
+                            main_brand_data = [item for item in raw_data if item.get("brand", {}).get("name") == project_name]
+                        else:
+                            main_brand_data = []
+
                         if not main_brand_data and raw_data:
                             # Fallback if no exact match found
                             main_brand_data = raw_data
@@ -309,7 +307,7 @@ class PeecService(AnalyticsService):
                         # Fetch topic metrics from /reports/brands
                         topic_metrics = {}
                         try:
-                            project_name = "Vidal & Vidal"
+                            project_name = None
                             async with session.get(f"{self.base_url}/projects", headers=headers) as p_resp:
                                 if p_resp.status == 200:
                                     p_data = await p_resp.json()
@@ -329,7 +327,11 @@ class PeecService(AnalyticsService):
                                     rep_data = await rep_resp.json()
                                     raw_data = rep_data.get("data", [])
                                     # Filter by the main project brand
-                                    main_brand_data = [item for item in raw_data if item.get("brand", {}).get("name") == project_name]
+                                    if project_name:
+                                        main_brand_data = [item for item in raw_data if item.get("brand", {}).get("name") == project_name]
+                                    else:
+                                        main_brand_data = []
+
                                     if not main_brand_data and raw_data:
                                         main_brand_data = raw_data
                                         

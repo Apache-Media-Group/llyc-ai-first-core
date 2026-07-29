@@ -454,21 +454,6 @@ const App: React.FC = () => {
             document.documentElement.style.setProperty('--teal', data.secondary_color);
             document.documentElement.style.setProperty('--teal-light', data.secondary_color + '1A');
           }
-        } else if (tenantParam === 'vidal' || tenantParam === 'vidal-y-vidal') {
-          // Fallback para testing local
-          const vidalMock: TenantConfig = {
-            tenant_id: 'vidal-vidal',
-            tenant_name: 'Vidal & Vidal',
-            logo_url: 'https://storage.googleapis.com/llyc-mcp-public-assets/logos/vidal-vidal.png',
-            primary_color: '#000000',
-            secondary_color: '#E51D24',
-            font_family: 'Montserrat, sans-serif',
-            support_email: 'support@vidal-vidal.com'
-          };
-          setTenant(vidalMock);
-          updateState({ tenant_id: vidalMock.tenant_id });
-          document.documentElement.style.setProperty('--red', vidalMock.primary_color);
-          document.documentElement.style.setProperty('--red-light', vidalMock.primary_color + '1A');
         }
       } catch (err) {
         console.error("Error fetching tenant config:", err);
