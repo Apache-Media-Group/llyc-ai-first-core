@@ -1,0 +1,13 @@
+{
+  "_nota": "Golden fixture — output EFECTIVO de LCDC con el código PRE-refactor (PLATFORMS/TABLE_MAP hardcodeados en dashboards/campaign-intelligence/api/main.py). Congelado para demostrar el no-op del refactor PLATFORMS/TABLE_MAP-derivados-de-config. NO editar salvo cambio intencionado de comportamiento de LCDC (sign-off Max).",
+  "active_platforms": ["Spotify", "TikTok", "YouTube", "Meta", "Amazon", "DOOH", "WeMass"],
+  "table_map": {
+    "Spotify": "Spotify_native",
+    "TikTok": "TikTok_native",
+    "YouTube": "Youtube_native",
+    "Meta": "Meta_native",
+    "Amazon": "Amazon_native",
+    "DOOH": "DOOH_native",
+    "WeMass": "WeMass_native"
+  }
+}

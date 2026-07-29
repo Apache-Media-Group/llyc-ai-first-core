@@ -14,13 +14,18 @@
 
 import os
 import json
-import re
 import hashlib
 import functions_framework
 from datetime import datetime, timezone, date
 from google.cloud import bigquery, secretmanager
 import google.cloud.logging
 import logging
+
+from platform_config import (
+    get_active_platforms as _derive_active_platforms,
+    resolve_table,
+)
+
 
 # ── LOGGING ───────────────────────────────────────────────────────
 # Cloud Functions Gen 2 corre como Cloud Run — usar Cloud Logging
@@ -37,23 +42,14 @@ for _var in ["GCP_CLIENT_PROJECT", "TENANT_ID", "CLIENT_SECRET_PROJECT"]:
         raise RuntimeError(f"Missing required env var: {_var}")
 
 # Proyecto del cliente — lectura cross-project desde el core
-CLIENT_PROJECT        = os.getenv("GCP_CLIENT_PROJECT")
-BQ_DATASET            = os.getenv("BQ_DATASET", "ODS")
-TENANT_ID             = os.getenv("TENANT_ID")
+CLIENT_PROJECT = os.getenv("GCP_CLIENT_PROJECT")
+BQ_DATASET = os.getenv("BQ_DATASET", "ODS")
+TENANT_ID = os.getenv("TENANT_ID")
 CLIENT_SECRET_PROJECT = os.getenv("CLIENT_SECRET_PROJECT")
 
-# Plataformas disponibles — pueden filtrarse vía config.json del cliente
-PLATFORMS = ["Spotify", "TikTok", "YouTube", "Meta", "Amazon", "DOOH", "WeMass"]
-
-TABLE_MAP = {
-    "Spotify": "Spotify_native",
-    "TikTok":  "TikTok_native",
-    "YouTube": "Youtube_native",
-    "Meta":    "Meta_native",
-    "Amazon":  "Amazon_native",
-    "DOOH":    "DOOH_native",
-    "WeMass":  "WeMass_native",
-}
+# Plataformas y tablas se derivan por cliente de config.dashboard
+# (datasources + table_map). Sin hardcode — onboarding de plataformas = config,
+# no PR a main.py (DEC_024 / DEC_089). Lógica pura en platform_config.py.
 
 # ── CLIENTS ───────────────────────────────────────────────────────
 # BQ client corre en CORE_PROJECT usando dashboards-sa (--service-account del deploy)
@@ -88,20 +84,18 @@ def get_client_config() -> dict:
 
 
 def get_dashboard_config() -> dict:
-    """Devuelve el bloque dashboard del config del cliente."""
+    """Devuelve el bloque dashboard del config del cliente (vacío si no existe)."""
     cfg = get_client_config()
-    return cfg.get("dashboard", {
-        "enabled": True,
-        "datasources": [p.lower() for p in PLATFORMS],
-        "windows": {"default_days": 30, "comparison_days": 7}
-    })
+    return cfg.get("dashboard", {})
 
 
 def get_active_platforms() -> list:
-    """Devuelve las plataformas activas según config.json del cliente."""
-    dash_cfg = get_dashboard_config()
-    datasources = [s.lower() for s in dash_cfg.get("datasources", PLATFORMS)]
-    return [p for p in PLATFORMS if p.lower() in datasources]
+    """Plataformas activas del cliente, derivadas de config.dashboard.
+
+    Delega en platform_config (lógica pura). Fail-loud si un datasource no
+    tiene entrada en table_map.
+    """
+    return _derive_active_platforms(get_dashboard_config())
 
 
 # ── ANTHROPIC ─────────────────────────────────────────────────────
@@ -115,6 +109,7 @@ def get_anthropic_client():
         return _anthropic_client
 
     import anthropic
+
     secret_name = (
         f"projects/{CLIENT_SECRET_PROJECT}/secrets/"
         f"anthropic-api-key-campaign_intelligence-{TENANT_ID}/versions/latest"
@@ -137,7 +132,8 @@ def query_platform(platform: str) -> dict:
     Job de BQ corre en CORE_PROJECT (dashboards-sa).
     Lectura cross-project hacia CLIENT_PROJECT.
     """
-    table = TABLE_MAP.get(platform)
+    table_map = get_dashboard_config().get("table_map", {})
+    table = resolve_table(platform, table_map)
     if not table:
         return {"error": f"Platform '{platform}' not found"}
 
@@ -152,19 +148,22 @@ def query_platform(platform: str) -> dict:
             return {
                 "headers": [],
                 "rows": [],
-                "lastUpdated": datetime.now(timezone.utc).isoformat()
+                "lastUpdated": datetime.now(timezone.utc).isoformat(),
             }
 
         headers = list(rows[0].keys())
         data_rows = [
-            [v.isoformat() if isinstance(v, (datetime, date)) else v for v in row.values()]
+            [
+                v.isoformat() if isinstance(v, (datetime, date)) else v
+                for v in row.values()
+            ]
             for row in rows
         ]
 
         return {
             "headers": headers,
             "rows": data_rows,
-            "lastUpdated": datetime.now(timezone.utc).isoformat()
+            "lastUpdated": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as e:
         log.error(f"BQ query error for {platform}: {e}")
@@ -180,18 +179,23 @@ def get_system_prompt(extra: str = "") -> str:
     client = cfg.get("client", {})
 
     client_name = client.get("name", TENANT_ID)
-    sector      = client.get("sector", "").replace("_", " ")
-    currency    = client.get("currency", "EUR")
+    sector = client.get("sector", "").replace("_", " ")
+    currency = client.get("currency", "EUR")
 
-    dash_cfg    = cfg.get("dashboard", {})
+    dash_cfg = cfg.get("dashboard", {})
     datasources = dash_cfg.get("datasources", [])
 
-    client_block = "\n".join(filter(None, [
-        f"Cliente: {client_name}"                           if client_name  else "",
-        f"Sector: {sector}"                                 if sector       else "",
-        f"Moneda: {currency}",
-        f"Plataformas activas: {', '.join(datasources)}"   if datasources  else "",
-    ]))
+    client_block = "\n".join(
+        filter(
+            None,
+            [
+                f"Cliente: {client_name}" if client_name else "",
+                f"Sector: {sector}" if sector else "",
+                f"Moneda: {currency}",
+                f"Plataformas activas: {', '.join(datasources)}" if datasources else "",
+            ],
+        )
+    )
 
     return f"""Eres un analista experto en campañas de medios pagados que trabaja para LLYC.
 Tu interlocutor puede ser el cliente o el equipo interno de Paid Media.
@@ -220,6 +224,7 @@ FORMATO: Responde en español.
 def json_response(data: dict, status: int = 200):
     """Helper para devolver JSON con CORS headers."""
     import flask
+
     response = flask.make_response(json.dumps(data, ensure_ascii=False), status)
     response.headers["Content-Type"] = "application/json; charset=utf-8"
     response.headers["Access-Control-Allow-Origin"] = "*"
@@ -244,37 +249,48 @@ def dashboard_api(request):
 
     # ── PING ──────────────────────────────────────────────────────
     if action == "ping":
-        return json_response({
-            "ok": True,
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "tenant": TENANT_ID,
-            "client_project": CLIENT_PROJECT
-        })
+        return json_response(
+            {
+                "ok": True,
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "tenant": TENANT_ID,
+                "client_project": CLIENT_PROJECT,
+            }
+        )
 
     # ── DATA ──────────────────────────────────────────────────────
     if action == "data":
-        active_platforms = get_active_platforms()
+        # Fail-loud: datasource sin entrada en table_map -> error explícito
+        try:
+            active_platforms = get_active_platforms()
+        except ValueError as e:
+            log.error(f"Config de plataformas inválida para {TENANT_ID}: {e}")
+            return json_response({"error": str(e)}, 500)
 
         platform = request.args.get("platform")
         if platform:
             if platform not in active_platforms:
-                return json_response({"error": f"Platform '{platform}' not supported"}, 404)
+                return json_response(
+                    {"error": f"Platform '{platform}' not supported"}, 404
+                )
             return json_response(query_platform(platform))
 
         result = {}
         for p in active_platforms:
             result[p] = query_platform(p)
 
-        return json_response({
-            "data": result,
-            "fetchedAt": datetime.now(timezone.utc).isoformat(),
-            "tenant": TENANT_ID
-        })
+        return json_response(
+            {
+                "data": result,
+                "fetchedAt": datetime.now(timezone.utc).isoformat(),
+                "tenant": TENANT_ID,
+            }
+        )
 
     # ── CHAT ──────────────────────────────────────────────────────
     if action == "chat" and request.method == "POST":
         body = request.get_json(silent=True) or {}
-        messages     = body.get("messages", [])
+        messages = body.get("messages", [])
         data_summary = body.get("dataSummary", "")
 
         if not messages:
@@ -289,7 +305,7 @@ def dashboard_api(request):
                 model="claude-haiku-4-5-20251001",
                 max_tokens=1024,
                 system=system,
-                messages=messages
+                messages=messages,
             )
             return json_response({"reply": response.content[0].text})
         except Exception as e:
@@ -298,13 +314,19 @@ def dashboard_api(request):
 
     # ── INSIGHTS ──────────────────────────────────────────────────
     if action == "insights" and request.method == "POST":
-        body       = request.get_json(silent=True) or {}
-        summary    = body.get("summary", "")
+        body = request.get_json(silent=True) or {}
+        summary = body.get("summary", "")
         fetched_at = body.get("fetchedAt", "")
 
         cache_key = hashlib.md5(fetched_at.encode()).hexdigest() if fetched_at else None
-        if cache_key and _insights_cache["hash"] == cache_key and _insights_cache["insights"]:
-            return json_response({"insights": _insights_cache["insights"], "fromCache": True})
+        if (
+            cache_key
+            and _insights_cache["hash"] == cache_key
+            and _insights_cache["insights"]
+        ):
+            return json_response(
+                {"insights": _insights_cache["insights"], "fromCache": True}
+            )
 
         system = get_system_prompt("""
 TAREA: Analiza los datos y genera 5-6 insights en JSON.
@@ -320,18 +342,18 @@ Responde SOLO con JSON válido sin markdown:
                 model="claude-haiku-4-5-20251001",
                 max_tokens=1000,
                 system=system,
-                messages=[{"role": "user", "content": f"Datos de campaña:\n{summary}"}]
+                messages=[{"role": "user", "content": f"Datos de campaña:\n{summary}"}],
             )
             text = response.content[0].text
             # Extraer solo el bloque JSON — busca el primer { y el último }
-            start = text.find('{')
-            end = text.rfind('}') + 1
+            start = text.find("{")
+            end = text.rfind("}") + 1
             if start >= 0 and end > start:
                 text = text[start:end]
             parsed = json.loads(text)
 
             if cache_key:
-                _insights_cache["hash"]     = cache_key
+                _insights_cache["hash"] = cache_key
                 _insights_cache["insights"] = parsed.get("insights", [])
 
             return json_response({**parsed, "fromCache": False})

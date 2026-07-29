@@ -11,6 +11,15 @@
   "dashboard": {
     "enabled": true,
     "datasources": ["spotify", "tiktok", "youtube", "meta", "amazon", "dooh", "wemass"],
+    "table_map": {
+      "Spotify": "Spotify_native",
+      "TikTok": "TikTok_native",
+      "YouTube": "Youtube_native",
+      "Meta": "Meta_native",
+      "Amazon": "Amazon_native",
+      "DOOH": "DOOH_native",
+      "WeMass": "WeMass_native"
+    },
     "drive_folder_id": "PENDIENTE",
     "windows": {
       "default_days": 30,
