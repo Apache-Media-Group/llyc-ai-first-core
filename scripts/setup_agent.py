@@ -71,7 +71,7 @@ from tools.definitions import get_tool_definitions  # noqa: E402
 CORE_PROJECT_ID = "llyc-ai-first-core"
 AGENTS_SA = "llyc-agents-sa@llyc-ai-first-core.iam.gserviceaccount.com"
 
-SUPPORTED_AGENTS = {"performance_monitor", "naming_utm_auditor"}
+SUPPORTED_AGENTS = {"performance_monitor"}
 
 logging.basicConfig(
     level=logging.INFO,
