@@ -28,6 +28,7 @@
   },
   "gcp": {
     "project_id": "llyc-ai-lcdc",
+    "bq_project": "llyc-prj-lcdlc-datamart",
     "region": "europe-west1",
     "secret_manager_project": "llyc-ai-lcdc",
     "secret_manager_core_project": "llyc-ai-first-core"
