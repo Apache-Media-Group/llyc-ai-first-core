@@ -360,7 +360,7 @@ def dashboard_api(request):
         log.error(f"Config GCP inválida para {tenant_id}: {e}")
         return json_response({"error": str(e)}, 500)
 
-    client_project = gcp_cfg["project_id"]
+    client_project = gcp_cfg.get("bq_project", gcp_cfg["project_id"])
     bq_dataset = gcp_cfg.get("bq_dataset", "ODS")
     secret_manager_project = gcp_cfg["secret_manager_project"]
 
