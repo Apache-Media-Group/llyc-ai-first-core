@@ -345,7 +345,7 @@ textarea.ci:focus{border-color:var(--border2)}
   </div>
 </div>
 <script>
-const PLATFORMS=['Spotify','TikTok','YouTube','Meta','Amazon','DOOH','WeMass'];
+let PLATFORMS=[]; // se rellena en runtime desde res.data — ver loadAll()
 const PCOLORS={Spotify:'#1db954',TikTok:'#ff0050',YouTube:'#ff0000',Meta:'#0082fb',Amazon:'#ff9900',DOOH:'#00d4aa',WeMass:'#c084fc'};
 
 let proxyUrl='',allData={},currentTab='OVERVIEW',chatHistory=[],insightsDone=false,insightsCache='';
@@ -543,6 +543,7 @@ async function loadAll(forceRefresh=false){
   try{
     const res=await gasGet({action:'data'});
     if(res.error)throw new Error(res.error);
+    PLATFORMS = Object.keys(res.data || {}); // plataformas del tenant, derivadas del backend
     const loaded=[];
     PLATFORMS.forEach(p=>{
       if(res.data[p]&&!res.data[p].error&&res.data[p].rows?.length>0){
@@ -574,8 +575,13 @@ async function loadAll(forceRefresh=false){
     document.getElementById('chatSub').textContent=`${loaded.length} plataformas · datos en vivo`;
     document.getElementById('ci').disabled=false;
     document.getElementById('btnSend').disabled=false;
-    // Detect role client-side: @llyc.global = editor, others = viewer
-    _userRole = _userEmail && _userEmail.endsWith('@llyc.global') ? 'editor' : 'viewer';
+    // Rol real desde el backend — access_list de Firestore, no heurística de dominio
+    try {
+      const meRes = await gasGet({action:'me'});
+      _userRole = meRes.role || 'viewer';
+    } catch(e) {
+      _userRole = 'viewer';
+    }
     if(_userRole === 'editor') {
       document.getElementById('btnConfig').style.display = 'block';
     }
