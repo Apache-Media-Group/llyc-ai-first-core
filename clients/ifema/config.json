@@ -32,6 +32,7 @@
   },
   "gcp": {
     "project_id": "llyc-ai-ifema",
+    "bq_project": "apache-ifema-datamart",
     "region": "europe-west1",
     "secret_manager_project": "llyc-ai-ifema",
     "secret_manager_core_project": "llyc-ai-first-core"
