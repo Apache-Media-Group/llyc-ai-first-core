@@ -85,7 +85,7 @@ def get_client_config(tenant_id: str) -> dict:
     KNOWN_TENANTS ni env vars por cliente que mantener (DEC_024/089).
     """
     config_path = os.path.join(
-        os.path.dirname(__file__), "..", "..", "clients", tenant_id, "config.json"
+        os.path.dirname(__file__), "clients", tenant_id, "config.json"
     )
     try:
         with open(config_path, "r", encoding="utf-8") as f:
