@@ -1,10 +1,18 @@
 # ================================================================
 # Cloud Build — Campaign Intelligence API
-# Trigger: cambios en dashboards/campaign-intelligence/**
+# Trigger: cambios en dashboards/campaign-intelligence/** o clients/**
 # ================================================================
 steps:
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'copy-clients-into-api'
+    entrypoint: bash
+    args:
+      - '-c'
+      - 'cp -r clients dashboards/campaign-intelligence/api/clients'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy-campaign-intelligence-api'
+    waitFor: ['copy-clients-into-api']
     entrypoint: gcloud
     args:
       - functions
@@ -16,14 +24,13 @@ steps:
       - --source=dashboards/campaign-intelligence/api
       - --entry-point=dashboard_api
       - --trigger-http
-      - --allow-unauthenticated
+      - --no-allow-unauthenticated
       - --memory=512MB
       - --timeout=120s
       - --service-account=dashboards-sa@llyc-ai-first-core.iam.gserviceaccount.com
-      - --set-env-vars=GCP_CLIENT_PROJECT=llyc-prj-lcdlc-datamart,BQ_DATASET=ODS,TENANT_ID=lcdc,CLIENT_SECRET_PROJECT=llyc-ai-lcdc
-
+      - --set-env-vars=DEFAULT_TENANT_ID=lcdc
 includedFiles:
   - 'dashboards/campaign-intelligence/**'
-
+  - 'clients/**'
 options:
   logging: CLOUD_LOGGING_ONLY
