@@ -1,0 +1,27 @@
+{
+  "client": {
+    "id": "kids-us",
+    "name": "Kids&Us",
+    "sector": "educacion",
+    "country": "ES",
+    "language": "es",
+    "timezone": "Europe/Madrid",
+    "currency": "EUR"
+  },
+  "dashboard": {
+    "enabled": true,
+    "datasources": ["google_ads", "meta"],
+    "drive_folder_id": "PENDIENTE",
+    "windows": {
+      "default_days": 30,
+      "comparison_days": 7
+    }
+  },
+  "gcp": {
+    "project_id": "llyc-ai-kids-us",
+    "bq_project": "apache-kid-us-datamart",
+    "region": "europe-west1",
+    "secret_manager_project": "llyc-ai-kids-us",
+    "secret_manager_core_project": "llyc-ai-first-core"
+  }
+}
