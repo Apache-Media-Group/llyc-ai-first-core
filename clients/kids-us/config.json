@@ -11,6 +11,10 @@
   "dashboard": {
     "enabled": true,
     "datasources": ["google_ads", "meta"],
+    "table_map": {
+      "Google_Ads": "UnionAll_GADS",
+      "Meta": "UnionAll_META"
+    },
     "drive_folder_id": "PENDIENTE",
     "windows": {
       "default_days": 30,
