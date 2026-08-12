@@ -1,9 +1,9 @@
 {
   "_meta": {
     "description": "Template de configuracion para clientes dashboard-only (Model A, DEC_089/113/119). Copiar este fichero a clients/[nombre-cliente]/config.json y rellenar los valores. No usar para clientes con agentes (Mundo A completo) - para eso usar clients/_template/config.json. Las credenciales van en GCP Secret Manager - aqui solo nombres de variables, nunca valores.",
-    "version_schema": "1.0",
-    "last_updated": "2026-07-24",
-    "_changelog": "1.0 (2026-07-24) - Generalizacion fiel del bloque dashboard de clients/lcdc/config.json. No incluye table_map todavia - pendiente del refactor de main.py que deriva PLATFORMS/TABLE_MAP de config (en curso, Sergio). Se anadira cuando ese refactor este mergeado (Max, hilo Kids&Us/IFEMA)."
+    "version_schema": "1.1",
+    "last_updated": "2026-08-12",
+    "_changelog": "1.0 (2026-07-24) - Generalizacion fiel del bloque dashboard de clients/lcdc/config.json. No incluye table_map todavia - pendiente del refactor de main.py que deriva PLATFORMS/TABLE_MAP de config (en curso, Sergio). Se anadira cuando ese refactor este mergeado (Max, hilo Kids&Us/IFEMA). | 1.1 (2026-08-12) - Anadido dashboard.table_map (DEC_122, refactor #79 mergeado) y gcp.bq_project (DEC_124). Alberto."
   },
   "client": {
     "id": "nombre-cliente-slug",
@@ -16,19 +16,26 @@
   },
   "dashboard": {
     "enabled": true,
-    "datasources": ["PENDIENTE"],
-    "_datasources_nota": "Acotar al set soportado hoy por el PLATFORMS hardcodeado de main.py (spotify, tiktok, youtube, meta, amazon, dooh, wemass) hasta que el refactor de config.dashboard.table_map este en produccion.",
+    "datasources": [
+      "PENDIENTE"
+    ],
     "drive_folder_id": "PENDIENTE",
     "windows": {
       "default_days": 30,
       "comparison_days": 7
-    }
+    },
+    "table_map": {
+      "PENDIENTE-Platform": "PENDIENTE-Platform_native"
+    },
+    "_table_map_nota": "Claves = nombre-display de la plataforma (definen orden y casing en el dashboard); valores = tabla BQ. Rellenar 1:1 con datasources (match case-insensitive, DEC_122). Datasource sin entrada aqui -> fail-loud, nunca silencioso."
   },
   "gcp": {
     "project_id": "llyc-ai-nombre-cliente-slug",
     "region": "europe-west1",
     "secret_manager_project": "llyc-ai-nombre-cliente-slug",
-    "secret_manager_core_project": "llyc-ai-first-core"
+    "secret_manager_core_project": "llyc-ai-first-core",
+    "bq_project": "apache-nombre-cliente-datamart",
+    "_bq_project_nota": "Proyecto real del datamart BigQuery (DEC_124). Si coincide con project_id, se puede omitir (fallback automatico). Rellenar solo si el datamart vive en proyecto distinto (cross-project, DEC_089)."
   },
   "_metadata": {
     "version": "1.0",
@@ -38,7 +45,10 @@
       "DEC_089 - dashboard campaign-intelligence, modelo workload por cliente",
       "DEC_058 - API keys en proyecto del cliente",
       "DEC_119 - alta de tenant en dashboard existente no dispara migracion a DEC_117",
-      "DEC_102 - templates viven solo en repo, sin espejo Drive"
+      "DEC_102 - templates viven solo en repo, sin espejo Drive",
+      "DEC_122 - PLATFORMS/TABLE_MAP derivados de config.dashboard.table_map",
+      "DEC_124 - gcp.bq_project separado de gcp.project_id",
+      "DEC_125 - tenant-routing por request en campaign-intelligence"
     ]
   }
 }
