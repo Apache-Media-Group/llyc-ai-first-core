@@ -44,9 +44,6 @@ log = logging.getLogger(__name__)
 # Proyecto core — infraestructura compartida. Los jobs de BQ se facturan aquí.
 CORE_PROJECT = "llyc-ai-first-core"
 
-# Fallback de tenant si la request no pasa tenant_id (conveniencia local/debug,
-# NO sustituye a resolve_tenant en producción — ahí el tenant_id llega por query).
-DEFAULT_TENANT_ID = os.getenv("DEFAULT_TENANT_ID", "")
 
 # ── CLIENTS (compartidos, sin estado de tenant) ───────────────────
 # BQ client corre en CORE_PROJECT usando dashboards-sa (--service-account del deploy)
@@ -66,14 +63,13 @@ _anthropic_clients = {}
 # ── TENANT RESOLUTION ─────────────────────────────────────────────
 def resolve_tenant_id(request) -> str:
     """
-    Resuelve el tenant_id desde el query param. Sin fallback oculto a un
-    tenant fijo: si no llega y no hay DEFAULT_TENANT_ID, es error explícito.
+    Resuelve el tenant_id desde el query param. Sin fallback a ningún tenant
+    fijo — si no llega, error explícito. Opción B real: nunca se sirve un
+    tenant por defecto de forma silenciosa.
     """
     tenant_id = request.args.get("tenant_id", "").strip()
     if not tenant_id:
-        tenant_id = DEFAULT_TENANT_ID
-    if not tenant_id:
-        raise ValueError("tenant_id no provisto y no hay DEFAULT_TENANT_ID configurado")
+        raise ValueError("tenant_id no provisto en la request")
     return tenant_id
 
 
