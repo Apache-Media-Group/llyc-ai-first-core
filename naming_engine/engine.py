@@ -6,9 +6,9 @@ BASE = pathlib.Path(__file__).parent
 
 class Engine:
     def __init__(self, compiled_path=None):
-        self.g = yaml.safe_load((BASE / "grammar/naming-grammar.yaml").read_text())
+        self.g = yaml.safe_load((BASE / "grammar/naming-grammar.yaml").read_text(encoding="utf-8"))
         compiled_path = pathlib.Path(compiled_path) if compiled_path else (BASE / "compiled.json")
-        self.c = json.loads(compiled_path.read_text())
+        self.c = json.loads(compiled_path.read_text(encoding="utf-8"))
         self.block_re = re.compile(self.g["block_regex"])
         self.pairs = {tuple(p) for p in self.c["canal_platform"]}
         self.legacy = self.c.get("legacy", {})
