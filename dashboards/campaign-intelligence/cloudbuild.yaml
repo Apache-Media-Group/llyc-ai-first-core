@@ -28,7 +28,6 @@ steps:
       - --memory=512MB
       - --timeout=120s
       - --service-account=dashboards-sa@llyc-ai-first-core.iam.gserviceaccount.com
-      - --set-env-vars=DEFAULT_TENANT_ID=lcdc
 includedFiles:
   - 'dashboards/campaign-intelligence/**'
   - 'clients/**'
