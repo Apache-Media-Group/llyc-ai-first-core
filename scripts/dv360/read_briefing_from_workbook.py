@@ -1,10 +1,10 @@
 """
-scripts/dv360/read_briefing_from_drive.py
+scripts/dv360/read_briefing_from_workbook.py
 Lee el briefing DV360 desde un Google Sheet en Drive y genera el JSON
 para el orquestador create_campaign_from_briefing.py.
 
 Uso:
-    python scripts/dv360/read_briefing_from_drive.py \
+    python scripts/dv360/read_briefing_from_workbook.py \
         --spreadsheet-id <ID> \
         --client <client_id> \
         --output clients/<client_id>/PAID_briefing-dv360-<client_id>.json
