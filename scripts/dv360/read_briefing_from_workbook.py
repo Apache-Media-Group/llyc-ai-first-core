@@ -158,6 +158,19 @@ def build_briefing(data: dict, client_override: str | None = None) -> dict:
     }
 
 
+def save_briefing(briefing: dict, client_id: str) -> pathlib.Path:
+    """Guarda el briefing como snapshot timestamped, patron Meta (DEC_024)."""
+    repo_root = pathlib.Path(__file__).parents[2]
+    out_dir = repo_root / "clients" / client_id / "briefings"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%M")
+    out_path = out_dir / f"dv360_{ts}.json"
+    out_path.write_text(
+        json.dumps(briefing, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    return out_path
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Lee briefing DV360 desde Google Sheet y genera JSON para el orquestador."
@@ -182,7 +195,8 @@ def main():
         out.write_text(output_json, encoding="utf-8")
         print(f"Briefing guardado en: {args.output}")
     else:
-        print(output_json)
+        out_path = save_briefing(briefing, briefing["client"])
+        print(f"Briefing guardado en: {out_path}")
 
 
 if __name__ == "__main__":
