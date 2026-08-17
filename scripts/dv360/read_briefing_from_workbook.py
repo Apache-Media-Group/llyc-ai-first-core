@@ -17,7 +17,7 @@ import argparse
 import json
 import pathlib
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from google.oauth2 import service_account as sa
 from googleapiclient import discovery
