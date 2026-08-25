@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 40" width="180" height="40">
+  <g fill="none" fill-rule="evenodd">
+    <!-- Icon/Emblem: Rounded red rectangle with minimalist branding -->
+    <rect width="32" height="32" y="4" rx="8" fill="#F54963" />
+    <path d="M12,11 L12,23 L18,23" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M16,11 L16,20" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" />
+    
+    <!-- Text Mark: "LLYC" and sub-brand -->
+    <text x="44" y="26" font-family="'Montserrat', system-ui, -apple-system, sans-serif" font-weight="900" font-size="19" fill="#0A263B" letter-spacing="-0.03em">LLYC</text>
+    <text x="96" y="25" font-family="'Montserrat', system-ui, -apple-system, sans-serif" font-weight="700" font-size="9" fill="#7A8C99" letter-spacing="0.08em">INTELLIGENCE</text>
+  </g>
+</svg>
