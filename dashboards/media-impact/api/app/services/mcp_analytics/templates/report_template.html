@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>LLYC 2026 - Analytics Report</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm;
+            margin-top: 4.5cm;
+            margin-bottom: 2cm;
+            @frame header_frame {
+                -pdf-frame-content: header_content;
+                left: 0; width: 21cm; top: 0; height: 4cm;
+            }
+            @frame footer_frame {
+                -pdf-frame-content: footer_content;
+                left: 1.5cm; width: 18cm; top: 27.2cm; height: 1.5cm;
+            }
+        }
+
+        /* Estilos Base */
+        body { 
+            font-family: Helvetica, Arial, sans-serif; 
+            color: #0A263B; 
+            background-color: #FFFFFF; 
+            line-height: 1.5; 
+            font-size: 9pt; 
+        }
+        
+        .brand-top-bar { background-color: #F54963; height: 6pt; width: 100%; }
+        .header-bg { background-color: #0A263B; color: #FFFFFF; padding: 25pt 0; }
+        
+        h1 { font-family: Helvetica, sans-serif; font-weight: bold; margin: 0; font-size: 22pt; text-transform: uppercase; color: #FFFFFF; }
+        h2 { 
+            font-family: Helvetica, sans-serif; 
+            color: #F54963; 
+            font-size: 14pt; 
+            text-transform: uppercase; 
+            border-bottom: 1pt solid #F54963; 
+            padding-bottom: 4pt; 
+            margin-top: 25pt; 
+            margin-bottom: 12pt; 
+        }
+        h3 { 
+            font-family: Helvetica, sans-serif; 
+            color: #0A263B; 
+            font-size: 11pt; 
+            margin-top: 15pt; 
+            margin-bottom: 8pt; 
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        p { margin: 6pt 0; text-align: justify; line-height: 1.6; color: #374151; }
+        
+        /* Tablas de Layout (para simular columnas) */
+        table.layout { width: 100%; border: none; border-collapse: collapse; margin: 0; padding: 0; }
+        
+        /* KPI Cards Mejoradas */
+        .kpi-container { margin-top: 10pt; margin-bottom: 20pt; }
+        .kpi-card { 
+            background-color: #F9FAFB; 
+            padding: 15pt 10pt; 
+            text-align: center; 
+            border: 0.5pt solid #E5E7EB;
+            border-bottom: 3pt solid #F54963; 
+            border-radius: 2pt;
+        }
+        .kpi-value { font-size: 18pt; font-weight: bold; color: #0A263B; margin-bottom: 2pt; }
+        .kpi-label { font-size: 7pt; text-transform: uppercase; color: #6B7280; letter-spacing: 0.5pt; font-weight: bold; }
+        
+        /* Data Tables */
+        table.data-table { width: 100%; border-collapse: collapse; margin-top: 15pt; }
+        table.data-table th { 
+            background-color: #0A263B; 
+            color: #FFFFFF; 
+            font-size: 7.5pt; 
+            padding: 10pt 8pt; 
+            text-align: left; 
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        table.data-table td { 
+            padding: 8pt 8pt; 
+            border-bottom: 0.5pt solid #E5E7EB; 
+            font-size: 8.5pt; 
+            color: #1F2937;
+        }
+        
+        .summary-box { 
+            background-color: #F3F4F6; 
+            border-left: 4pt solid #0A263B; 
+            padding: 15pt; 
+            margin: 15pt 0; 
+            font-style: italic;
+        }
+        
+        .footer { 
+            border-top: 0.5pt solid #D1D5DB; 
+            padding-top: 8pt; 
+            font-size: 7.5pt; 
+            color: #6B7280; 
+            text-transform: uppercase;
+        }
+    </style>
+    </style>
+</head>
+<body>
+    <!-- ============================================================ -->
+    <!-- HEADER (shared across pages via @frame)                       -->
+    <!-- ============================================================ -->
+    <div id="header_content">
+        <div class="brand-top-bar"></div>
+        <div class="header-bg">
+            <table class="layout" style="padding: 0 1.5cm;">
+                <tr>
+                    <td style="width: 70%;">
+                        <h1>{{ title|default('INFORME ANALYTICS') }}</h1>
+                        <p style="font-size: 9pt; margin-top: 4pt; opacity: 0.9;">
+                            PROPIEDAD: {{ property_id|default('N/A') }} | PERIODO: {{ start_date|default('N/A') }} &mdash; {{ end_date|default('N/A') }}
+                        </p>
+                    </td>
+                    <td style="width: 30%; text-align: right; vertical-align: middle;">
+                        {% if logo_base64 %}
+                            <img src="{{ logo_base64 }}" style="height: 40pt;">
+                        {% else %}
+                            <div style="font-family: Helvetica, sans-serif; font-weight: bold; font-size: 28pt; color: #F54963;">LLYC</div>
+                        {% endif %}
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- CONTENT                                                       -->
+    <!-- ============================================================ -->
+    <div class="container">
+
+        <!-- ======================================================== -->
+        <!-- TRAFFIC IA REPORT                                         -->
+        <!-- ======================================================== -->
+        {% if response_type == 'traffic_ia' %}
+
+        {% set total = result.get('total_sessions', 1) %}
+        {% set inferred_data = result.get('inferred_traffic', {}) %}
+        {% set inferred_val = inferred_data.get('total_sessions', 0) %}
+        {% set known_sessions = result.get('battle_of_ais', [])|sum(attribute='sessions') if result.get('battle_of_ais') else 0 %}
+        {% set non_ia = result.get('non_ia_sessions', 0) %}
+        {% set engagement = inferred_data.get('engagement_score', 0) %}
+        {% set confidence = inferred_data.get('confidence_index', 'N/A') %}
+        
+        {# Definitions for visual sections #}
+        {% set clusters = result.get('behavioral_clusters', {}) %}
+        {% set distribution = clusters.get('distribution', {}) %}
+        {% set total_clustered = distribution.values()|sum if distribution else 1 %}
+
+        <!-- RESUMEN EJECUTIVO -->
+        <div class="section">
+            <h2>Resumen Ejecutivo</h2>
+            <div class="summary-box">
+                <strong>Audit de Audiencia IA (Clustering + Inferencia)</strong><br/>
+                Periodo analizado: <strong>{{ start_date|default('N/A') }}</strong> al <strong>{{ end_date|default('N/A') }}</strong>.<br/>
+                Se han analizado <strong>{{ "{:,}".format(total).replace(",", ".") }}</strong> sesiones totales, 
+                identificando <strong>{{ known_sessions }}</strong> sesiones de IA directa (referida) 
+                y <strong>{{ "{:,}".format(inferred_val).replace(",", ".") }}</strong> sesiones de IA inferida 
+                mediante clustering conductual con un nivel de confianza <strong>{{ confidence }}</strong>.
+            </div>
+            
+            {% if summary %}
+            <div class="insight-box" style="background-color: #F0F9FF; border-left-color: #0A263B; font-size: 9pt;">
+                <strong>Análisis Conversacional:</strong><br/>
+                {{ summary }}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- KPI CARDS - 4 columns -->
+        <div class="section">
+            <h2>KPIs Principales</h2>
+            <table class="layout" style="margin-top: 8pt;">
+                <tr>
+                    <td style="width: 25%; padding-right: 6pt;">
+                        <div class="kpi-card">
+                            <div class="kpi-value">{{ "{:,}".format(total).replace(",", ".") }}</div>
+                            <div class="kpi-label">Sesiones Totales</div>
+                        </div>
+                    </td>
+                    <td style="width: 25%; padding: 0 3pt;">
+                        <div class="kpi-card" style="border-bottom-color: #36A787;">
+                            <div class="kpi-value-green">{{ "{:,}".format(known_sessions).replace(",", ".") }}</div>
+                            <div class="kpi-pct-green">{{ "%.1f"|format((known_sessions / total) * 100) if total > 0 else '0.0' }}% del total</div>
+                            <div class="kpi-label">IA Referida (Conocida)</div>
+                        </div>
+                    </td>
+                    <td style="width: 25%; padding: 0 3pt;">
+                        <div class="kpi-card" style="border-bottom-color: #7C3AED;">
+                            <div class="kpi-value-purple">{{ "{:,}".format(inferred_val).replace(",", ".") }}</div>
+                            <div class="kpi-pct">{{ "%.1f"|format((inferred_val / total) * 100) if total > 0 else '0.0' }}% del total</div>
+                            <div class="kpi-label">IA Inferida (Oculta)</div>
+                        </div>
+                    </td>
+                    <td style="width: 25%; padding-left: 6pt;">
+                        <div class="kpi-card" style="border-bottom-color: #F54963;">
+                            <div class="kpi-value-pink">{{ engagement }}</div>
+                            <div class="kpi-sublabel">Confianza: {{ confidence }}</div>
+                            <div class="kpi-label">Engagement Score IA</div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- COMPOSICION DE AUDIENCIA -->
+        <div class="section">
+            <h3>Composición de Audiencia</h3>
+            {% set pct_known = "%.1f"|format((known_sessions / total) * 100) if total > 0 else '0.0' %}
+            {% set pct_inferred = "%.1f"|format((inferred_val / total) * 100) if total > 0 else '0.0' %}
+            {% set pct_rest = "%.1f"|format((non_ia / total) * 100) if total > 0 else '0.0' %}
+            <table class="layout" style="margin-top: 6pt;">
+                <tr>
+                    <td style="width: 33%; padding-right: 8pt;">
+                        <table class="layout">
+                            <tr>
+                                <td style="width: 12pt; background-color: #F54963; height: 12pt;"></td>
+                                <td style="padding-left: 6pt; font-size: 8pt;"><strong>IA Directa:</strong> {{ "{:,}".format(known_sessions).replace(",", ".") }} ({{ pct_known }}%)</td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td style="width: 33%; padding: 0 4pt;">
+                        <table class="layout">
+                            <tr>
+                                <td style="width: 12pt; background-color: #7C3AED; height: 12pt;"></td>
+                                <td style="padding-left: 6pt; font-size: 8pt;"><strong>IA Inferida:</strong> {{ "{:,}".format(inferred_val).replace(",", ".") }} ({{ pct_inferred }}%)</td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td style="width: 33%; padding-left: 8pt;">
+                        <table class="layout">
+                            <tr>
+                                <td style="width: 12pt; background-color: #E5E7EB; height: 12pt;"></td>
+                                <td style="padding-left: 6pt; font-size: 8pt;"><strong>Resto Tráfico:</strong> {{ "{:,}".format(non_ia).replace(",", ".") }} ({{ pct_rest }}%)</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- BATTLE OF AIs - VISUAL -->
+        <div class="section">
+            <h2>Rendimiento por Fuente (Battle of AIs)</h2>
+            {% for item in result.get('battle_of_ais', []) %}
+            {% set score = item.engagement_score|default(0)|float %}
+            {% set bar_width = (score / 1.5)|int if score < 150 else 100 %} {# Normalized score for visual #}
+            <div class="vis-row">
+                <div class="vis-label">{{ item.platform }}</div>
+                <div class="vis-bar-outer">
+                    <div class="vis-bar-inner" style="width: {{ bar_width }}%; background-color: {% if loop.index == 1 %}#36A787{% elif loop.index == 2 %}#0A263B{% else %}#F54963{% endif %};"></div>
+                    <div class="vis-value-text">{{ score }} Score</div>
+                </div>
+                <div class="vis-meta">
+                    Sesiones: <strong>{{ "{:,}".format(item.sessions|default(0)).replace(",", ".") }}</strong> | 
+                    Duración: <strong>{{ item.avg_duration|default(0) }}s</strong> | 
+                    Conversión: <strong>{{ item.conversion_rate|default(0) }}%</strong>
+                </div>
+            </div>
+            {% endfor %}
+            
+            {% if result.get('battle_of_ais') %}
+            {% set top_ai = result.get('battle_of_ais', [{}])[0] %}
+            <div class="insight-box">
+                <strong>Insight de Rendimiento:</strong> {{ top_ai.platform|default('N/A') }} destaca con la mayor afinidad cualitativa ({{ top_ai.engagement_score }}).
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- PAGE BREAK -->
+        <pdf:nextpage />
+
+        <!-- CLUSTERS DE COMPORTAMIENTO - VISUAL -->
+        <div class="section">
+            <h2>Perfilado de Audiencia (Behavioral Clusters)</h2>
+            <p style="font-size: 8pt; color: #6D7475; margin-bottom: 12pt;">
+                <strong>Metodología:</strong> {{ clusters.get('methodology', 'Análisis conductual multicapa') }}
+            </p>
+
+            <table class="layout">
+                <tr>
+                    {% for cluster_name, cluster_count in distribution.items() %}
+                    {% set cpct = (cluster_count / total_clustered * 100)|int if total_clustered > 0 else 0 %}
+                    <td style="width: 25%; padding: 4pt;">
+                        <div class="cluster-cell" style="background-color: #FAFBFC;">
+                            <div class="cluster-label">
+                                {% if cluster_name == 'researcher' %}Investigadores
+                                {% elif cluster_name == 'quick_answer' %}Resumen
+                                {% elif cluster_name == 'transactional' %}Transaccional
+                                {% elif cluster_name == 'casual' %}Casual
+                                {% else %}{{ cluster_name }}{% endif %}
+                            </div>
+                            <div class="cluster-value" style="color: {% if cluster_name == 'researcher' %}#0A263B{% elif cluster_name == 'quick_answer' %}#36A787{% elif cluster_name == 'transactional' %}#F54963{% else %}#7C3AED{% endif %};">
+                                {{ cpct }}%
+                            </div>
+                            <div class="vis-meta">{{ "{:,}".format(cluster_count).replace(",", ".") }} sess.</div>
+                        </div>
+                    </td>
+                    {% endfor %}
+                </tr>
+            </table>
+
+            <h3 style="margin-top: 20pt;">Distribución Visual de Segmentos</h3>
+            <div class="vis-bar-outer" style="height: 30pt; margin-top: 10pt;">
+                {% for cluster_name, cluster_count in distribution.items() %}
+                {% set cpct = (cluster_count / total_clustered * 100)|float if total_clustered > 0 else 0 %}
+                <div class="bar-segment" style="width: {{ cpct }}%; height: 30pt; background-color: {% if cluster_name == 'researcher' %}#0A263B{% elif cluster_name == 'quick_answer' %}#36A787{% elif cluster_name == 'transactional' %}#F54963{% else %}#7C3AED{% endif %}; border-right: 1pt solid #FFFFFF;"></div>
+                {% endfor %}
+            </div>
+            <table class="layout" style="margin-top: 5pt; font-size: 7pt;">
+                <tr>
+                    <td style="width: 25%; color: #0A263B;">&#9632; Investigadores</td>
+                    <td style="width: 25%; color: #36A787;">&#9632; Resumen</td>
+                    <td style="width: 25%; color: #F54963;">&#9632; Transaccional</td>
+                    <td style="width: 25%; color: #7C3AED;">&#9632; Casual</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- TRAFICO INFERIDO - VISUAL -->
+        <div class="section">
+            <h2>Detalle de Tráfico IA Inferido</h2>
+            <div class="summary-box">
+                Este segmento representa el tráfico que, aunque no tiene un referente directo de IA, muestra un patrón de comportamiento idéntico a usuarios de ChatGPT/Perplexity.
+            </div>
+
+            {% set channel_breakdown = inferred_data.get('breakdown_by_channel', {}) %}
+            {% if channel_breakdown %}
+            <h3>Canales con Mayor Probabilidad IA</h3>
+            {% for channel, ch_sessions in channel_breakdown.items() %}
+            {% set ch_pct = (ch_sessions / inferred_val * 100)|int if inferred_val > 0 else 0 %}
+            <div style="margin-bottom: 10pt;">
+                <table class="layout">
+                    <tr>
+                        <td style="width: 80pt; font-size: 8pt; font-weight: bold;">{{ channel }}</td>
+                        <td>
+                            <div class="vis-bar-outer" style="height: 10pt; background-color: #F3F4F6;">
+                                <div class="vis-bar-inner" style="width: {{ ch_pct }}%; height: 10pt; background-color: #7C3AED;"></div>
+                            </div>
+                        </td>
+                        <td style="width: 40pt; text-align: right; font-size: 8pt; font-weight: bold;">{{ ch_pct }}%</td>
+                    </tr>
+                </table>
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+
+        <!-- PAGE BREAK -->
+        <pdf:nextpage />
+
+        <!-- CONTENT AFFINITY - VISUAL -->
+        {% set content_affinity = result.get('content_affinity', []) %}
+        {% if content_affinity %}
+        <div class="section">
+            <h2>Top Landing Pages (Afinidad IA)</h2>
+            <p style="font-size: 8pt; color: #6D7475; margin-bottom: 10pt;">Páginas con mayor atracción de usuarios perfilados como IA.</p>
+            
+            {% for page in content_affinity[:8] %}
+            {% set p_sessions = page.sessions|default(0) %}
+            {% set p_max = content_affinity[0].sessions|default(1) %}
+            {% set p_width = (p_sessions / p_max * 100)|int %}
+            <div class="vis-row" style="background-color: transparent; border-bottom: 1pt solid #F3F4F6; padding: 6pt 0;">
+                <table class="layout">
+                    <tr>
+                        <td style="width: 60%;">
+                            <div class="vis-label" style="margin-bottom: 2pt;">{{ page.landing_page }}</div>
+                            <div class="vis-bar-outer" style="height: 6pt; background-color: #F3F4F6;">
+                                <div class="vis-bar-inner" style="width: {{ p_width }}%; height: 6pt; background-color: #36A787;"></div>
+                            </div>
+                        </td>
+                        <td style="width: 40%; text-align: right; vertical-align: bottom;">
+                            <span class="badge {% if page.cluster == 'transactional' %}badge-pink{% elif page.cluster == 'researcher' %}badge-navy{% else %}badge-green{% endif %}">
+                                {% if page.cluster == 'transactional' %}Transaccional
+                                {% elif page.cluster == 'researcher' %}Investigador
+                                {% else %}Casual{% endif %}
+                            </span>
+                            <div class="vis-meta" style="margin-top: 4pt;"><strong>{{ "{:,}".format(p_sessions).replace(",", ".") }}</strong> sesiones</div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- EVOLUTIVO - VISUAL CALLOUTS -->
+        {% set daily_trend = result.get('daily_trend', []) %}
+        {% if daily_trend %}
+        <div class="section">
+            <h2>Evolutivo Semanal y Picos</h2>
+            {% set sum_total = daily_trend|sum(attribute='total_sessions') %}
+            {% set sum_ia = daily_trend|sum(attribute='known_ia_sessions') + daily_trend|sum(attribute='inferred_ia_sessions') %}
+            
+            <table class="layout" style="margin-top: 10pt;">
+                <tr>
+                    <td style="width: 50%; padding-right: 10pt;">
+                        <div class="kpi-card" style="text-align: left; padding: 15pt; border-bottom: none; border-left: 4pt solid #0A263B; background-color: #F0F9FF;">
+                            <div class="kpi-label">Volumen Total Periodo</div>
+                            <div class="kpi-value" style="font-size: 22pt;">{{ "{:,}".format(sum_total).replace(",", ".") }}</div>
+                            <div class="vis-meta">Sesiones analizadas en {{ daily_trend|length }} días</div>
+                        </div>
+                    </td>
+                    <td style="width: 50%; padding-left: 10pt;">
+                        <div class="kpi-card" style="text-align: left; padding: 15pt; border-bottom: none; border-left: 4pt solid #F54963; background-color: #FEF2F2;">
+                            <div class="kpi-label">Penetración IA Total</div>
+                            <div class="kpi-value-pink" style="font-size: 22pt;">{{ "%.1f"|format((sum_ia / sum_total * 100)) if sum_total > 0 else 0 }}%</div>
+                            <div class="vis-meta">Impacto real sobre el tráfico del sitio</div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <div class="insight-box" style="margin-top: 15pt;">
+                <strong>Nota del Analista:</strong> Se ha prescindido de la tabla diaria detallada para enfocar el análisis en los agregados de impacto visual. El comportamiento muestra una tendencia estable con picos puntuales de afinidad IA.
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- PAGE BREAK FOR FINAL ANALYSIS -->
+        <pdf:nextpage />
+
+        <!-- FINAL ANALYSIS SECTION -->
+        {% if summary %}
+        <div class="analysis-page">
+            <div class="analysis-title">Conclusiones del Analista IA</div>
+            <div class="analysis-text">
+{{ summary }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- METADATOS DEL ANALISIS -->
+        {% set raw_summary = result.get('raw_data_summary', {}) %}
+        {% if raw_summary %}
+        <div class="section-divider"></div>
+        <div class="section">
+            <h3>Metadatos del Análisis</h3>
+            <table class="layout" style="font-size: 8pt; color: #6D7475;">
+                <tr>
+                    <td style="width: 50%; padding: 3pt 0;"><strong>Total filas analizadas:</strong> {{ "{:,}".format(raw_summary.get('total_rows_analyzed', 0)).replace(",", ".") }}</td>
+                    <td style="width: 50%; padding: 3pt 0;"><strong>Filas agregadas:</strong> {{ raw_summary.get('aggregated_rows', 0) }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 3pt 0;"><strong>Filas granulares:</strong> {{ "{:,}".format(raw_summary.get('granular_rows', 0)).replace(",", ".") }}</td>
+                    <td style="padding: 3pt 0;"><strong>Confianza clustering:</strong> {{ confidence }}</td>
+                </tr>
+            </table>
+        </div>
+        {% endif %}
+
+        {% endif %}
+        {# end traffic_ia #}
+
+        <!-- ======================================================== -->
+        <!-- RISK ANALYSIS REPORT                                      -->
+        <!-- ======================================================== -->
+        {% if response_type == 'risk_analysis' %}
+        <div class="section">
+            <h2>Resumen Ejecutivo</h2>
+            <p>Análisis del periodo: <strong>{{ start_date|default('N/A') }}</strong> al <strong>{{ end_date|default('N/A') }}</strong>.</p>
+        </div>
+        <div class="section">
+            <h2>Análisis de Riesgo</h2>
+            <table class="data-table">
+                <thead><tr><th>Campaña</th><th>Media</th><th>Confianza</th><th>Diagnóstico</th></tr></thead>
+                <tbody>
+                    {% for c in result.get('campaign_audit', []) %}
+                    <tr>
+                        <td><strong>{{ c.name }}</strong></td>
+                        <td>{{ "%.2f"|format(c.mean|default(0)) }}</td>
+                        <td>{{ c.prob_success|default(0) }}%</td>
+                        <td>{{ c.diagnosis|default('N/A') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- ======================================================== -->
+        <!-- DEEP DIVE REPORT                                          -->
+        <!-- ======================================================== -->
+        {% if response_type == 'deep_dive' %}
+        <div class="section">
+            <h2>Resumen Ejecutivo</h2>
+            <p>Análisis del periodo: <strong>{{ start_date|default('N/A') }}</strong> al <strong>{{ end_date|default('N/A') }}</strong>.</p>
+        </div>
+        <div class="section">
+            <h2>Deep Dive Performance</h2>
+            {% set overview = result.get('sections', {}).get('1_overview_general', {}) %}
+            {% if overview.get('rows') %}
+                {% set row = overview.rows[0] %}
+                <table class="layout">
+                    <tr>
+                        <td style="width: 33%; padding-right: 10pt;">
+                            <div class="kpi-card">
+                                <div class="kpi-value">{{ row.get('sessions', 0) }}</div>
+                                <div class="kpi-label">Sesiones</div>
+                            </div>
+                        </td>
+                        <td style="width: 33%; padding: 0 5pt;">
+                            <div class="kpi-card" style="border-bottom-color: #0A263B;">
+                                <div class="kpi-value">{{ "%.2f"|format((row.get('engagementRate', 0)|float) * 100) }}%</div>
+                                <div class="kpi-label">Engagement</div>
+                            </div>
+                        </td>
+                        <td style="width: 33%; padding-left: 10pt;">
+                            <div class="kpi-card" style="border-bottom-color: #F54963;">
+                                <div class="kpi-value">{{ row.get('conversions', 0) }}</div>
+                                <div class="kpi-label">Conversiones</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ======================================================== -->
+        <!-- PROPERTY AUDIT REPORT                                     -->
+        <!-- ======================================================== -->
+        {% if response_type == 'property_audit' %}
+        <div class="section">
+            <h2>Auditoría de Configuración GA4</h2>
+            
+            {% set summary = result.get('audit_summary', {}) %}
+            {% set score = summary.get('score', 0) %}
+            <div class="score-box {% if score >= 90 %}score-green{% elif score >= 70 %}score-yellow{% else %}score-red{% endif %}">
+                <div class="score-label">Configuración Global</div>
+                <div class="score-number">{{ score }}/100</div>
+                <div class="score-label">Estado: {{ summary.get('status', 'N/A') }}</div>
+            </div>
+
+            <h3>Detalles de la Propiedad</h3>
+            <table class="layout audit-grid">
+                <tr>
+                    <td style="width: 50%; padding-right: 5pt;">
+                        <div class="audit-item">
+                            <div class="audit-item-title">ID DE PROPIEDAD</div>
+                            <div class="audit-item-value">{{ result.get('property', {}).get('property_id', 'N/A') }}</div>
+                        </div>
+                    </td>
+                    <td style="width: 50%; padding-left: 5pt;">
+                        <div class="audit-item">
+                            <div class="audit-item-title">SECTOR</div>
+                            <div class="audit-item-value">{{ result.get('property', {}).get('industry_category', 'N/A') }}</div>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding-right: 5pt;">
+                        <div class="audit-item">
+                            <div class="audit-item-title">RETENCIÓN DE DATOS</div>
+                            <div class="audit-item-value">{{ result.get('data_retention', {}).get('event_data_retention', 'N/A') }}</div>
+                        </div>
+                    </td>
+                    <td style="padding-left: 5pt;">
+                        <div class="audit-item" style="border-left-color: #36A787;">
+                            <div class="audit-item-title">DATA STREAMS</div>
+                            <div class="audit-item-value">{{ result.get('data_streams', {}).get('total', 0) }} Activos</div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <h3>Vinculaciones y Herramientas</h3>
+            {% set links = result.get('links', {}) %}
+            <div class="summary-box">
+                <table class="layout">
+                    <tr>
+                        <td style="width: 33%;">
+                            <p><span class="{% if links.get('google_ads') %}check-icon{% else %}cross-icon{% endif %}">
+                                {% if links.get('google_ads') %}&#10004;{% else %}&#10006;{% endif %}
+                            </span> <strong>Google Ads:</strong> {% if links.get('google_ads') %}Si ({{ links.google_ads|length }}){% else %}No{% endif %}</p>
+                        </td>
+                        <td style="width: 33%;">
+                            <p><span class="{% if links.get('search_console') %}check-icon{% else %}cross-icon{% endif %}">
+                                {% if links.get('search_console') %}&#10004;{% else %}&#10006;{% endif %}
+                            </span> <strong>Search Console:</strong> {% if links.get('search_console') %}Si{% else %}No{% endif %}</p>
+                        </td>
+                        <td style="width: 33%;">
+                            <p><span class="{% if links.get('merchant_center') %}check-icon{% else %}cross-icon{% endif %}">
+                                {% if links.get('merchant_center') %}&#10004;{% else %}&#10006;{% endif %}
+                            </span> <strong>Merchant Center:</strong> {% if links.get('merchant_center') %}Si{% else %}No{% endif %}</p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <h3>Recogida de Datos y Filtros</h3>
+            <table class="data-table">
+                <thead><tr><th>Stream / Filtro</th><th>Tipo</th><th>Estado / Configuración</th></tr></thead>
+                <tbody>
+                    {% for stream in result.get('data_streams', {}).get('streams', []) %}
+                    <tr>
+                        <td><strong>{{ stream.display_name }}</strong></td>
+                        <td>Data Stream ({{ stream.type }})</td>
+                        <td>
+                            {% if stream.enhanced_measurement %}
+                                Medición Mejorada: <span class="check-icon">Activa</span>
+                            {% else %}
+                                <span class="cross-icon">Inactiva</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% for filter in result.get('data_filters', {}).get('filters', []) %}
+                    <tr>
+                        <td><strong>{{ filter.display_name }}</strong></td>
+                        <td>Filtro de Datos</td>
+                        <td>{{ filter.state }} ({{ filter.type }})</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% if result.get('custom_dimensions', {}).get('dimensions') %}
+            <h3>Dimensiones Personalizadas</h3>
+            <table class="data-table">
+                <thead><tr><th>Nombre</th><th>Parámetro</th><th>Alcance</th><th>Status (30d)</th></tr></thead>
+                <tbody>
+                    {% for dim in result.custom_dimensions.dimensions %}
+                    <tr>
+                        <td><strong>{{ dim.display_name }}</strong></td>
+                        <td>{{ dim.parameter_name }}</td>
+                        <td>{{ dim.scope }}</td>
+                        <td>
+                            <span class="{% if dim.data_status == 'Active' %}check-icon{% else %}cross-icon{% endif %}">
+                                {{ dim.data_status|default('Unknown') }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            {% if summary.get('critical_issues') %}
+            <h3 style="color: #F54963;">Alertas Críticas</h3>
+            <ul style="color: #F54963; font-size: 9pt;">
+                {% for issue in summary.critical_issues %}
+                <li>{{ issue }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            <h3>Recomendaciones del Consultor</h3>
+            <div class="insight-box">
+                {% if summary.get('recommendations') %}
+                    {% for rec in summary.recommendations %}
+                    <p>&bull; {{ rec }}</p>
+                    {% endfor %}
+                {% else %}
+                    <p>La configuración actual cumple con los estándares recomendados por LLYC.</p>
+                {% endif %}
+            </div>
+        </div>
+        <pdf:nextpage />
+        {% endif %}
+
+        <!-- ======================================================== -->
+        <!-- GENERAL / FALLBACK REPORT                                 -->
+        <!-- ======================================================== -->
+        {% if response_type not in ['traffic_ia', 'risk_analysis', 'deep_dive'] %}
+        <div class="section">
+            <h2>Resumen Ejecutivo</h2>
+            <p>Análisis del periodo: <strong>{{ start_date|default('N/A') }}</strong> al <strong>{{ end_date|default('N/A') }}</strong>.</p>
+            {% if result %}
+            <div class="summary-box">
+                {% for key, value in result.items() %}
+                    {% if value is string %}
+                    <p><strong>{{ key }}:</strong> {{ value }}</p>
+                    {% elif value is number %}
+                    <p><strong>{{ key }}:</strong> {{ value }}</p>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- FOOTER (shared across pages via @frame)                       -->
+    <!-- ============================================================ -->
+    <div id="footer_content">
+        <table class="layout footer">
+            <tr>
+                <td style="width: 50%;"><strong>LLYC ADTECH | CONFIDENCIAL</strong><br>Generado el {{ timestamp }}</td>
+                <td style="width: 50%; text-align: right; vertical-align: bottom;">Página <pdf:pagenumber/> de <pdf:pagecount/></td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>
