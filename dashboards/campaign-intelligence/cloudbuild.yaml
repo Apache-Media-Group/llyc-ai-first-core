@@ -28,8 +28,5 @@ steps:
       - --memory=512MB
       - --timeout=120s
       - --service-account=dashboards-sa@llyc-ai-first-core.iam.gserviceaccount.com
-includedFiles:
-  - 'dashboards/campaign-intelligence/**'
-  - 'clients/**'
 options:
   logging: CLOUD_LOGGING_ONLY
