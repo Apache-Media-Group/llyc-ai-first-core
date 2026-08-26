@@ -28,7 +28,6 @@ steps:
       - --memory=512MB
       - --timeout=120s
       - --service-account=dashboards-sa@llyc-ai-first-core.iam.gserviceaccount.com
-      - --clear-env-vars
       - --set-env-vars=LOG_EXECUTION_ID=true
 options:
   logging: CLOUD_LOGGING_ONLY
