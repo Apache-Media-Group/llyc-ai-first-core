@@ -100,7 +100,7 @@ def build_briefing(data: dict, client_override: str | None = None) -> dict:
 
     return {
         "client": client,
-        "dry_run": False,
+        "dry_run": True,
         "reason": data.get("reason") or None,
         "campaign": {
             "name": data.get("campaign_name"),
@@ -165,14 +165,14 @@ def main():
     parser.add_argument("--spreadsheet-id", required=True, help="ID del Google Sheet del briefing")
     parser.add_argument("--client", default=None, help="Override del client_id (opcional)")
     parser.add_argument("--output", default=None, help="Path de salida del JSON (opcional)")
-    parser.add_argument("--dry-run", action="store_true", help="Marca el briefing como dry_run=True")
+    parser.add_argument("--live", action="store_true", help="Genera el briefing en modo ejecucion real (dry_run=False). Sin este flag, el default es siempre dry_run=True.")
     args = parser.parse_args()
 
     data = read_sheet(args.spreadsheet_id)
     briefing = build_briefing(data, client_override=args.client)
 
-    if args.dry_run:
-        briefing["dry_run"] = True
+    if args.live:
+        briefing["dry_run"] = False
 
     output_json = json.dumps(briefing, indent=2, ensure_ascii=False)
 
