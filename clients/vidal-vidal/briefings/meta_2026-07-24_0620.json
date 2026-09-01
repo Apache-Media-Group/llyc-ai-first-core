@@ -1,0 +1,68 @@
+{
+  "client": "vidal-vidal",
+  "preview": false,
+  "campaign": {
+    "name": "VV_PROS_META_ADV+_2026-07",
+    "objective": "OUTCOME_SALES",
+    "special_ad_categories": [],
+    "buying_type": "AUCTION",
+    "cbo_enabled": false,
+    "campaign_budget_cents": null
+  },
+  "ad_sets": [
+    {
+      "name": "VV_PROS_META_ADV+_2026-07_AS01",
+      "optimization_goal": "OFFSITE_CONVERSIONS",
+      "billing_event": "IMPRESSIONS",
+      "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+      "bid_amount_micros": null,
+      "daily_budget_cents": 5000,
+      "start_time": "2026-07-07T00:00:00+0000",
+      "end_time": null,
+      "placements": "AUTOMATIC",
+      "pixel_id": "PENDIENTE",
+      "targeting": {
+        "geo_locations": {
+          "countries": [
+            "ES"
+          ]
+        },
+        "geo_cities": [],
+        "age_min": 25,
+        "age_max": 55,
+        "genders": [],
+        "custom_audiences": [],
+        "attribution_spec": [
+          {
+            "event_type": "CLICK_THROUGH",
+            "window_days": 7
+          },
+          {
+            "event_type": "VIEW_THROUGH",
+            "window_days": 1
+          }
+        ]
+      },
+      "ads": [
+        {
+          "name": "VV_PROS_META_ADV+_2026-07_AS01_AD01",
+          "creative_type": "SINGLE_IMAGE",
+          "page_id": "PENDIENTE",
+          "instagram_account_id": null,
+          "link_url": "https://www.vidalyvidal.com",
+          "ad_message": "Descubre nuestra nueva coleccion",
+          "ad_title": "Nueva coleccion 2026",
+          "ad_description": null,
+          "call_to_action": "SHOP_NOW",
+          "tracking_url": null,
+          "image_hash": "PENDIENTE"
+        }
+      ]
+    }
+  ],
+  "_meta": {
+    "generated_at": "2026-07-24T06:20:01.183848+00:00",
+    "source": "workbook tab 'briefing_meta_vidal'",
+    "sdk_version": "facebook-business==25.0.2"
+  }
+}
