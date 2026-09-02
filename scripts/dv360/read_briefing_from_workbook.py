@@ -1,10 +1,10 @@
 """
-scripts/dv360/read_briefing_from_drive.py
+scripts/dv360/read_briefing_from_workbook.py
 Lee el briefing DV360 desde un Google Sheet en Drive y genera el JSON
 para el orquestador create_campaign_from_briefing.py.
 
 Uso:
-    python scripts/dv360/read_briefing_from_drive.py \
+    python scripts/dv360/read_briefing_from_workbook.py \
         --spreadsheet-id <ID> \
         --client <client_id> \
         --output clients/<client_id>/PAID_briefing-dv360-<client_id>.json
@@ -17,7 +17,7 @@ import argparse
 import json
 import pathlib
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from google.oauth2 import service_account as sa
 from googleapiclient import discovery
@@ -158,6 +158,19 @@ def build_briefing(data: dict, client_override: str | None = None) -> dict:
     }
 
 
+def save_briefing(briefing: dict, client_id: str) -> pathlib.Path:
+    """Guarda el briefing como snapshot timestamped, patron Meta (DEC_024)."""
+    repo_root = pathlib.Path(__file__).parents[2]
+    out_dir = repo_root / "clients" / client_id / "briefings"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%M")
+    out_path = out_dir / f"dv360_{ts}.json"
+    out_path.write_text(
+        json.dumps(briefing, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    return out_path
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Lee briefing DV360 desde Google Sheet y genera JSON para el orquestador."
@@ -182,7 +195,8 @@ def main():
         out.write_text(output_json, encoding="utf-8")
         print(f"Briefing guardado en: {args.output}")
     else:
-        print(output_json)
+        out_path = save_briefing(briefing, briefing["client"])
+        print(f"Briefing guardado en: {out_path}")
 
 
 if __name__ == "__main__":

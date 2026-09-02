@@ -159,7 +159,7 @@ python scripts/dv360/create_campaign_from_briefing.py     --client vidal-vidal  
 
 ```bash
 # Paso 1: leer briefing desde Google Sheet en Drive y generar JSON
-python -m scripts.dv360.read_briefing_from_drive     --spreadsheet-id <ID_DEL_SHEET>     --client <client_id>     --output clients/<client_id>/PAID_briefing-dv360-<client_id>.json
+python -m scripts.dv360.read_briefing_from_workbook     --spreadsheet-id <ID_DEL_SHEET>     --client <client_id>     --output clients/<client_id>/PAID_briefing-dv360-<client_id>.json
 
 # Paso 2: ejecutar orquestador con el JSON generado
 python scripts/dv360/create_campaign_from_briefing.py     --client <client_id>     --briefing clients/<client_id>/PAID_briefing-dv360-<client_id>.json

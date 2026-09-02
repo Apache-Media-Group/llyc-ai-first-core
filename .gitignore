@@ -232,3 +232,7 @@ CLAUDE.local.md
 .DS_Store
 scripts/dv360/briefings/*.json
 envvars.yaml 
+
+# Artefactos de prueba de briefings DV360 (Alberto, desarrollo A3/orquestador)
+clients/*/PAID_briefing-dv360-*.json
+clients/test/briefings/
