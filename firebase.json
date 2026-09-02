@@ -3,10 +3,10 @@
     "public": "dashboards",
     "cleanUrls": true,
     "rewrites": [
-      {
+            {
         "source": "/api",
-        "function": {
-          "functionId": "campaign-intelligence-api",
+        "run": {
+          "serviceId": "campaign-intelligence-api",
           "region": "europe-west1"
         }
       },
