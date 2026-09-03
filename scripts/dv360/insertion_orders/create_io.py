@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).parents[3]))
 from googleapiclient.errors import HttpError
 
 from scripts.dv360._common.auth import build_writer_service, get_advertiser_id
+from scripts.dv360._common.pacing import daily_max_micros
 from scripts.dv360._common.audit import log_action, confirm_action
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -118,7 +119,7 @@ def build_io_body(
         "pacing": {
             "pacingPeriod": pacing_period_type,
             "pacingType": pacing_type,
-            "dailyMaxMicros": str(int(_eur_to_micros(budget_eur) / max((datetime.strptime(end_date, "%Y-%m-%d") - datetime.strptime(start_date, "%Y-%m-%d")).days + 1, 1))),
+            **({"dailyMaxMicros": str(daily_max_micros(budget_eur, start_date, end_date))} if pacing_period_type == "PACING_PERIOD_DAILY" else {}),
         },
         "budget": {
             "budgetUnit": budget_unit_mapped,
