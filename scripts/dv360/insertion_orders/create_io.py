@@ -10,6 +10,7 @@ import argparse
 import json
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[3]))
@@ -117,7 +118,7 @@ def build_io_body(
         "pacing": {
             "pacingPeriod": pacing_period_type,
             "pacingType": pacing_type,
-            "dailyMaxMicros": str(int(budget_eur / 90 * 1_000_000)),
+            "dailyMaxMicros": str(int(_eur_to_micros(budget_eur) / max((datetime.strptime(end_date, "%Y-%m-%d") - datetime.strptime(start_date, "%Y-%m-%d")).days + 1, 1))),
         },
         "budget": {
             "budgetUnit": budget_unit_mapped,

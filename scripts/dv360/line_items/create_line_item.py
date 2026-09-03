@@ -19,6 +19,7 @@ import argparse
 import json
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[3]))
@@ -716,7 +717,7 @@ def build_li_body(
         "pacing": {
             "pacingPeriod": "PACING_PERIOD_DAILY",
             "pacingType": "PACING_TYPE_EVEN",
-            "dailyMaxMicros": str(_eur_to_micros(budget_eur)),
+            "dailyMaxMicros": str(int(_eur_to_micros(budget_eur) / max((datetime.strptime(end_date, "%Y-%m-%d") - datetime.strptime(start_date, "%Y-%m-%d")).days + 1, 1))),
         },
         "bidStrategy": bid_strategy_body,
         "partnerRevenueModel": {
