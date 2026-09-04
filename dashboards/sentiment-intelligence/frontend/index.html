@@ -62,6 +62,11 @@ header{display:flex;align-items:center;justify-content:space-between;padding:13p
 /* Main */
 .main-wrap{flex:1;overflow-y:auto;min-height:0}
 .inner{padding:20px 28px}
+/* Info text */
+.info-text{background:var(--s1);border-left:3px solid var(--teal);border-radius:0 6px 6px 0;padding:14px 18px;margin-bottom:20px;font-size:12px;color:var(--muted2);line-height:1.7}
+.info-text strong{color:var(--text);font-weight:700}
+.info-text p{margin-bottom:8px}
+.info-text p:last-child{margin-bottom:0}
 /* KPIs */
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;margin-bottom:20px}
 .kpi{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:15px 18px;transition:border-color .2s,transform .15s}
@@ -107,6 +112,41 @@ tbody tr:hover td{background:rgba(255,255,255,.02)}
 .legend{display:flex;gap:18px;justify-content:center;margin-top:10px;flex-wrap:wrap}
 .legend-item{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px}
 .legend-dot{width:9px;height:9px;border-radius:50%}
+/* Glossary */
+.glossary-wrap{padding:0 0 24px 0}
+.glossary-section{margin-bottom:28px}
+.glossary-section-title{font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.glossary-section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.glossary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.glossary-card{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:16px 18px}
+.glossary-card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px}
+.glossary-item{display:flex;gap:10px;margin-bottom:7px;font-size:12px;line-height:1.5}
+.glossary-item:last-child{margin-bottom:0}
+.glossary-score{font-family:'DM Mono',monospace;font-size:11px;font-weight:700;white-space:nowrap;min-width:52px;text-align:right;flex-shrink:0}
+.glossary-desc{color:var(--muted2)}
+.glossary-quadrant{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:16px 18px;display:flex;gap:12px;align-items:flex-start}
+.glossary-quadrant-icon{font-size:22px;flex-shrink:0}
+.glossary-quadrant-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:5px}
+.glossary-quadrant-desc{font-size:12px;color:var(--muted2);line-height:1.5}
+.platform-inactive{opacity:.5}
+/* Summary panel */
+.summary-wrap{margin-bottom:20px}
+.summary-btn{display:flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--border2);color:var(--teal);padding:8px 18px;border-radius:6px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:all .2s;width:100%}
+.summary-btn:hover{background:rgba(54,167,183,0.08);border-color:var(--teal)}
+.summary-btn:disabled{opacity:.5;cursor:not-allowed}
+.summary-btn .btn-icon{font-size:14px}
+.summary-panel{background:var(--s1);border:1px solid var(--border2);border-radius:8px;padding:20px 24px;margin-top:10px;display:none}
+.summary-panel.visible{display:block}
+.summary-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.summary-title{font-family:'DM Mono',monospace;font-size:10px;color:var(--teal);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.summary-meta{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted)}
+.summary-body{font-size:12.5px;color:var(--muted2);line-height:1.75}
+.summary-body p{margin-bottom:10px}
+.summary-body p:last-child{margin-bottom:0}
+.summary-body strong{color:var(--text)}
+.summary-loading{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;font-family:'DM Mono',monospace}
+.summary-error{color:#fca5a5;font-size:12px}
+/* Empty/loading */
 .empty{text-align:center;padding:60px 20px;color:var(--muted)}
 .empty-icon{font-size:32px;margin-bottom:10px}
 .empty-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px}
@@ -173,12 +213,34 @@ select option{background:#0d1f2d}
 
   <div class="main-wrap">
     <div class="inner">
+      <!-- Texto explicativo -->
+      <div class="info-text">
+        <p>Se ha llevado a cabo una estrategia de <strong>Scoring Emocional</strong> basada en las reacciones y comentarios de los anuncios de las campañas. Cada interacción recibe una puntuación según su naturaleza — cuanto más positiva, mayor puntuación — y permite clasificar las piezas creativas en función de la aceptación real por parte de la audiencia.</p>
+        <p>El análisis utiliza <strong>estadística robusta (IQR)</strong> para calcular umbrales dinámicos que comparan cada pieza contra el histórico real de la cuenta y plataforma. El <strong>Umbral de Excelencia</strong> (Q75 + 1.5×IQR, regla de Tukey) actúa como filtro dinámico: solo las piezas que lo superan se clasifican como "Excelente", ya que demuestran una conexión emocional significativamente superior a la tendencia habitual.</p>
+        <p><strong>Sentimiento:</strong> suma de todos los puntos de interacción emocional dividida por cada 1.000 impresiones, para que piezas con distinto volumen sean comparables. <strong>Ranking Relativo:</strong> los niveles se establecen según el impacto real, independientemente del alcance masivo de la campaña.</p>
+      </div>
+      <!-- Resumen ejecutivo IA -->
+      <div class="summary-wrap">
+        <button class="summary-btn" id="summaryBtn" onclick="generateSummary()">
+          <span class="btn-icon">✦</span>
+          Generar resumen ejecutivo con IA
+        </button>
+        <div class="summary-panel" id="summaryPanel">
+          <div class="summary-header">
+            <span class="summary-title">Resumen ejecutivo · Sentiment Intelligence</span>
+            <span class="summary-meta" id="summaryMeta"></span>
+          </div>
+          <div id="summaryBody"></div>
+        </div>
+      </div>
+
       <div class="kpi-row" id="kpiRow"></div>
       <div class="tabs-bar-wrap">
         <div class="tabs-bar">
           <button class="tab-btn active" id="tab-ranking"  onclick="setTab('ranking',this)">Ranking por variable</button>
           <button class="tab-btn"        id="tab-scatter"  onclick="setTab('scatter',this)">Matriz inversión · sentimiento</button>
           <button class="tab-btn"        id="tab-topads"   onclick="setTab('topads',this)">Top Ads</button>
+          <button class="tab-btn"        id="tab-glosario" onclick="setTab('glosario',this)">Glosario</button>
         </div>
         <div class="groupby-row" id="groupByRow">
           <span class="groupby-label">Agrupar por</span>
@@ -201,8 +263,6 @@ select option{background:#0d1f2d}
 </div>
 
 <script>
-// ── CONFIG ────────────────────────────────────────────────────────
-// ⚠️ Sustituye por la URL real tras el deploy
 const API_URL = 'https://europe-west1-llyc-ai-first-core.cloudfunctions.net/sentiment-api';
 
 firebase.initializeApp({
@@ -252,6 +312,19 @@ const DIM_LABELS    = {
   ad_audience:'Audiencia', ad_language:'Idioma', ad_version:'Versión'
 };
 
+// Mapeo de códigos de ad_format a nombres legibles
+const FORMAT_LABELS = {
+  'RL':       'Reel',
+  'CR':       'Carousel',
+  'PS':       'Post Estático',
+  'ST':       'Story',
+  'VD':       'Video',
+  'XX':       'Sin definir',
+  'YT':       'YouTube',
+  'VIDEOALL': 'VIDEOALL',
+};
+const fmtFormat = v => FORMAT_LABELS[v] || v || '—';
+
 // ── API ───────────────────────────────────────────────────────────
 async function apiGet(params={}) {
   const token = await getToken();
@@ -295,7 +368,7 @@ function buildGroup(id, dims) {
     w.innerHTML = `<label class="filter-label">${DIM_LABELS[dim]}</label>
       <select class="filter-select" id="sel_${dim}" onchange="setFilter('${dim}',this.value)">
         <option value="">Todos</option>
-        ${vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('')}
+        ${vals.map(v=>`<option value="${esc(v)}">${esc(dim==='ad_format'?fmtFormat(v):v)}</option>`).join('')}
       </select>`;
     el.appendChild(w);
   });
@@ -329,11 +402,13 @@ function setTab(tab, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('groupByRow').style.display = tab==='ranking' ? 'flex' : 'none';
+  document.getElementById('kpiRow').style.display = tab==='glosario' ? 'none' : 'grid';
   renderContent();
 }
 
 function renderContent() {
   const el = document.getElementById('content');
+  if (ST.activeTab==='glosario') { el.innerHTML=renderGlosario(); return; }
   if (!ST.filtered.length) {
     el.innerHTML=`<div class="empty"><div class="empty-icon">🔍</div>
       <div class="empty-title">Sin resultados</div>
@@ -352,9 +427,13 @@ function renderKPIs() {
   const tS=data.reduce((s,r)=>s+(r.emotional_score||0),0);
   const tI=data.reduce((s,r)=>s+(r.impressions_scored||0),0);
   const avg=tI>0?(tS/tI)*1000:0;
-  const exc=data.filter(r=>r.perf_level_sentiment==='1.Excelente').length;
+  const exc=data.filter(r=>r.perf_level_sentiment==='1.Excelente (Top)').length;
   const excPct=Math.round((exc/data.length)*100);
-  const bKey=ST.filters.provider||Object.keys(ST.benchmarks)[0]||'';
+  // Usa el filtro activo o detecta el provider dominante en los datos filtrados
+  const _provCounts={};
+  ST.filtered.forEach(r=>{if(r.provider)_provCounts[r.provider]=(_provCounts[r.provider]||0)+1;});
+  const _domProv=Object.entries(_provCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+  const bKey=ST.filters.provider||_domProv||Object.keys(ST.benchmarks)[0]||'';
   const bm=ST.benchmarks[bKey]||{};
   const thrExc=bm.threshold_excellent||3.5;
   const thrAvg=bm.threshold_avg||1.8;
@@ -363,12 +442,12 @@ function renderKPIs() {
   const topFmt=Object.entries(byFmt).map(([k,v])=>({k,w:v.i>0?(v.s/v.i)*1000:0})).sort((a,b)=>b.w-a.w)[0]?.k||'—';
   const sc=s=>s>=thrExc?'var(--green)':s>=thrAvg?'var(--amber)':'var(--red)';
   const kpis=[
-    {label:'Ads analizados',   value:data.length,      sub:'con score válido',       color:'var(--text)'},
-    {label:'Score medio',      value:fmt(avg),          sub:`umbral exc: ${thrExc}`,  color:sc(avg)},
-    {label:'% Excelentes',     value:`${excPct}%`,      sub:`${exc} ads`,             color:excPct>=25?'var(--green)':excPct>=10?'var(--amber)':'var(--red)'},
-    {label:'Mejor formato',    value:topFmt,            sub:'por score ponderado',    color:'var(--teal)'},
-    {label:'Umbral Excelente', value:fmt(thrExc),       sub:'Q75 + 1.5 × IQR',        color:'var(--green)'},
-    {label:'Umbral Alto',      value:fmt(thrAvg),       sub:'Mediana histórico',      color:'var(--amber)'},
+    {label:'Ads analizados',   value:data.length,          sub:'con score válido',       color:'var(--text)'},
+    {label:'Score medio',      value:fmt(avg),              sub:`umbral exc: ${thrExc}`,  color:sc(avg)},
+    {label:'% Excelentes',     value:`${excPct}%`,          sub:`${exc} ads`,             color:excPct>=25?'var(--green)':excPct>=10?'var(--amber)':'var(--red)'},
+    {label:'Mejor formato',    value:fmtFormat(topFmt),     sub:'por score ponderado',    color:'var(--teal)'},
+    {label:'Umbral Excelente', value:fmt(thrExc),           sub:'Q75 + 1.5 × IQR',        color:'var(--green)'},
+    {label:'Umbral Alto',      value:fmt(thrAvg),           sub:'Mediana histórico',      color:'var(--amber)'},
   ];
   document.getElementById('kpiRow').innerHTML=kpis.map(k=>`
     <div class="kpi">
@@ -380,7 +459,11 @@ function renderKPIs() {
 
 // ── RANKING ───────────────────────────────────────────────────────
 function renderRanking() {
-  const bKey=ST.filters.provider||Object.keys(ST.benchmarks)[0]||'';
+  // Usa el filtro activo o detecta el provider dominante en los datos filtrados
+  const _provCounts={};
+  ST.filtered.forEach(r=>{if(r.provider)_provCounts[r.provider]=(_provCounts[r.provider]||0)+1;});
+  const _domProv=Object.entries(_provCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+  const bKey=ST.filters.provider||_domProv||Object.keys(ST.benchmarks)[0]||'';
   const bm=ST.benchmarks[bKey]||{};
   const thrExc=bm.threshold_excellent||3.5, thrAvg=bm.threshold_avg||1.8;
   const grouped=getGrouped(ST.filtered,ST.groupBy);
@@ -390,7 +473,7 @@ function renderRanking() {
     <div class="score-row">
       <span class="score-rank" style="color:${i===0?'var(--amber)':i<3?'var(--muted2)':'var(--border2)'}">
         ${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
-      <span class="score-name" title="${esc(g.name)}">${esc(g.name)}</span>
+      <span class="score-name" title="${esc(g.name)}">${esc(ST.groupBy==='ad_format'?fmtFormat(g.name):g.name)}</span>
       <div class="score-bar-wrap">
         <div class="score-bar-bg">
           <div class="score-bar-fill" style="width:${Math.min(100,(g.score_w/(maxS*1.1))*100).toFixed(1)}%;background:${sc(g.score_w)}"></div>
@@ -402,7 +485,7 @@ function renderRanking() {
   return `<div class="charts-grid">
     <div class="chart-card">
       <div class="chart-title">Score emocional por ${DIM_LABELS[ST.groupBy]||ST.groupBy}</div>
-      <div class="chart-sub">Líneas de referencia: umbral Alto y Excelente del histórico</div>
+      <div class="chart-sub">Score medio ponderado del grupo · Una categoría puede tener piezas Excelentes individualmente aunque su media agregada sea Baja — consulta Top Ads para ver el rendimiento por pieza.</div>
       ${barChart(grouped,thrAvg,thrExc)}
     </div>
     <div class="chart-card">
@@ -427,7 +510,7 @@ function barChart(grouped,thrAvg,thrExc) {
     <text x="${excX}" y="${MT-17}" text-anchor="middle" fill="#10B981" font-size="9" font-family="monospace">Excelente</text>`;
   const bars=grouped.map((g,i)=>{
     const y=MT+i*(BH+GAP), bW=Math.max(2,xs(g.score_w)), c=sc(g.score_w);
-    return `<text x="${ML-8}" y="${y+BH/2+4}" text-anchor="end" fill="#F0F4F8" font-size="11" font-family="system-ui" font-weight="600">${esc(g.name)}</text>
+    return `<text x="${ML-8}" y="${y+BH/2+4}" text-anchor="end" fill="#F0F4F8" font-size="11" font-family="system-ui" font-weight="600">${esc(ST.groupBy==='ad_format'?fmtFormat(g.name):g.name)}</text>
       <rect x="${ML}" y="${y}" width="${bW}" height="${BH}" rx="3" fill="${c}"/>
       <text x="${ML+bW+6}" y="${y+BH/2+4}" fill="${c}" font-size="11" font-family="monospace" font-weight="700">${fmt(g.score_w)}</text>
       <text x="${W-MR+4}" y="${y+BH/2+4}" fill="#5a7a8a" font-size="9" font-family="monospace">${g.count}ads</text>`;
@@ -438,43 +521,77 @@ function barChart(grouped,thrAvg,thrExc) {
 // ── SCATTER ───────────────────────────────────────────────────────
 function renderScatterView() {
   const valid=ST.filtered.filter(d=>d.spend>0&&d.score_w_ad!=null);
-  const bKey=ST.filters.provider||Object.keys(ST.benchmarks)[0]||'';
+  // Usa el filtro activo o detecta el provider dominante en los datos filtrados
+  const _provCounts={};
+  ST.filtered.forEach(r=>{if(r.provider)_provCounts[r.provider]=(_provCounts[r.provider]||0)+1;});
+  const _domProv=Object.entries(_provCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+  const bKey=ST.filters.provider||_domProv||Object.keys(ST.benchmarks)[0]||'';
   const bm=ST.benchmarks[bKey]||{};
   const thrExc=bm.threshold_excellent||3.5, thrAvg=bm.threshold_avg||1.8;
-  const ML=55,MR=65,MT=44,MB=44,W=640,H=370;
+  const ML=68,MR=90,MT=52,MB=72,W=680,H=420;
   const iW=W-ML-MR,iH=H-MT-MB;
   const spends=valid.map(d=>Math.log10(d.spend));
   const minLS=Math.min(...spends),maxLS=Math.max(...spends);
-  const maxSc=Math.max(...valid.map(d=>d.score_w_ad),thrExc*1.1);
+  const maxSc=Math.max(...valid.map(d=>d.score_w_ad),thrExc*1.2);
   const xp=s=>ML+((Math.log10(s)-minLS)/(maxLS-minLS||1))*iW;
   const yp=s=>MT+iH-(s/maxSc)*iH;
   const avgY=yp(thrAvg),excY=yp(thrExc),midX=ML+iW/2;
-  const perfC=l=>l==='1.Excelente'?'#10B981':l==='2.Alto'?'#F59E0B':'#EF4444';
+  const perfC=l=>l==='1.Excelente (Top)'?'#10B981':l==='2.Alto'?'#F59E0B':'#EF4444';
+
+  const yTickVals=[0,parseFloat(thrAvg.toFixed(1)),parseFloat(thrExc.toFixed(1)),parseFloat(maxSc.toFixed(1))];
+  const yTicks=yTickVals.map(v=>{
+    const y=yp(v).toFixed(1);
+    return `<line x1="${ML-4}" y1="${y}" x2="${ML}" y2="${y}" stroke="#2D3F57" stroke-width="1"/>
+      <text x="${ML-7}" y="${(parseFloat(y)+4).toFixed(0)}" text-anchor="end" fill="#5a7a8a" font-size="9" font-family="monospace">${v}</text>`;
+  }).join('');
+
+  const xTickCandidates=[100,1000,10000,100000,1000000,10000000];
+  const xTicks=xTickCandidates.filter(v=>Math.log10(v)>=minLS-0.1&&Math.log10(v)<=maxLS+0.1).map(v=>{
+    const x=parseFloat(xp(v).toFixed(1));
+    return `<line x1="${x}" y1="${MT+iH}" x2="${x}" y2="${MT+iH+4}" stroke="#2D3F57" stroke-width="1"/>
+      <text x="${x}" y="${MT+iH+16}" text-anchor="middle" fill="#5a7a8a" font-size="9" font-family="monospace">€${fmtK(v)}</text>`;
+  }).join('');
+
   const circles=valid.map(d=>{
     const cx=xp(d.spend).toFixed(1),cy=yp(d.score_w_ad).toFixed(1);
-    const r=Math.max(5,Math.min(22,Math.sqrt(Math.log10(d.impressions+1))*3.5));
-    const c=perfC(d.perf_level_sentiment);
-    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${c}" fill-opacity=".72" stroke="${c}" stroke-width=".5">
+    const r=Math.max(4,Math.min(20,Math.sqrt(Math.log10(d.impressions+1))*3.5));
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${perfC(d.perf_level_sentiment)}" fill-opacity=".72" stroke="${perfC(d.perf_level_sentiment)}" stroke-width=".5">
       <title>${esc(d.ad_name||d.ad_id)} | Score: ${fmt(d.score_w_ad)} | €${fmtK(d.spend)} | ${fmtK(d.impressions)} imp.</title></circle>`;
   }).join('');
+
   const svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">
+    <!-- Etiquetas cuadrante FUERA del área (arriba) -->
+    <text x="${ML}" y="28" fill="#10B981" font-size="10" font-family="system-ui" font-weight="700">⭐ Joyas de Eficiencia</text>
+    <text x="${W-MR}" y="28" text-anchor="end" fill="#36A7B7" font-size="10" font-family="system-ui" font-weight="700">🔥 Motores de Marca</text>
+    <!-- Ejes -->
     <line x1="${ML}" y1="${MT}" x2="${ML}" y2="${MT+iH}" stroke="#1a3a50" stroke-width="1"/>
     <line x1="${ML}" y1="${MT+iH}" x2="${W-MR}" y2="${MT+iH}" stroke="#1a3a50" stroke-width="1"/>
+    <!-- Línea vertical central -->
     <line x1="${midX}" y1="${MT}" x2="${midX}" y2="${MT+iH}" stroke="#0d2030" stroke-dasharray="3,3"/>
+    <!-- Labels eje -->
+    <text x="${ML-46}" y="${MT+iH/2}" text-anchor="middle" fill="#5a7a8a" font-size="9" font-family="monospace" transform="rotate(-90,${ML-46},${MT+iH/2})">Score emocional</text>
+    <text x="${ML+iW/2}" y="${MT+iH+32}" text-anchor="middle" fill="#5a7a8a" font-size="9" font-family="monospace">Inversión €</text>
+    <!-- Ticks Y -->
+    ${yTicks}
+    <!-- Umbrales con labels fuera a la derecha -->
     <line x1="${ML}" y1="${avgY}" x2="${W-MR}" y2="${avgY}" stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="5,4"/>
-    <text x="${W-MR+4}" y="${avgY+4}" fill="#F59E0B" font-size="9" font-family="monospace">Alto</text>
+    <text x="${W-MR+5}" y="${avgY-5}" fill="#F59E0B" font-size="9" font-family="monospace" font-weight="700">Alto</text>
+    <text x="${W-MR+5}" y="${avgY+9}" fill="#F59E0B" font-size="9" font-family="monospace">${thrAvg.toFixed(2)}</text>
     <line x1="${ML}" y1="${excY}" x2="${W-MR}" y2="${excY}" stroke="#10B981" stroke-width="1.5" stroke-dasharray="5,4"/>
-    <text x="${W-MR+4}" y="${excY+4}" fill="#10B981" font-size="9" font-family="monospace">Exc.</text>
-    <text x="${ML+10}" y="${MT+18}" fill="#10B981" font-size="10" font-family="system-ui" font-weight="700">⭐ Joyas de Eficiencia</text>
-    <text x="${W-MR-10}" y="${MT+18}" text-anchor="end" fill="#36A7B7" font-size="10" font-family="system-ui" font-weight="700">🔥 Motores de Marca</text>
-    <text x="${ML+10}" y="${MT+iH-8}" fill="#5a7a8a" font-size="10" font-family="system-ui" font-weight="700">🧪 Laboratorio</text>
-    <text x="${W-MR-10}" y="${MT+iH-8}" text-anchor="end" fill="#EF4444" font-size="10" font-family="system-ui" font-weight="700">⚠️ Riesgo Saturación</text>
-    <text x="${ML+iW/2}" y="${H-4}" text-anchor="middle" fill="#5a7a8a" font-size="10" font-family="monospace">Inversión €</text>
+    <text x="${W-MR+5}" y="${excY-5}" fill="#10B981" font-size="9" font-family="monospace" font-weight="700">Exc.</text>
+    <text x="${W-MR+5}" y="${excY+9}" fill="#10B981" font-size="9" font-family="monospace">${thrExc.toFixed(2)}</text>
+    <!-- Burbujas -->
     ${circles}
+    <!-- Ticks X -->
+    ${xTicks}
+    <!-- Etiquetas cuadrante FUERA del área (abajo) -->
+    <text x="${ML}" y="${MT+iH+55}" fill="#64748B" font-size="10" font-family="system-ui" font-weight="700">🧪 Laboratorio</text>
+    <text x="${W-MR}" y="${MT+iH+55}" text-anchor="end" fill="#EF4444" font-size="10" font-family="system-ui" font-weight="700">⚠️ Riesgo Saturación</text>
   </svg>`;
+
   return `<div class="chart-card">
     <div class="chart-title">Matriz inversión vs sentimiento</div>
-    <div class="chart-sub">Eje X: inversión (escala log) · Eje Y: score emocional · Tamaño: impresiones. Pasa el ratón para ver detalles.</div>
+    <div class="chart-sub">Eje X: inversión (€, escala log) · Eje Y: score emocional · Tamaño: impresiones. Pasa el ratón para ver detalles.</div>
     ${svg}
     <div class="legend">
       <div class="legend-item"><div class="legend-dot" style="background:#10B981"></div>Excelente</div>
@@ -486,19 +603,23 @@ function renderScatterView() {
 
 // ── TOP ADS ───────────────────────────────────────────────────────
 function renderTopAds() {
-  const bKey=ST.filters.provider||Object.keys(ST.benchmarks)[0]||'';
+  // Usa el filtro activo o detecta el provider dominante en los datos filtrados
+  const _provCounts={};
+  ST.filtered.forEach(r=>{if(r.provider)_provCounts[r.provider]=(_provCounts[r.provider]||0)+1;});
+  const _domProv=Object.entries(_provCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+  const bKey=ST.filters.provider||_domProv||Object.keys(ST.benchmarks)[0]||'';
   const bm=ST.benchmarks[bKey]||{};
   const thrExc=bm.threshold_excellent||3.5, thrAvg=bm.threshold_avg||1.8;
   const sorted=[...ST.filtered].sort((a,b)=>(b.score_w_ad||0)-(a.score_w_ad||0)).slice(0,50);
-  const exc=ST.filtered.filter(r=>r.perf_level_sentiment==='1.Excelente').length;
+  const exc=ST.filtered.filter(r=>r.perf_level_sentiment==='1.Excelente (Top)').length;
   const sc=s=>s>=thrExc?'var(--green)':s>=thrAvg?'var(--amber)':'var(--red)';
-  const perfLabel=l=>l==='1.Excelente'?'Excelente':l==='2.Alto'?'Alto':l==='3.Bajo'?'Bajo':'Sin Score';
-  const perfC=l=>l==='1.Excelente'?'var(--green)':l==='2.Alto'?'var(--amber)':l==='3.Bajo'?'var(--red)':'var(--muted)';
+  const perfLabel=l=>l==='1.Excelente (Top)'?'Excelente':l==='2.Alto'?'Alto':l==='3.Bajo'?'Bajo':'Sin Score';
+  const perfC=l=>l==='1.Excelente (Top)'?'var(--green)':l==='2.Alto'?'var(--amber)':l==='3.Bajo'?'var(--red)':'var(--muted)';
   const rows=sorted.map((r,i)=>`<tr>
     <td class="mono" style="color:var(--muted)">${i+1}</td>
     <td class="mono" style="color:var(--muted);font-size:10px">${esc(r.ad_id||'')}</td>
     <td style="font-weight:700">${esc(r.provider||'')}</td>
-    <td>${esc(r.ad_format||'')}</td>
+    <td>${esc(fmtFormat(r.ad_format||''))}</td>
     <td>${esc(r.market||'')}</td>
     <td>${esc(r.ad_audience||'')}</td>
     <td style="color:var(--muted2)">${esc(r.campaign_objective||'')}</td>
@@ -521,12 +642,166 @@ function renderTopAds() {
   </div>`;
 }
 
+// ── RESUMEN EJECUTIVO IA ──────────────────────────────────────────
+async function generateSummary() {
+  const btn   = document.getElementById('summaryBtn');
+  const panel = document.getElementById('summaryPanel');
+  const body  = document.getElementById('summaryBody');
+  const meta  = document.getElementById('summaryMeta');
+
+  btn.disabled = true;
+  panel.classList.add('visible');
+  body.innerHTML = `<div class="summary-loading"><div class="spinner"></div>Analizando datos con IA…</div>`;
+  meta.textContent = '';
+
+  try {
+    const token = await getToken();
+    const url   = new URL(API_URL);
+    url.searchParams.set('action', 'summary');
+    // Pasar filtros activos al backend
+    Object.entries(ST.filters).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); });
+
+    const res = await fetch(url.toString(), {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      body.innerHTML = `<div class="summary-error">⚠️ ${data.error || 'Error generando el resumen'}</div>`;
+      return;
+    }
+
+    // Renderizar markdown básico: **negrita** y saltos de párrafo
+    const html = data.summary
+      .split('\n\n')
+      .filter(p => p.trim())
+      .map(p => `<p>${p.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</p>`)
+      .join('');
+
+    body.innerHTML = `<div class="summary-body">${html}</div>`;
+    const d = new Date(data.generated_at);
+    meta.textContent = `${data.ads_count} ads analizados · ${d.toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit'})}`;
+
+  } catch(e) {
+    body.innerHTML = `<div class="summary-error">⚠️ Error de conexión: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="btn-icon">↺</span> Regenerar resumen';
+  }
+}
+
+// ── GLOSARIO ──────────────────────────────────────────────────────
+function renderGlosario() {
+  const sc = s => s > 0 ? 'var(--green)' : s < 0 ? 'var(--red)' : 'var(--muted)';
+  const sl = s => (s > 0 ? '+' : '') + s;
+  const item = (label, score, desc) => `
+    <div class="glossary-item">
+      <span class="glossary-score" style="color:${sc(score)}">${sl(score)} pts</span>
+      <span class="glossary-desc"><strong style="color:var(--text)">${label}</strong> — ${desc}</span>
+    </div>`;
+
+  return `<div class="glossary-wrap">
+    <div class="glossary-section">
+      <div class="glossary-section-title">Clasificación de rendimiento</div>
+      <div class="glossary-grid">
+        <div class="glossary-card">
+          <div class="glossary-card-title">🏆 Excelente (Top Creativo)</div>
+          <p class="glossary-desc" style="font-size:12px;line-height:1.6">Supera el <strong style="color:var(--green)">Umbral de Excelencia</strong> (Q75 + 1.5×IQR, regla de Tukey). Piezas "fuera de serie" con una conexión emocional muy superior a la tendencia histórica de la cuenta. Candidatos prioritarios para escalar.</p>
+        </div>
+        <div class="glossary-card">
+          <div class="glossary-card-title">🚀 Alto (Rendimiento Sólido)</div>
+          <p class="glossary-desc" style="font-size:12px;line-height:1.6">Puntuación por encima de la <strong style="color:var(--amber)">Mediana histórica</strong>. Indica capacidad de generar engagement cualitativo superior a lo considerado normal para el mercado y canal.</p>
+        </div>
+        <div class="glossary-card">
+          <div class="glossary-card-title">⚠️ Bajo (Baja Eficiencia)</div>
+          <p class="glossary-desc" style="font-size:12px;line-height:1.6">Rendimiento emocional por debajo de la mediana. Frecuente en campañas de alcance masivo donde el volumen de impresiones diluye la tasa de respuesta. <strong style="color:var(--text)">No significa necesariamente que la pieza sea mala</strong> — requiere análisis contextual.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="glossary-section">
+      <div class="glossary-section-title">Matriz inversión · sentimiento</div>
+      <div class="glossary-grid">
+        <div class="glossary-quadrant">
+          <div class="glossary-quadrant-icon">⭐</div>
+          <div><div class="glossary-quadrant-name">Joyas de Eficiencia <span style="color:var(--muted);font-size:10px;font-weight:400">(Arriba-Izquierda)</span></div>
+          <div class="glossary-quadrant-desc">Alto impacto emocional con inversión optimizada. Superan los umbrales de éxito con pocos recursos. Candidatos ideales para escalar.</div></div>
+        </div>
+        <div class="glossary-quadrant">
+          <div class="glossary-quadrant-icon">🔥</div>
+          <div><div class="glossary-quadrant-name">Motores de Marca <span style="color:var(--muted);font-size:10px;font-weight:400">(Arriba-Derecha)</span></div>
+          <div class="glossary-quadrant-desc">Gran alcance que mantiene alta conexión emocional. Escenario ideal donde cobertura masiva coincide con relevancia creativa.</div></div>
+        </div>
+        <div class="glossary-quadrant">
+          <div class="glossary-quadrant-icon">🧪</div>
+          <div><div class="glossary-quadrant-name">Laboratorio / Aprendizaje <span style="color:var(--muted);font-size:10px;font-weight:400">(Abajo-Izquierda)</span></div>
+          <div class="glossary-quadrant-desc">Poca inversión y bajo scoring. Común en fases de testeo o anuncios que aún no han generado respuesta clara.</div></div>
+        </div>
+        <div class="glossary-quadrant">
+          <div class="glossary-quadrant-icon">⚠️</div>
+          <div><div class="glossary-quadrant-name">Riesgo de Saturación <span style="color:var(--muted);font-size:10px;font-weight:400">(Abajo-Derecha)</span></div>
+          <div class="glossary-quadrant-desc">Mucha inversión, baja conexión emocional. Alto riesgo de fatiga publicitaria e ineficiencia creativa.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="glossary-section">
+      <div class="glossary-section-title">Scoring emocional por plataforma</div>
+      <div class="glossary-grid">
+        <div class="glossary-card">
+          <div class="glossary-card-title">Meta</div>
+          ${item('Compartir (Share)', 4, 'Máximo alcance orgánico. Mayor impacto positivo en la plataforma.')}
+          ${item('Comentario Positivo', 3, 'Engagement de alta calidad. Refuerza conversación de marca.')}
+          ${item('Love', 2, 'Demuestra afinidad emocional con la marca o el contenido.')}
+          ${item('Like / Wow', 1, 'Interés estándar. Indica aprobación básica.')}
+          ${item('Haha', 0.5, 'Reacción de entretenimiento, bajo impacto estratégico.')}
+          ${item('Sad', -1, 'Sentimiento negativo leve hacia el contenido.')}
+          ${item('Angry', -2, 'Rechazo claro hacia la marca o el mensaje.')}
+          ${item('Comentario Negativo', -3, 'Detracción activa y pública en la conversación.')}
+        </div>
+        <div class="glossary-card">
+          <div class="glossary-card-title">TikTok</div>
+          ${item('Compartir', 4, 'Distribución del contenido; representa alta viralidad.')}
+          ${item('Guardar (Favorites)', 3, 'Alto valor o intención de volver a consumir el contenido.')}
+          ${item('Comentario Positivo', 3, 'Participación activa y construcción de comunidad.')}
+          ${item('Like (Corazón)', 1, 'Feedback rápido de aprobación.')}
+          ${item('Comentario Negativo', -3, 'Críticas o señales de desinterés explícito.')}
+        </div>
+        <div class="glossary-card platform-inactive">
+          <div class="glossary-card-title">X (Twitter) <span style="font-size:10px;color:var(--muted);font-weight:400">· referencia</span></div>
+          ${item('Repost (Retweet)', 4, 'Máximo apoyo público. Equivale a compartir con la propia audiencia.')}
+          ${item('Cita (Quote)', 3, 'Genera conversación adicional y alto valor de engagement.')}
+          ${item('Respuesta Positiva', 3, 'Interacción directa de calidad.')}
+          ${item('Like', 1, 'Señal básica de interés.')}
+          ${item('Respuesta Negativa', -3, 'Crítica pública visible; representa detracción.')}
+        </div>
+        <div class="glossary-card platform-inactive">
+          <div class="glossary-card-title">YouTube <span style="font-size:10px;color:var(--muted);font-weight:400">· referencia</span></div>
+          ${item('Compartir', 4, 'Genera tráfico externo hacia el vídeo.')}
+          ${item('Añadir a Playlist', 3, 'Intención de consumo recurrente.')}
+          ${item('Comentario Positivo', 3, 'Feedback detallado que fortalece engagement.')}
+          ${item('Like', 1, 'Aprobación general del espectador.')}
+          ${item('Dislike', -2, 'Desaprobación clara del contenido.')}
+          ${item('Comentario Negativo', -3, 'Crítica directa en la sección de comentarios.')}
+        </div>
+        <div class="glossary-card platform-inactive">
+          <div class="glossary-card-title">Google Search/Display <span style="font-size:10px;color:var(--muted);font-weight:400">· referencia</span></div>
+          ${item('Conversión (Lead/Venta)', 5, 'Máximo éxito en intención y resultado.')}
+          ${item('Llamada desde anuncio', 4, 'Alta intención de contacto inmediato.')}
+          ${item('Click en Ubicación', 2, 'Indica intención de visita física.')}
+          ${item('Rebote inmediato', -1, 'Click erróneo o falta de relevancia del contenido.')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
 // ── HELPERS ───────────────────────────────────────────────────────
 function getGrouped(data,dim) {
   const g={};
   data.forEach(r=>{ const k=r[dim]||'—'; if(!g[k])g[k]={name:k,tS:0,tI:0,count:0,exc:0};
     g[k].tS+=r.emotional_score||0; g[k].tI+=r.impressions_scored||0; g[k].count++;
-    if(r.perf_level_sentiment==='1.Excelente')g[k].exc++; });
+    if(r.perf_level_sentiment==='1.Excelente (Top)')g[k].exc++; });
   return Object.values(g).map(r=>({...r,
     score_w:r.tI>0?(r.tS/r.tI)*1000:0,
     excellentPct:Math.round((r.exc/r.count)*100)
