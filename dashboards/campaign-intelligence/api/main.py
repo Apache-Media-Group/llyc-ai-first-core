@@ -204,19 +204,18 @@ def get_anthropic_client(tenant_id: str, secret_manager_project: str):
 
 # ── HELPERS ───────────────────────────────────────────────────────
 def query_platform(platform: str, dashboard_cfg: dict, client_project: str, bq_dataset: str) -> dict:
-    """
-    Lee una tabla nativa de BQ del proyecto del tenant.
-    Job de BQ corre en CORE_PROJECT (dashboards-sa).
-    Lectura cross-project hacia client_project.
-    """
     table_map = dashboard_cfg.get("table_map", {})
     table = resolve_table(platform, table_map)
     if not table:
         return {"error": f"Platform '{platform}' not found"}
 
+    date_column_map = dashboard_cfg.get("date_column_map", {})
+    date_column = date_column_map.get(platform, "Date")
+
     sql = f"""
         SELECT *
         FROM `{client_project}.{bq_dataset}.{table}`
+        ORDER BY {date_column} DESC
         LIMIT 5000
     """
     try:
