@@ -16,16 +16,16 @@
       "default_days": 30,
       "comparison_days": 7
     },
-    "ptc_analyzer": {
+        "ptc_analyzer": {
       "enabled": true,
       "data_source": {
-        "type": "csv_manual",
-        "note": "Puente temporal (aprobado por Max, 22/07/2026) — migrar type a 'bigquery' cuando Sergio Rico Lucena confirme en primera persona el fix del join en PathToConv. No dejar como ingesta permanente.",
+        "type": "bigquery",
+        "note": "Fix del join confirmado por Sergio Rico Lucena — migrado de csv_manual a bigquery.",
         "bigquery_target": {
           "project": "apache-ifema-datamart",
           "dataset": "ODS",
           "table": "CM_PathToConv_new",
-          "status": "pendiente_confirmacion_sergio_rico"
+          "status": "confirmado"
         }
       }
     }
