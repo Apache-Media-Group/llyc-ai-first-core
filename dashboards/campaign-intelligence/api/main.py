@@ -419,9 +419,15 @@ def dashboard_api(request):
     bq_dataset = gcp_cfg.get("bq_dataset", "ODS")
     secret_manager_project = gcp_cfg["secret_manager_project"]
 
-    # ── ME ───────────────────────────────────────────────────────
+        # ── ME ───────────────────────────────────────────────────────
     if action == "me":
-        return json_response({"email": email, "role": user_role, "tenant": tenant_id})
+        ptc_enabled = dashboard_cfg.get("ptc_analyzer", {}).get("enabled", False)
+        return json_response({
+            "email": email,
+            "role": user_role,
+            "tenant": tenant_id,
+            "ptcEnabled": ptc_enabled,
+        })
 
     # ── DATA ─────────────────────────────────────────────────────
     if action == "data":
