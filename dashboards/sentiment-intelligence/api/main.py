@@ -16,9 +16,11 @@ Endpoints:
   GET ?action=summary&.. → resumen ejecutivo IA del dataset filtrado
 """
 
+import hashlib
 import json
 import os
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -37,7 +39,7 @@ if not firebase_admin._apps:
     firebase_admin.initialize_app()
 
 bq_client = bigquery.Client()
-sm_client = secretmanager.SecretManagerServiceClient()
+sm_client  = secretmanager.SecretManagerServiceClient()
 
 # Nombre del secret de Anthropic (DEC_058 / DEC_089)
 # Proyecto cliente separado — no core (guardrail DEC_058)
@@ -46,6 +48,11 @@ ANTHROPIC_SECRET = (
     "anthropic-api-key-sentiment_intelligence-turespana/versions/latest"
 )
 _anthropic_client: Optional[anthropic.Anthropic] = None   # lazy init
+
+# Caché en memoria por hash de filtros — evita pagar BQ + Anthropic en cada click
+# Scope: por instancia de CF (se resetea en cold start)
+_summary_cache: dict = {}
+SUMMARY_CACHE_TTL = 300   # 5 minutos
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "clients", "turespana", "config.json")
@@ -83,7 +90,7 @@ SELECT_COLS = """
     CAST(ROUND(COALESCE(clicks, 0)) AS INT64)                          AS clicks
 """
 
-# Dimensiones filtrables — provider es el filtro de plataforma (META, TIKTOK...)
+# Dimensiones filtrables — provider es el filtro de plataforma (facebook, tiktok...)
 FILTER_DIMS = [
     "provider",
     "market",
@@ -346,6 +353,26 @@ def _get_anthropic_client() -> anthropic.Anthropic:
         raise RuntimeError(f"No se pudo cargar la API key de Anthropic: {e}")
 
 
+def _get_summary_cache_key(params: dict) -> str:
+    """Hash MD5 de los filtros activos — clave de caché por combinación de filtros."""
+    active = {k: v for k, v in params.items() if k in FILTER_DIMS and v}
+    canonical = json.dumps(active, sort_keys=True)
+    return hashlib.md5(canonical.encode()).hexdigest()
+
+
+def _get_cached_summary(cache_key: str) -> Optional[dict]:
+    """Devuelve el resultado cacheado si existe y no ha expirado (TTL: 5 min)."""
+    entry = _summary_cache.get(cache_key)
+    if entry and (time.time() - entry["ts"]) < SUMMARY_CACHE_TTL:
+        logger.info("Summary cache hit for key %s", cache_key[:8])
+        return entry["data"]
+    return None
+
+
+def _set_cached_summary(cache_key: str, data: dict) -> None:
+    _summary_cache[cache_key] = {"ts": time.time(), "data": data}
+
+
 def _build_summary_payload(rows: list[dict]) -> str:
     """Construye estadísticas agregadas para el LLM.
     Nunca envía el dataset completo — solo métricas por grupo.
@@ -445,8 +472,17 @@ def _handle_summary(request: Request, headers: dict):
     """Genera un resumen ejecutivo IA del dataset filtrado actual.
     Llama a la API de Anthropic (claude-sonnet-4-6) con estadísticas agregadas.
     Nunca envía el dataset completo al LLM — solo métricas por grupo.
+    Incluye caché en memoria por hash de filtros activos (TTL: 5 min).
     """
     params = request.args
+
+    # ── Caché ──────────────────────────────────────────────────────
+    cache_key = _get_summary_cache_key(params)
+    cached    = _get_cached_summary(cache_key)
+    if cached:
+        return make_response(jsonify({**cached, "from_cache": True}), 200, headers)
+
+    # ── Query BQ ───────────────────────────────────────────────────
     where, bq_params = _build_where(params)
     data_query = f"""
         SELECT {SELECT_COLS}
@@ -465,9 +501,10 @@ def _handle_summary(request: Request, headers: dict):
 
     active_filters = {k: v for k, v in params.items() if k in FILTER_DIMS and v}
     filter_ctx = ", ".join(f"{k}={v}" for k, v in active_filters.items()) or "sin filtros"
+    payload    = _build_summary_payload(rows)
 
-    payload = _build_summary_payload(rows)
-    prompt  = f"""Eres el analista creativo senior de LLYC, especializado en campañas de paid media para clientes de turismo y marca país.
+    # ── Prompt — detección honesta, orientada a decisión ───────────
+    prompt = f"""Eres el analista de paid media de LLYC para campañas de turismo y marca país.
 
 Cliente: {PARTNER_FILTER}
 Filtros activos: {filter_ctx}
@@ -476,22 +513,23 @@ Datos agregados del análisis de scoring emocional:
 
 {payload}
 
-Redacta un informe ejecutivo en español con estas cuatro secciones. Usa un tono estratégico y constructivo — el objetivo es identificar oportunidades y priorizar acciones, no señalar problemas. Evita lenguaje alarmista. Apóyate en los datos pero habla en términos de negocio, no de métricas técnicas:
+Redacta un informe ejecutivo en español con estas cuatro secciones. Sé directo y basado en evidencia — el valor de este análisis es la detección honesta de lo que funciona y lo que no. Para cada hallazgo negativo, indica qué acción concreta lo resuelve:
 
-**1. Situación del portfolio creativo**
-Describe el estado general de las campañas de forma equilibrada. Menciona el volumen total, la distribución de niveles y el dato más relevante para el equipo. Máximo 4 líneas.
+**1. Situación del portfolio**
+Estado general del portfolio con los datos clave: volumen, distribución de niveles y el hallazgo más relevante. Máximo 4 líneas.
 
-**2. Señales creativas positivas**
-Identifica los formatos, mercados o audiencias que destacan por su conexión emocional. Explica qué tienen en común las piezas que mejor funcionan y por qué son relevantes para la estrategia. Máximo 5 líneas.
+**2. Qué está funcionando**
+Formatos, mercados o audiencias con mayor conexión emocional. Qué tienen en común las piezas top y qué implica para la estrategia. Máximo 5 líneas.
 
-**3. Oportunidades de optimización**
-Señala dónde hay margen de mejora, con foco en redistribución de presupuesto o ajuste creativo. Sé específico pero constructivo — no es un juicio, es una oportunidad. Máximo 4 líneas.
+**3. Qué necesita atención**
+Piezas o segmentos con inversión significativa y bajo rendimiento emocional. Sé específico: nombra los casos concretos y el cambio que los mejoraría. Máximo 4 líneas.
 
-**4. Próximos pasos recomendados**
-3 acciones concretas y priorizadas que el equipo puede ejecutar en los próximos días. Cada una en una línea, con formato: acción → impacto esperado."""
+**4. Próximos pasos**
+3 acciones priorizadas que el equipo puede ejecutar esta semana. Formato: acción → impacto esperado."""
 
+    # ── Llamada a Anthropic ────────────────────────────────────────
     try:
-        client = _get_anthropic_client()
+        client  = _get_anthropic_client()
         message = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=1500,
@@ -508,12 +546,15 @@ Señala dónde hay margen de mejora, con foco en redistribución de presupuesto 
         logger.error("Anthropic API error: %s", e)
         return make_response(jsonify({"error": f"Error generando resumen: {e}"}), 500, headers)
 
-    return make_response(jsonify({
+    result = {
         "summary":      summary_text,
         "ads_count":    len(rows),
         "filters":      active_filters,
         "generated_at": datetime.now(timezone.utc).isoformat(),
-    }), 200, headers)
+    }
+    _set_cached_summary(cache_key, result)
+
+    return make_response(jsonify({**result, "from_cache": False}), 200, headers)
 
 
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
