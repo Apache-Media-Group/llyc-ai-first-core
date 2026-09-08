@@ -264,6 +264,7 @@ select option{background:#0d1f2d}
 
 <script>
 const API_URL = 'https://europe-west1-llyc-ai-first-core.cloudfunctions.net/sentiment-api';
+const PERF_EXCELLENT = '1.Excelente (Top)';  // DEC: extraído a constante — comparaciones hardcoded en silencio si backend renombra
 
 firebase.initializeApp({
   apiKey:            "AIzaSyCHIluDUA_iS-AFda6aWWrrKFdPFn9Z2yY",
@@ -427,13 +428,9 @@ function renderKPIs() {
   const tS=data.reduce((s,r)=>s+(r.emotional_score||0),0);
   const tI=data.reduce((s,r)=>s+(r.impressions_scored||0),0);
   const avg=tI>0?(tS/tI)*1000:0;
-  const exc=data.filter(r=>r.perf_level_sentiment==='1.Excelente (Top)').length;
+  const exc=data.filter(r=>r.perf_level_sentiment===PERF_EXCELLENT).length;
   const excPct=Math.round((exc/data.length)*100);
-  // Usa el filtro activo o detecta el provider dominante en los datos filtrados
-  const _provCounts={};
-  ST.filtered.forEach(r=>{if(r.provider)_provCounts[r.provider]=(_provCounts[r.provider]||0)+1;});
-  const _domProv=Object.entries(_provCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
-  const bKey=ST.filters.provider||_domProv||Object.keys(ST.benchmarks)[0]||'';
+  const bKey=getBenchmarkKey();
   const bm=ST.benchmarks[bKey]||{};
   const thrExc=bm.threshold_excellent||3.5;
   const thrAvg=bm.threshold_avg||1.8;
@@ -459,11 +456,7 @@ function renderKPIs() {
 
 // ── RANKING ───────────────────────────────────────────────────────
 function renderRanking() {
-  // Usa el filtro activo o detecta el provider dominante en los datos filtrados
-  const _provCounts={};
-  ST.filtered.forEach(r=>{if(r.provider)_provCounts[r.provider]=(_provCounts[r.provider]||0)+1;});
-  const _domProv=Object.entries(_provCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
-  const bKey=ST.filters.provider||_domProv||Object.keys(ST.benchmarks)[0]||'';
+  const bKey=getBenchmarkKey();
   const bm=ST.benchmarks[bKey]||{};
   const thrExc=bm.threshold_excellent||3.5, thrAvg=bm.threshold_avg||1.8;
   const grouped=getGrouped(ST.filtered,ST.groupBy);
@@ -521,11 +514,7 @@ function barChart(grouped,thrAvg,thrExc) {
 // ── SCATTER ───────────────────────────────────────────────────────
 function renderScatterView() {
   const valid=ST.filtered.filter(d=>d.spend>0&&d.score_w_ad!=null);
-  // Usa el filtro activo o detecta el provider dominante en los datos filtrados
-  const _provCounts={};
-  ST.filtered.forEach(r=>{if(r.provider)_provCounts[r.provider]=(_provCounts[r.provider]||0)+1;});
-  const _domProv=Object.entries(_provCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
-  const bKey=ST.filters.provider||_domProv||Object.keys(ST.benchmarks)[0]||'';
+  const bKey=getBenchmarkKey();
   const bm=ST.benchmarks[bKey]||{};
   const thrExc=bm.threshold_excellent||3.5, thrAvg=bm.threshold_avg||1.8;
   const ML=68,MR=90,MT=52,MB=72,W=680,H=420;
@@ -536,7 +525,7 @@ function renderScatterView() {
   const xp=s=>ML+((Math.log10(s)-minLS)/(maxLS-minLS||1))*iW;
   const yp=s=>MT+iH-(s/maxSc)*iH;
   const avgY=yp(thrAvg),excY=yp(thrExc),midX=ML+iW/2;
-  const perfC=l=>l==='1.Excelente (Top)'?'#10B981':l==='2.Alto'?'#F59E0B':'#EF4444';
+  const perfC=l=>l===PERF_EXCELLENT?'#10B981':l==='2.Alto'?'#F59E0B':'#EF4444';
 
   const yTickVals=[0,parseFloat(thrAvg.toFixed(1)),parseFloat(thrExc.toFixed(1)),parseFloat(maxSc.toFixed(1))];
   const yTicks=yTickVals.map(v=>{
@@ -603,18 +592,14 @@ function renderScatterView() {
 
 // ── TOP ADS ───────────────────────────────────────────────────────
 function renderTopAds() {
-  // Usa el filtro activo o detecta el provider dominante en los datos filtrados
-  const _provCounts={};
-  ST.filtered.forEach(r=>{if(r.provider)_provCounts[r.provider]=(_provCounts[r.provider]||0)+1;});
-  const _domProv=Object.entries(_provCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
-  const bKey=ST.filters.provider||_domProv||Object.keys(ST.benchmarks)[0]||'';
+  const bKey=getBenchmarkKey();
   const bm=ST.benchmarks[bKey]||{};
   const thrExc=bm.threshold_excellent||3.5, thrAvg=bm.threshold_avg||1.8;
   const sorted=[...ST.filtered].sort((a,b)=>(b.score_w_ad||0)-(a.score_w_ad||0)).slice(0,50);
-  const exc=ST.filtered.filter(r=>r.perf_level_sentiment==='1.Excelente (Top)').length;
+  const exc=ST.filtered.filter(r=>r.perf_level_sentiment===PERF_EXCELLENT).length;
   const sc=s=>s>=thrExc?'var(--green)':s>=thrAvg?'var(--amber)':'var(--red)';
-  const perfLabel=l=>l==='1.Excelente (Top)'?'Excelente':l==='2.Alto'?'Alto':l==='3.Bajo'?'Bajo':'Sin Score';
-  const perfC=l=>l==='1.Excelente (Top)'?'var(--green)':l==='2.Alto'?'var(--amber)':l==='3.Bajo'?'var(--red)':'var(--muted)';
+  const perfLabel=l=>l===PERF_EXCELLENT?'Excelente':l==='2.Alto'?'Alto':l==='3.Bajo'?'Bajo':'Sin Score';
+  const perfC=l=>l===PERF_EXCELLENT?'var(--green)':l==='2.Alto'?'var(--amber)':l==='3.Bajo'?'var(--red)':'var(--muted)';
   const rows=sorted.map((r,i)=>`<tr>
     <td class="mono" style="color:var(--muted)">${i+1}</td>
     <td class="mono" style="color:var(--muted);font-size:10px">${esc(r.ad_id||'')}</td>
@@ -675,7 +660,7 @@ async function generateSummary() {
     const html = data.summary
       .split('\n\n')
       .filter(p => p.trim())
-      .map(p => `<p>${p.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</p>`)
+      .map(p => `<p>${esc(p).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</p>`)
       .join('');
 
     body.innerHTML = `<div class="summary-body">${html}</div>`;
@@ -796,12 +781,20 @@ function renderGlosario() {
   </div>`;
 }
 
+function getBenchmarkKey() {
+  if (ST.filters.provider) return ST.filters.provider;
+  const counts={};
+  ST.filtered.forEach(r=>{if(r.provider)counts[r.provider]=(counts[r.provider]||0)+1;});
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0]
+    || Object.keys(ST.benchmarks)[0] || '';
+}
+
 // ── HELPERS ───────────────────────────────────────────────────────
 function getGrouped(data,dim) {
   const g={};
   data.forEach(r=>{ const k=r[dim]||'—'; if(!g[k])g[k]={name:k,tS:0,tI:0,count:0,exc:0};
     g[k].tS+=r.emotional_score||0; g[k].tI+=r.impressions_scored||0; g[k].count++;
-    if(r.perf_level_sentiment==='1.Excelente (Top)')g[k].exc++; });
+    if(r.perf_level_sentiment===PERF_EXCELLENT)g[k].exc++; });
   return Object.values(g).map(r=>({...r,
     score_w:r.tI>0?(r.tS/r.tI)*1000:0,
     excellentPct:Math.round((r.exc/r.count)*100)
