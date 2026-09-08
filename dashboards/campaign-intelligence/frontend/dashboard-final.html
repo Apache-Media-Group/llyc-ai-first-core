@@ -587,8 +587,14 @@ async function loadAll(forceRefresh=false){
     if(_userRole === 'editor') {
       document.getElementById('btnConfig').style.display = 'block';
     }
-    currentTab='OVERVIEW';render();
-    if(currentTab==='OVERVIEW') renderCharts(getOverviewFilteredData());
+    if(loaded.length===0 && window._ptcEnabled){
+      currentTab='PTC';
+      render();
+      initPTCTab(document.getElementById('ptcContainer'));
+    } else {
+      currentTab='OVERVIEW';render();
+      if(currentTab==='OVERVIEW') renderCharts(getOverviewFilteredData());
+    }
     if(loaded.length>0){
       // Invalidate insights cache if context Doc changed
       setTimeout(()=>genInsights(newFetchedAt),300);
