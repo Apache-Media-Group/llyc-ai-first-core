@@ -9,6 +9,7 @@
 #   GET  ?action=me                  → info del usuario autenticado + rol
 #   GET  ?action=data                → todos los datos de campaña
 #   GET  ?action=data&platform=Meta  → datos de una plataforma
+#   GET  ?action=ptc_data            → Path to Conversion (CM360), fuera del bucle genérico
 #   POST ?action=chat                → proxy Anthropic chat
 #   POST ?action=insights            → generación de insights con caché
 #   GET  ?action=getConfig           → config visual + lista de accesos (Firestore)
@@ -214,9 +215,13 @@ def query_platform(platform: str, dashboard_cfg: dict, client_project: str, bq_d
     if not table:
         return {"error": f"Platform '{platform}' not found"}
 
+    date_column_map = dashboard_cfg.get("date_column_map", {})
+    date_column = date_column_map.get(platform, "Date")
+
     sql = f"""
         SELECT *
         FROM `{client_project}.{bq_dataset}.{table}`
+        ORDER BY {date_column} DESC
         LIMIT 5000
     """
     try:
@@ -244,6 +249,60 @@ def query_platform(platform: str, dashboard_cfg: dict, client_project: str, bq_d
         }
     except Exception as e:
         log.error(f"BQ query error for {platform}: {e}")
+        return {"error": str(e)}
+
+
+def query_ptc_data(dashboard_cfg: dict, client_project: str) -> dict:
+    """
+    Lee la tabla de Path to Conversion (CM360) configurada en
+    dashboard.ptc_analyzer.data_source.bigquery_target.
+    Formato "long" (una fila por interacción) — no usa table_map,
+    vive fuera del bucle genérico de plataformas (DEC_122).
+    """
+    ptc_cfg = dashboard_cfg.get("ptc_analyzer", {})
+    if not ptc_cfg.get("enabled"):
+        return {"error": "PTC Analyzer no habilitado para este tenant"}
+
+    data_source = ptc_cfg.get("data_source", {})
+    if data_source.get("type") != "bigquery":
+        return {"error": f"PTC data_source no es bigquery (actual: {data_source.get('type')})"}
+
+    bq_target = data_source.get("bigquery_target", {})
+    project = bq_target.get("project", client_project)
+    dataset = bq_target.get("dataset", "ODS")
+    table = bq_target.get("table")
+    if not table:
+        return {"error": "bigquery_target.table no configurado"}
+
+    sql = f"""
+        SELECT *
+        FROM `{project}.{dataset}.{table}`
+        ORDER BY ConversionDate DESC
+        LIMIT 20000
+    """
+    try:
+        rows = list(bq_client.query(sql).result())
+        if not rows:
+            return {
+                "headers": [],
+                "rows": [],
+                "lastUpdated": datetime.now(timezone.utc).isoformat(),
+            }
+        headers = list(rows[0].keys())
+        data_rows = [
+            [
+                v.isoformat() if isinstance(v, (datetime, date)) else v
+                for v in row.values()
+            ]
+            for row in rows
+        ]
+        return {
+            "headers": headers,
+            "rows": data_rows,
+            "lastUpdated": datetime.now(timezone.utc).isoformat(),
+        }
+    except Exception as e:
+        log.error(f"BQ query error for PTC data: {e}")
         return {"error": str(e)}
 
 
@@ -360,9 +419,15 @@ def dashboard_api(request):
     bq_dataset = gcp_cfg.get("bq_dataset", "ODS")
     secret_manager_project = gcp_cfg["secret_manager_project"]
 
-    # ── ME ───────────────────────────────────────────────────────
+        # ── ME ───────────────────────────────────────────────────────
     if action == "me":
-        return json_response({"email": email, "role": user_role, "tenant": tenant_id})
+        ptc_enabled = dashboard_cfg.get("ptc_analyzer", {}).get("enabled", False)
+        return json_response({
+            "email": email,
+            "role": user_role,
+            "tenant": tenant_id,
+            "ptcEnabled": ptc_enabled,
+        })
 
     # ── DATA ─────────────────────────────────────────────────────
     if action == "data":
@@ -390,6 +455,13 @@ def dashboard_api(request):
                 "userRole": user_role,
             }
         )
+
+    # ── PTC DATA (Path to Conversion, CM360) ────────────────────
+    if action == "ptc_data":
+        result = query_ptc_data(dashboard_cfg, client_project)
+        if "error" in result:
+            return json_response(result, 404)
+        return json_response({**result, "tenant": tenant_id})
 
     # ── CHAT ─────────────────────────────────────────────────────
     if action == "chat" and request.method == "POST":

@@ -579,8 +579,10 @@ async function loadAll(forceRefresh=false){
     try {
       const meRes = await gasGet({action:'me'});
       _userRole = meRes.role || 'viewer';
+      window._ptcEnabled = !!meRes.ptcEnabled;
     } catch(e) {
       _userRole = 'viewer';
+      window._ptcEnabled = false;
     }
     if(_userRole === 'editor') {
       document.getElementById('btnConfig').style.display = 'block';
@@ -705,6 +707,12 @@ function showLoading(txt){document.getElementById('dashboard').innerHTML=`<div c
 function showError(msg){document.getElementById('dashboard').innerHTML=`<div class="dash-inner"><div class="error-box"><p>⚠️ ${msg}</p></div></div>`;}
 
 function render(){
+  if(currentTab==='PTC'){
+    document.getElementById('dashboard').innerHTML=`
+      <div class="tabs-wrap"><div class="tabs">${buildTabs()}</div></div>
+      <div class="dash-inner" id="ptcContainer"></div>`;
+    return;
+  }
   if(!Object.keys(allData).length){showError('No hay datos.');return;}
   const content=currentTab==='OVERVIEW'?renderOverview():renderPlatform(currentTab);
   const filtersBar=currentTab==='OVERVIEW'?renderOverviewFilters():renderFiltersBar(currentTab);
@@ -721,9 +729,15 @@ function renderAndCharts(){
 function buildTabs(){
   let h=`<button class="tab ${currentTab==='OVERVIEW'?'active':''}" data-p="OVERVIEW" onclick="switchTab('OVERVIEW')">Overview</button>`;
   PLATFORMS.forEach(p=>{if(allData[p])h+=`<button class="tab ${currentTab===p?'active':''}" data-p="${p}" onclick="switchTab('${p}')">${p}</button>`;});
+  if(window._ptcEnabled)h+=`<button class="tab ${currentTab==='PTC'?'active':''}" data-p="PTC" onclick="switchTab('PTC')">Path to Conversion</button>`;
   return h;
 }
-function switchTab(p){currentTab=p;render();if(p==='OVERVIEW'){if(!insightsDone&&!insightsCache)genInsights();renderCharts(getOverviewFilteredData());}}
+function switchTab(p){
+  currentTab=p;
+  render();
+  if(p==='OVERVIEW'){if(!insightsDone&&!insightsCache)genInsights();renderCharts(getOverviewFilteredData());}
+  if(p==='PTC'){initPTCTab(document.getElementById('ptcContainer'));}
+}
 
 // ── FILTERS BAR ────────────────────────────────────────────────────
 function renderFiltersBar(p){
@@ -1442,5 +1456,5 @@ function showToast(msg){
 }
 // Auto-refresh desactivado: los datos se actualizan manualmente con el botón Refresh
 </script>
+<script src="ptc-analyzer.js"></script>
 </body>
-</html>
