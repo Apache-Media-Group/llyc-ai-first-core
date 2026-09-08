@@ -232,7 +232,7 @@ CLAUDE.local.md
 .DS_Store
 scripts/dv360/briefings/*.json
 envvars.yaml 
-kids-us-ods-access.json 
-dataset-ods.json 
-type 
-.firebase/ 
+
+# Artefactos de prueba de briefings DV360 (Alberto, desarrollo A3/orquestador)
+clients/*/PAID_briefing-dv360-*.json
+clients/test/briefings/
