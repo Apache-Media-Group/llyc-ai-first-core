@@ -7,3 +7,6 @@
 
 # Dashboards (campaign-intelligence, deploy Cloud Build path-scoped a dashboards/**) — Sergio + lead (DEC_089)
 /dashboards/ @sergioalonso-llyc @massimilianoturinetto-lluc @admin-tech-llyc
+
+# Configs cliente (DEC_136: Alberto primary + Sergio reviewer — dispara redeploy de CF)
+/clients/    @albertogonzalez89 @sergioalonso-llyc
