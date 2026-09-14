@@ -556,12 +556,18 @@ Responde SOLO con JSON válido sin markdown:
         body = request.get_json(silent=True) or {}
         new_cfg = body.get("config", {})
 
-        # Salvaguarda: el editor que guarda siempre queda en la lista como
-        # editor — nadie puede quitarse el acceso de edición por error.
-        access_list = new_cfg.get("accessList", [])
-        access_list = [a for a in access_list if a.get("email", "").strip().lower() != email]
-        access_list.append({"email": email, "role": "editor"})
-        new_cfg["accessList"] = access_list
+        # accessList: si el frontend no lo manda explícitamente, NO se toca
+        # el existente — evita que paneles que desconocen este campo (config
+        # visual de colores/KPIs) lo sobrescriban a vacío sin querer.
+        if "accessList" in new_cfg:
+            access_list = new_cfg["accessList"]
+            access_list = [a for a in access_list if a.get("email", "").strip().lower() != email]
+            access_list.append({"email": email, "role": "editor"})
+            new_cfg["accessList"] = access_list
+        else:
+            existing = fs_client.collection("dashboard_configs").document(tenant_id).get()
+            if existing.exists and "accessList" in existing.to_dict():
+                new_cfg["accessList"] = existing.to_dict()["accessList"]
 
         try:
             fs_client.collection("dashboard_configs").document(tenant_id).set(new_cfg)
