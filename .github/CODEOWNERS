@@ -8,5 +8,9 @@
 # Dashboards (campaign-intelligence, deploy Cloud Build path-scoped a dashboards/**) — Sergio + lead (DEC_089)
 /dashboards/ @sergioalonso-llyc @massimilianoturinetto-lluc @admin-tech-llyc
 
+# Tool/agent code (DEC_136: Alberto autor + Sergio reviewer)
+/tools/      @sergioalonso-llyc @albertogonzalez89
+/main.py     @sergioalonso-llyc @albertogonzalez89
+
 # Configs cliente (DEC_136: Alberto primary + Sergio reviewer — dispara redeploy de CF)
 /clients/    @albertogonzalez89 @sergioalonso-llyc
