@@ -556,21 +556,20 @@ Responde SOLO con JSON válido sin markdown:
         body = request.get_json(silent=True) or {}
         new_cfg = body.get("config", {})
 
-        # accessList: si el frontend no lo manda explícitamente, NO se toca
-        # el existente — evita que paneles que desconocen este campo (config
-        # visual de colores/KPIs) lo sobrescriban a vacío sin querer.
+                # Salvaguarda: si el panel manda accessList explícitamente, el editor
+        # que guarda siempre queda en la lista como editor — nadie puede
+        # quitarse el acceso de edición por error.
         if "accessList" in new_cfg:
             access_list = new_cfg["accessList"]
             access_list = [a for a in access_list if a.get("email", "").strip().lower() != email]
             access_list.append({"email": email, "role": "editor"})
             new_cfg["accessList"] = access_list
-        else:
-            existing = fs_client.collection("dashboard_configs").document(tenant_id).get()
-            if existing.exists and "accessList" in existing.to_dict():
-                new_cfg["accessList"] = existing.to_dict()["accessList"]
 
         try:
-            fs_client.collection("dashboard_configs").document(tenant_id).set(new_cfg)
+            # merge=True: cualquier campo que el frontend no reenvíe (paneles
+            # que solo conocen un subset, como el de colores/KPIs) se
+            # preserva — corta de raíz la clase de bug, no solo accessList.
+            fs_client.collection("dashboard_configs").document(tenant_id).set(new_cfg, merge=True)
             log.info(f"Config saved for tenant {tenant_id} by {email}")
             return json_response({"ok": True})
         except Exception as e:
