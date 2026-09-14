@@ -19,6 +19,7 @@ import argparse
 import json
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[3]))
@@ -26,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).parents[3]))
 from googleapiclient.errors import HttpError
 
 from scripts.dv360._common.auth import build_writer_service, get_advertiser_id
+from scripts.dv360._common.pacing import daily_max_micros
 from scripts.dv360._common.audit import log_action, confirm_action
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -716,7 +718,7 @@ def build_li_body(
         "pacing": {
             "pacingPeriod": "PACING_PERIOD_DAILY",
             "pacingType": "PACING_TYPE_EVEN",
-            "dailyMaxMicros": str(_eur_to_micros(budget_eur)),
+            "dailyMaxMicros": str(daily_max_micros(budget_eur, start_date, end_date)),
         },
         "bidStrategy": bid_strategy_body,
         "partnerRevenueModel": {
