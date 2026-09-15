@@ -681,6 +681,160 @@ DV360_GET_CAMPAIGN_METRICS = {
 }
 
 
+DV360_GET_CAMPAIGN = {
+    "type": "custom",
+    "name": "dv360_get_campaign",
+    "description": (
+        "Devuelve los datos de una campaña DV360 por ID: nombre, estado, "
+        "objetivo y presupuestos. Uso puntual cuando ya se conoce el "
+        "campaign_id; para explorar el portfolio usar dv360_list_campaigns."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "campaign_id": {"type": "string", "description": "ID de campaña DV360."},
+        },
+        "required": ["campaign_id"],
+    },
+}
+
+DV360_LIST_LINE_ITEMS = {
+    "type": "custom",
+    "name": "dv360_list_line_items",
+    "description": (
+        "Lista Line Items del advertiser DV360. Si se especifica "
+        "campaign_id, filtra por campaña. Devuelve id, nombre, estado, "
+        "tipo, pacing, presupuesto y bid strategy."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "campaign_id": {
+                "type": "string",
+                "description": "ID de campaña DV360 para filtrar sus Line Items.",
+            },
+            "filter_str": {
+                "type": "string",
+                "description": (
+                    "Filtro alternativo en formato DV360 API, usado solo si "
+                    "no se pasa campaign_id."
+                ),
+            },
+        },
+        "required": [],
+    },
+}
+
+DV360_GET_LINE_ITEM = {
+    "type": "custom",
+    "name": "dv360_get_line_item",
+    "description": "Devuelve los datos de un Line Item DV360 por ID.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "line_item_id": {"type": "string", "description": "ID del Line Item."},
+        },
+        "required": ["line_item_id"],
+    },
+}
+
+DV360_GET_TARGETING = {
+    "type": "custom",
+    "name": "dv360_get_targeting",
+    "description": (
+        "Devuelve el targeting asignado a un Line Item DV360 (geo, "
+        "dispositivo, audiencia, edad, género por defecto; opcionalmente "
+        "otros tipos vía targeting_types)."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "line_item_id": {"type": "string", "description": "ID del Line Item."},
+            "targeting_types": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": (
+                    "Tipos de targeting a consultar (formato "
+                    "TARGETING_TYPE_*). Si se omite, usa el set por defecto: "
+                    "GEO_REGION, DEVICE_TYPE, AUDIENCE_GROUP, AGE_RANGE, GENDER."
+                ),
+            },
+        },
+        "required": ["line_item_id"],
+    },
+}
+
+DV360_GET_INSERTION_ORDER = {
+    "type": "custom",
+    "name": "dv360_get_insertion_order",
+    "description": "Devuelve los datos de un Insertion Order DV360 por ID.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "insertion_order_id": {
+                "type": "string",
+                "description": "ID del Insertion Order.",
+            },
+        },
+        "required": ["insertion_order_id"],
+    },
+}
+
+DV360_LIST_CREATIVES = {
+    "type": "custom",
+    "name": "dv360_list_creatives",
+    "description": "Lista las creatividades del advertiser DV360.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "filter_str": {
+                "type": "string",
+                "description": "Filtro opcional en formato DV360 API.",
+            },
+        },
+        "required": [],
+    },
+}
+
+DV360_LIST_GOOGLE_AUDIENCES = {
+    "type": "custom",
+    "name": "dv360_list_google_audiences",
+    "description": "Lista las Google Audiences disponibles para el advertiser DV360.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "filter_str": {
+                "type": "string",
+                "description": "Filtro opcional en formato DV360 API.",
+            },
+        },
+        "required": [],
+    },
+}
+
+DV360_SEARCH_TARGETING_OPTIONS = {
+    "type": "custom",
+    "name": "dv360_search_targeting_options",
+    "description": (
+        "Busca opciones de targeting disponibles por tipo (formato "
+        "TARGETING_TYPE_*), opcionalmente filtrado por término de búsqueda."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "targeting_type": {
+                "type": "string",
+                "description": "Tipo de targeting (formato TARGETING_TYPE_*).",
+            },
+            "search_terms": {
+                "type": "string",
+                "description": "Término de búsqueda opcional.",
+            },
+        },
+        "required": ["targeting_type"],
+    },
+}
+
 # ─── SHOPIFY TOOL DEFINITIONS (DEC_048 + DEC_050) ───────────────────────────
 
 GET_SHOPIFY_ORDERS_PERIOD = {
@@ -845,8 +999,7 @@ TOOL_DEFINITIONS_BY_AGENT = {
         GET_GOOGLE_ADS_SPEND_TODAY,
         GET_SHOPIFY_ORDERS_PERIOD,  # DEC_048 — revenue ground truth para el ROAS blended
         # del modelo dinámico (DEC_060/061/062 + DEC_075).
-        # DV360 excluido — dv360_get_campaign_metrics no está en TOOL_DISPATCHER
-        # (vive en MCP server en Cloud Run, DEC_037).
+        DV360_GET_CAMPAIGN_METRICS,
     ],
     "naming_utm_auditor": [
         GET_META_ACTIVE_AD_URLS,
@@ -864,8 +1017,8 @@ TOOL_DEFINITIONS_BY_AGENT = {
         GET_SHOPIFY_CUSTOMER_SEGMENT,
         GET_SHOPIFY_INVENTORY_STATUS,
         GET_SHOPIFY_ACTIVE_DISCOUNTS,
-        # DV360 excluido — dv360_list_campaigns y dv360_list_insertion_orders
-        # no están en TOOL_DISPATCHER (MCP server en Cloud Run, DEC_037).
+        DV360_LIST_CAMPAIGNS,
+        DV360_LIST_INSERTION_ORDERS,
     ],
     # Otros agentes — añadir entrada cuando se desarrollen siguiendo el patrón
     # de DEC_021. Las tools del catálogo se reutilizan; las nuevas se definen
