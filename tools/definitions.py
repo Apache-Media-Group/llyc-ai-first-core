@@ -656,6 +656,85 @@ DV360_LIST_INSERTION_ORDERS = {
     },
 }
 
+# ─── CM360 TOOL DEFINITIONS — Fase 1 (DEC_142) ──────────────────
+
+CM360_LIST_CAMPAIGNS = {
+    "type": "custom",
+    "name": "cm360_list_campaigns",
+    "description": (
+        "Lista las campanas del advertiser en Campaign Manager 360. "
+        "Devuelve id, nombre, fechas y si esta archivada. "
+        "Usala para ubicar la campana de contexto antes de listar sus placements."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "archived": {
+                "type": "boolean",
+                "description": "Si es true, incluye campanas archivadas. Por defecto false.",
+            },
+        },
+        "required": [],
+    },
+}
+
+CM360_LIST_PLACEMENTS = {
+    "type": "custom",
+    "name": "cm360_list_placements",
+    "description": (
+        "Lista los placements del advertiser en Campaign Manager 360, "
+        "opcionalmente filtrados por campana. Devuelve id, nombre, sitio, "
+        "estado y tamano. Es la entidad sobre la que se asocian creatividades."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "campaign_id": {
+                "type": "string",
+                "description": "ID de campana CM360 para filtrar sus placements. Si se omite, devuelve todos.",
+            },
+        },
+        "required": [],
+    },
+}
+
+CM360_LIST_CREATIVES = {
+    "type": "custom",
+    "name": "cm360_list_creatives",
+    "description": (
+        "Lista las creatividades ya aprobadas del advertiser en Campaign Manager 360, "
+        "opcionalmente filtradas por campana. Devuelve id, nombre, tipo y tamano. "
+        "Fuente de las creatividades a asociar a placements en Fase 1."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "campaign_id": {
+                "type": "string",
+                "description": "ID de campana CM360 para filtrar sus creatividades. Si se omite, devuelve todas.",
+            },
+        },
+        "required": [],
+    },
+}
+
+CM360_LIST_FLOODLIGHT_ACTIVITIES = {
+    "type": "custom",
+    "name": "cm360_list_floodlight_activities",
+    "description": (
+        "Lista las Floodlight Activities ya configuradas del advertiser en "
+        "Campaign Manager 360. Devuelve id, nombre, grupo y metodo de conteo. "
+        "Usala para verificar consistencia antes de asociar creatividades, "
+        "sin depender de BigQuery (DEC_142)."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+    },
+}
+
+
 DV360_GET_CAMPAIGN_METRICS = {
     "type": "custom",
     "name": "dv360_get_campaign_metrics",
@@ -866,6 +945,16 @@ TOOL_DEFINITIONS_BY_AGENT = {
         GET_SHOPIFY_ACTIVE_DISCOUNTS,
         # DV360 excluido — dv360_list_campaigns y dv360_list_insertion_orders
         # no están en TOOL_DISPATCHER (MCP server en Cloud Run, DEC_037).
+    ],
+    # cm360_trafficking (DEC_142) — RESERVADO, agente aun no existe.
+    # Falta: system_prompts/cm360_trafficking.md + entrada en el bloque de
+    # nombres validos + config.platforms.cm360 en clients/ifema/config.json.
+    # No se usa hasta que ese scaffold este listo (fuera de esta sesion).
+    "cm360_trafficking": [
+        CM360_LIST_CAMPAIGNS,
+        CM360_LIST_PLACEMENTS,
+        CM360_LIST_CREATIVES,
+        CM360_LIST_FLOODLIGHT_ACTIVITIES,
     ],
     # Otros agentes — añadir entrada cuando se desarrollen siguiendo el patrón
     # de DEC_021. Las tools del catálogo se reutilizan; las nuevas se definen
