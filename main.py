@@ -40,7 +40,7 @@ import google.cloud.logging
 import anthropic
 
 from tools.response import error
-from tools import meta, google_ads, ga4, drive, notifications, shopify
+from tools import meta, google_ads, ga4, drive, notifications, shopify, cm360
 from tools.email import render_email_html
 from tools.definitions import get_tool_definitions  # DEC_065
 from prompt_builder import (
@@ -120,6 +120,11 @@ TOOL_DISPATCHER = {
     "get_shopify_inventory_status": shopify.get_shopify_inventory_status,
     "get_shopify_active_discounts": shopify.get_shopify_active_discounts,
     # tiktok → Sprint 1.5 (Jesús pendiente de validar access token)
+    # CM360 (DEC_142) — solo lectura, Fase 1 piloto IFEMA
+    "cm360_list_campaigns": cm360.list_campaigns,
+    "cm360_list_placements": cm360.list_placements,
+    "cm360_list_creatives": cm360.list_creatives,
+    "cm360_list_floodlight_activities": cm360.list_floodlight_activities,
 }
 
 # ─── CARGA DE CONFIGURACIÓN ───────────────────────────────────────────────────
