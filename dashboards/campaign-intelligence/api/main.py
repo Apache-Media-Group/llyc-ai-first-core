@@ -556,15 +556,20 @@ Responde SOLO con JSON válido sin markdown:
         body = request.get_json(silent=True) or {}
         new_cfg = body.get("config", {})
 
-        # Salvaguarda: el editor que guarda siempre queda en la lista como
-        # editor — nadie puede quitarse el acceso de edición por error.
-        access_list = new_cfg.get("accessList", [])
-        access_list = [a for a in access_list if a.get("email", "").strip().lower() != email]
-        access_list.append({"email": email, "role": "editor"})
-        new_cfg["accessList"] = access_list
+                # Salvaguarda: si el panel manda accessList explícitamente, el editor
+        # que guarda siempre queda en la lista como editor — nadie puede
+        # quitarse el acceso de edición por error.
+        if "accessList" in new_cfg:
+            access_list = new_cfg["accessList"]
+            access_list = [a for a in access_list if a.get("email", "").strip().lower() != email]
+            access_list.append({"email": email, "role": "editor"})
+            new_cfg["accessList"] = access_list
 
         try:
-            fs_client.collection("dashboard_configs").document(tenant_id).set(new_cfg)
+            # merge=True: cualquier campo que el frontend no reenvíe (paneles
+            # que solo conocen un subset, como el de colores/KPIs) se
+            # preserva — corta de raíz la clase de bug, no solo accessList.
+            fs_client.collection("dashboard_configs").document(tenant_id).set(new_cfg, merge=True)
             log.info(f"Config saved for tenant {tenant_id} by {email}")
             return json_response({"ok": True})
         except Exception as e:
