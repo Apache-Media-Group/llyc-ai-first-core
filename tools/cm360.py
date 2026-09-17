@@ -38,16 +38,21 @@ from tools.response import ok, error, with_timeout
 log = logging.getLogger(__name__)
 
 SCOPES = [
-    "https://www.googleapis.com/auth/dfareporting",
     "https://www.googleapis.com/auth/dfatrafficking",
 ]
+# dfareporting (informes) retirado: no lo usa ninguna de las 4 tools de
+# Fase 1 (todas son recursos de trafficking, no de reporting). dfatrafficking
+# se mantiene: CM360 no expone scope read-only separado para trafficking
+# (verificado contra OAuth 2.0 Scopes for Google APIs, 16/09) — el
+# aislamiento se garantiza por rol read-only del User Profile + segregacion
+# de SA, no por scope. Ver PAID_flujo-agente-trafico-cm360-ifema.md SS9.
 
 
 # --- Autenticacion -----------------------------------------------------------
 
 def _build_service(secrets: dict) -> Any:
     """
-    Construye el cliente de Campaign Manager 360 API v4 desde el JSON de
+    Construye el cliente de Campaign Manager 360 API v5 desde el JSON de
     Service Account almacenado en Secret Manager (DEC_026).
     secrets["CM360_SERVICE_ACCOUNT_KEY"] -> JSON string de la SA.
     """
@@ -57,8 +62,11 @@ def _build_service(secrets: dict) -> Any:
     creds = service_account.Credentials.from_service_account_info(
         json.loads(sa_json), scopes=SCOPES
     )
+    # v4 fue descontinuada el 26/02/2026 (aviso oficial Google Ads Developer
+    # Blog, "Campaign Manager 360 API v4 Sunset Reminder") - todas las
+    # peticiones v4 fallan desde esa fecha. Migrado a v5, 16/09.
     return discovery.build(
-        "dfareporting", "v4",
+        "dfareporting", "v5",
         credentials=creds,
         cache_discovery=False,
     )
