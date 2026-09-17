@@ -86,7 +86,9 @@ def list_campaigns(secrets: dict, config: dict, archived: bool = False) -> dict:
     Lista las campanas del advertiser en CM360.
     advertiser_id inyectado desde config["platforms"]["cm360"]["advertiser_id"].
     """
-    advertiser_id = config["platforms"]["cm360"]["advertiser_id"]
+    advertiser_id = config.get("platforms", {}).get("cm360", {}).get("advertiser_id")
+    if not advertiser_id:
+        return error("cm360", "CONFIG_ERROR", "config.platforms.cm360.advertiser_id no encontrado")
     profile_id = _get_profile_id(config)
     try:
         svc = _build_service(secrets)
@@ -140,7 +142,9 @@ def list_placements(secrets: dict, config: dict, campaign_id: str = "") -> dict:
     Lista placements del advertiser, filtrados por campana si se especifica.
     Es la entidad sobre la que Fase 1 asocia creatividades.
     """
-    advertiser_id = config["platforms"]["cm360"]["advertiser_id"]
+    advertiser_id = config.get("platforms", {}).get("cm360", {}).get("advertiser_id")
+    if not advertiser_id:
+        return error("cm360", "CONFIG_ERROR", "config.platforms.cm360.advertiser_id no encontrado")
     profile_id = _get_profile_id(config)
     try:
         svc = _build_service(secrets)
@@ -193,7 +197,9 @@ def list_creatives(secrets: dict, config: dict, campaign_id: str = "") -> dict:
     Lista creatividades del advertiser (ya aprobadas), filtradas por campana
     si se especifica. Fuente de las creatividades a asociar en Fase 1.
     """
-    advertiser_id = config["platforms"]["cm360"]["advertiser_id"]
+    advertiser_id = config.get("platforms", {}).get("cm360", {}).get("advertiser_id")
+    if not advertiser_id:
+        return error("cm360", "CONFIG_ERROR", "config.platforms.cm360.advertiser_id no encontrado")
     profile_id = _get_profile_id(config)
     try:
         svc = _build_service(secrets)
@@ -245,7 +251,9 @@ def list_floodlight_activities(secrets: dict, config: dict) -> dict:
     Contexto para no contradecir configuracion existente al asociar
     creatividades (verificacion en vivo, DEC_142 - sin BigQuery).
     """
-    advertiser_id = config["platforms"]["cm360"]["advertiser_id"]
+    advertiser_id = config.get("platforms", {}).get("cm360", {}).get("advertiser_id")
+    if not advertiser_id:
+        return error("cm360", "CONFIG_ERROR", "config.platforms.cm360.advertiser_id no encontrado")
     profile_id = _get_profile_id(config)
     try:
         svc = _build_service(secrets)
