@@ -16,7 +16,7 @@
       "default_days": 30,
       "comparison_days": 7
     },
-        "ptc_analyzer": {
+    "ptc_analyzer": {
       "enabled": true,
       "data_source": {
         "type": "bigquery",
@@ -37,6 +37,15 @@
     "secret_manager_project": "llyc-ai-ifema",
     "secret_manager_core_project": "llyc-ai-first-core"
   },
+  "platforms": {
+    "cm360": {
+      "enabled": false,
+      "account_id": "1141204",
+      "profile_id": "PENDIENTE",
+      "advertiser_id": "PENDIENTE",
+      "_nota": "Fase 1 sandbox (DEC_142/143). API directa via tools/cm360.py (dfareporting v5, no MCP). account_id=1141204 es la cuenta CM360 de IFEMA (PAID_flujo-agente-trafico-cm360-ifema.md) - distinto de profile_id y advertiser_id, que CM360 requiere por separado y estan aun sin confirmar. enabled=false hasta que Sergio Alonso complete profile_id/advertiser_id reales y verifique el rol read-only del User Profile (excepcion a DEC_114 documentada en el flujo, seccion 9)."
+    }
+  },
   "_metadata": {
     "version": "1.0",
     "fecha_creacion": "2026-07-22",
@@ -45,7 +54,9 @@
       "DEC_089 — dashboard campaign-intelligence, modelo workload por cliente",
       "DEC_113 — PTC Analyzer, proyecto GCP por cliente",
       "DEC_119 — alta de tenant no dispara migración a DEC_117",
-      "DEC_058 — API keys en proyecto del cliente"
+      "DEC_058 — API keys en proyecto del cliente",
+      "DEC_142 - habilitacion CM360 trafficking, piloto IFEMA",
+      "DEC_143 - arquitectura de catalogos de escritura por plataforma"
     ]
   }
 }
