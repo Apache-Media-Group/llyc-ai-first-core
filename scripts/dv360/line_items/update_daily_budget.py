@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).parents[3]))
 from googleapiclient.errors import HttpError
 
 from scripts.dv360._common.auth import build_writer_service, get_advertiser_id
-from scripts.dv360._common.audit import log_action, confirm_action
+from scripts._common.audit import log_action, confirm_action
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 log = logging.getLogger(__name__)
@@ -177,6 +177,7 @@ def update_daily_budget(
         }
 
     log_action(
+        platform="dv360",
         script="update_daily_budget",
         action="update_daily_budget",
         client_id=client_id,

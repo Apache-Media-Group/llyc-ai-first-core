@@ -34,7 +34,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[2]))
 
-from scripts.dv360._common.audit import log_action, confirm_action
+from scripts._common.audit import confirm_action
 from scripts.dv360.campaigns.create_campaign import create_campaign
 from scripts.dv360.insertion_orders.create_io import create_io
 from scripts.dv360.insertion_orders.activate_io import activate_io
