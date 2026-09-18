@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).parents[3]))
 from googleapiclient.errors import HttpError
 
 from scripts.dv360._common.auth import build_writer_service, get_advertiser_id
-from scripts.dv360._common.audit import log_action, confirm_action
+from scripts._common.audit import log_action, confirm_action
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 log = logging.getLogger(__name__)
@@ -981,6 +981,7 @@ def create_line_item(
         }
 
     log_action(
+        platform="dv360",
         script="create_line_item",
         action="create_line_item",
         client_id=client_id,

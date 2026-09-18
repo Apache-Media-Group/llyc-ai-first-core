@@ -1,13 +1,18 @@
 """
-scripts/dv360/_common/audit.py
-Logging estructurado de cada ejecucion de script DV360.
+scripts/_common/audit.py
+Logging estructurado y confirmacion humana para scripts de escritura,
+compartido entre plataformas (DEC_143).
 
 Cada accion queda registrada en Cloud Logging con:
-  who   — usuario que ejecuta (variable de entorno LLYC_OPERATOR o whoami)
-  when  — timestamp ISO 8601
-  what  — nombre del script + accion
-  args  — parametros de la llamada
-  result — success/error + payload resumido
+  who    - usuario que ejecuta (variable de entorno LLYC_OPERATOR o whoami)
+  when   - timestamp ISO 8601
+  what   - plataforma + script + accion
+  args   - parametros de la llamada
+  result - success/error + payload resumido
+
+SEGURIDAD: "args" y "result" se serializan a Cloud Logging. El llamador es
+responsable de NUNCA pasar valores de secrets, tokens o credenciales en
+esos parametros - esta funcion no los filtra ni los redacta.
 """
 
 from __future__ import annotations
@@ -16,9 +21,8 @@ import logging
 import os
 import subprocess
 from datetime import datetime, timezone
-from typing import Any
 
-log = logging.getLogger("dv360.scripts")
+log = logging.getLogger("scripts.audit")
 
 
 def _get_operator() -> str:
@@ -33,6 +37,7 @@ def _get_operator() -> str:
 
 
 def log_action(
+    platform: str,
     script: str,
     action: str,
     client_id: str,
@@ -44,18 +49,22 @@ def log_action(
     Registra una ejecucion de script en Cloud Logging.
 
     Args:
-        script: nombre del fichero de script (ej. 'pause_line_item')
-        action: accion ejecutada (ej. 'pause_line_item')
-        client_id: ID del cliente
-        args: parametros de la llamada (sin credenciales)
-        result: resultado de la operacion (ok/error + payload)
-        dry_run: True si fue una ejecucion simulada
+        platform: plataforma (ej. "dv360", "cm360", "meta").
+        script: nombre del fichero de script (ej. "pause_line_item").
+        action: accion ejecutada (ej. "pause_line_item").
+        client_id: ID del cliente.
+        args: parametros de la llamada - NUNCA incluir credenciales,
+            tokens o valores de secrets, se serializan tal cual a
+            Cloud Logging.
+        result: resultado de la operacion (ok/error + payload).
+        dry_run: True si fue una ejecucion simulada.
     """
     entry = {
-        "event": "dv360_script_executed",
+        "event": f"{platform}_script_executed",
         "who": _get_operator(),
         "when": datetime.now(timezone.utc).isoformat(),
         "what": {
+            "platform": platform,
             "script": script,
             "action": action,
             "client_id": client_id,
@@ -76,14 +85,7 @@ def confirm_action(message: str, dry_run: bool = False, skip_confirm: bool = Fal
     Solicita confirmacion interactiva antes de ejecutar una accion.
 
     En dry-run siempre devuelve True (simulacion, no hay accion real).
-    En produccion requiere escribir 'si' para confirmar.
-
-    Args:
-        message: descripcion de la accion a confirmar
-        dry_run: si True, muestra el mensaje pero no pide confirmacion
-
-    Returns:
-        True si el usuario confirma, False si cancela
+    En produccion requiere escribir "si" para confirmar.
     """
     if dry_run:
         print(f"\n[DRY-RUN] Se ejecutaria: {message}")
@@ -91,8 +93,8 @@ def confirm_action(message: str, dry_run: bool = False, skip_confirm: bool = Fal
     if skip_confirm:
         return True
 
-    print(f"\n⚠️  ACCION IRREVERSIBLE: {message}")
-    print("Escribe 'si' para confirmar, cualquier otra cosa para cancelar: ", end="")
+    print(f"\nACCION IRREVERSIBLE: {message}")
+    print("Escribe \'si\' para confirmar, cualquier otra cosa para cancelar: ", end="")
     response = input().strip().lower()
 
     if response == "si":
@@ -105,25 +107,20 @@ def confirm_action(message: str, dry_run: bool = False, skip_confirm: bool = Fal
 def confirm_destructive(message: str, client_id: str, dry_run: bool = False) -> bool:
     """
     Doble confirmacion para acciones destructivas (delete, archive masivo).
-    Args:
-        message: descripcion de la accion destructiva
-        client_id: ID del cliente — el usuario debe escribirlo para confirmar
-        dry_run: si True, muestra el mensaje pero no pide confirmacion
     """
     if dry_run:
         print(f"\n[DRY-RUN] Accion destructiva que se ejecutaria: {message}")
         return True
-    print(f"\n🔴 ACCION DESTRUCTIVA: {message}")
+    print(f"\nACCION DESTRUCTIVA: {message}")
     print("Esta accion no se puede deshacer facilmente.")
-    print("Primera confirmacion — escribe 'confirmo': ", end="")
+    print("Primera confirmacion - escribe \'confirmo\': ", end="")
     r1 = input().strip().lower()
     if r1 != "confirmo":
         print("Cancelado.")
         return False
-    print(f"Segunda confirmacion — escribe el client_id '{client_id}' para confirmar: ", end="")
+    print(f"Segunda confirmacion - escribe el client_id \'{client_id}\' para confirmar: ", end="")
     r2 = input().strip().lower()
     if r2 != client_id.lower():
         print("Client ID incorrecto. Cancelado.")
         return False
     return True
-

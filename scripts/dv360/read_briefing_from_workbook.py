@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 from google.oauth2 import service_account as sa
 from googleapiclient import discovery
 
-from scripts.dv360._common.auth import _read_secret
+from scripts._common.secrets import read_secret
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 SECRET_NAME = "DV360_OPS_WRITER_SA_KEY"
@@ -73,7 +73,7 @@ def _parse_int(v: str | None) -> int | None:
 
 
 def read_sheet(spreadsheet_id: str) -> dict:
-    sa_json = _read_secret(GCP_PROJECT, SECRET_NAME)
+    sa_json = read_secret(GCP_PROJECT, SECRET_NAME)
     creds = sa.Credentials.from_service_account_info(
         json.loads(sa_json), scopes=SCOPES
     )

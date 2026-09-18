@@ -14,9 +14,10 @@ from __future__ import annotations
 import json
 import os
 
-from google.cloud import secretmanager
 from google.oauth2 import service_account
 import googleapiclient.discovery as discovery
+
+from scripts._common.secrets import read_secret
 
 WRITER_SA = "llyc-ops-writer-sa"
 CORE_PROJECT = "llyc-ai-first-core"
@@ -26,14 +27,6 @@ SCOPES = [
     "https://www.googleapis.com/auth/display-video",
     "https://www.googleapis.com/auth/display-video-mediaplanning",
 ]
-
-
-def _read_secret(project_id: str, secret_name: str) -> str:
-    """Lee un secret de GCP Secret Manager."""
-    client = secretmanager.SecretManagerServiceClient()
-    name = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
-    response = client.access_secret_version(request={"name": name})
-    return response.payload.data.decode("utf-8")
 
 
 def build_writer_service(client_id: str | None = None) -> Any:
@@ -46,7 +39,7 @@ def build_writer_service(client_id: str | None = None) -> Any:
     Args:
         client_id: ID del cliente (para trazabilidad en logs). No cambia las credenciales.
     """
-    sa_json = _read_secret(CORE_PROJECT, SECRET_NAME)
+    sa_json = read_secret(CORE_PROJECT, SECRET_NAME)
 
     creds = service_account.Credentials.from_service_account_info(
         json.loads(sa_json), scopes=SCOPES
